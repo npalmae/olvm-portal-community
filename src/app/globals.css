@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --background: #05070c;
+  --surface: #0b1321;
+  --muted: #0f1c2f;
+  --foreground: #e6f0ff;
+  --accent: #3ad4ad;
+  --accent-strong: #7ce3ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: radial-gradient(circle at 15% 20%, #142033, transparent 35%),
+    radial-gradient(circle at 80% 0%, #12306b, transparent 30%),
+    radial-gradient(circle at 50% 80%, #0e3c2f, transparent 30%),
+    #05070c;
+  color: var(--foreground);
+  font-family: var(--font-display), "Space Grotesk", system-ui, -apple-system,
+    sans-serif;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
