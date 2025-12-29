@@ -138,6 +138,18 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!tenants.length) return;
+    const firstTenantId = tenants[0]?.id;
+    const selectedIsInvalid =
+      !selectedTenant ||
+      selectedTenant === "undefined" ||
+      !tenants.some((t) => t.id === selectedTenant);
+    if (selectedIsInvalid && firstTenantId) {
+      setSelectedTenant(firstTenantId);
+    }
+  }, [selectedTenant, tenants]);
+
+  useEffect(() => {
     if (!selectedTenant || selectedTenant === "undefined") return;
     const loadVms = async () => {
       setLoading(true);
@@ -178,7 +190,7 @@ export default function Home() {
   };
 
   const runAction = async (vmId: string, action: string) => {
-    if (!selectedTenant) return;
+    if (!selectedTenant || selectedTenant === "undefined") return;
     setActionLoading(`${vmId}-${action}`);
     setError(null);
     setSuccess(null);
@@ -203,7 +215,7 @@ export default function Home() {
   };
 
   const updateResources = async (vmId: string) => {
-    if (!selectedTenant) return;
+    if (!selectedTenant || selectedTenant === "undefined") return;
     const draft = resourceDrafts[vmId];
     if (!draft?.memoryMB && !draft?.cpuCores) {
       setError("Ingresa memoria y/o CPU para actualizar.");
@@ -234,7 +246,7 @@ export default function Home() {
   };
 
   const handleNewVm = async () => {
-    if (!selectedTenant) return;
+    if (!selectedTenant || selectedTenant === "undefined") return;
     if (!newVm.name || !newVm.clusterId) {
       setError("Nombre y Cluster ID son obligatorios");
       return;
