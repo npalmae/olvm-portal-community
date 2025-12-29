@@ -90,7 +90,6 @@ const buildHeaders = (tenant: TenantConfig, headers?: HeadersInit) => {
     Accept: "application/json",
     "Content-Type": "application/json",
     Authorization: authHeader,
-    Filter: "true",
     ...headers,
   };
 };
