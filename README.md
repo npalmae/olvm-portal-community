@@ -10,3 +10,7 @@ npm run dev
 ```
 
 Configura los tenants OLVM en `.env.local` siguiendo el ejemplo de `.env.example`.
+
+---
+
+Propietario: Nicolás Palma
