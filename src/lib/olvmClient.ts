@@ -103,13 +103,20 @@ const olvmFetch = async (
     ? path
     : `${tenant.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  const response = await fetch(url, {
-    ...init,
-    cache: "no-store",
-    headers: buildHeaders(tenant, init?.headers),
-    // @ts-expect-error `agent` is supported in the node runtime
-    agent: getAgent(tenant),
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      cache: "no-store",
+      headers: buildHeaders(tenant, init?.headers),
+      // @ts-expect-error `agent` is supported in the node runtime
+      agent: getAgent(tenant),
+    });
+  } catch (error) {
+    throw new Error(
+      `No se pudo conectar con OLVM (${tenant.baseUrl}): ${(error as Error).message}`,
+    );
+  }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -221,7 +228,7 @@ export const fetchVmById = async (
   return normalizeVm(data);
 };
 
-const ALLOWED_ACTIONS = [
+export const ALLOWED_ACTIONS = [
   "start",
   "stop",
   "shutdown",
@@ -231,12 +238,15 @@ const ALLOWED_ACTIONS = [
   "deactivate",
 ];
 
+export const isSupportedAction = (action: string) =>
+  ALLOWED_ACTIONS.includes(action);
+
 export const sendVmAction = async (
   tenantId: string,
   vmId: string,
   action: string,
 ) => {
-  if (!ALLOWED_ACTIONS.includes(action)) {
+  if (!isSupportedAction(action)) {
     throw new Error(`Unsupported VM action: ${action}`);
   }
   const tenant = getTenantById(tenantId);

@@ -34,16 +34,29 @@ const loadCa = (filePath?: string) => {
 
 const parseTenantsFromEnv = (): TenantConfig[] => {
   if (process.env.OLVM_TENANTS) {
+    const raw = process.env.OLVM_TENANTS;
+    let parsed: unknown;
+
     try {
-      const parsed = JSON.parse(process.env.OLVM_TENANTS) as TenantConfig[];
-      return parsed.map((tenant) => ({
-        ...tenant,
-        baseUrl: sanitizeBaseUrl(tenant.baseUrl),
-        caCert: loadCa(tenant.caFile),
-      }));
+      parsed = JSON.parse(raw);
     } catch {
-      throw new Error("OLVM_TENANTS is not valid JSON");
+      // Tolerate bash-exported values without JSON quotes (e.g. [{id:foo,...}])
+      try {
+        parsed = Function(`"use strict"; return (${raw});`)();
+      } catch {
+        throw new Error("OLVM_TENANTS is not valid JSON");
+      }
     }
+
+    if (!Array.isArray(parsed)) {
+      throw new Error("OLVM_TENANTS must be an array");
+    }
+
+    return (parsed as TenantConfig[]).map((tenant) => ({
+      ...tenant,
+      baseUrl: sanitizeBaseUrl(tenant.baseUrl),
+      caCert: loadCa(tenant.caFile),
+    }));
   }
 
   const baseUrl = process.env.OLVM_BASE_URL;
@@ -73,10 +86,23 @@ const tenantsCache = parseTenantsFromEnv();
 
 export const getTenants = () => tenantsCache;
 
-export const getTenantById = (tenantId: string) => {
-  const tenant = tenantsCache.find((t) => t.id === tenantId);
-  if (!tenant) {
-    throw new Error(`Tenant ${tenantId} not found. Check OLVM_TENANTS`);
+export const resolveTenant = (tenantId?: string): TenantConfig => {
+  const sanitized =
+    tenantId && tenantId !== "undefined" ? tenantId.trim() : undefined;
+
+  if (sanitized) {
+    const tenant = tenantsCache.find((t) => t.id === sanitized);
+    if (!tenant) {
+      throw new Error(`Tenant ${sanitized} not found. Check OLVM_TENANTS`);
+    }
+    return tenant;
   }
-  return tenant;
+
+  if (tenantsCache.length === 1) {
+    return tenantsCache[0];
+  }
+
+  throw new Error("Tenant id is required when multiple tenants are configured");
 };
+
+export const getTenantById = (tenantId: string) => resolveTenant(tenantId);

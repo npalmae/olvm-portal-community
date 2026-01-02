@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sendVmAction } from "@/lib/olvmClient";
+import { isSupportedAction, sendVmAction } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +9,9 @@ type Params = {
 
 export async function POST(request: Request, { params }: Params) {
   try {
+    const { tenantId, vmId } = params;
     const body = await request.json();
-    const action = body?.action;
+    const action = typeof body?.action === "string" ? body.action : "";
     if (!action) {
       return NextResponse.json(
         { error: "Action is required" },
@@ -18,12 +19,20 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    await sendVmAction(params.tenantId, params.vmId, action);
+    if (!isSupportedAction(action)) {
+      return NextResponse.json(
+        { error: `Unsupported action ${action}` },
+        { status: 400 },
+      );
+    }
+
+    await sendVmAction(tenantId, vmId, action);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 500 },
-    );
+    const message = (error as Error).message;
+    const lower = message.toLowerCase();
+    const status =
+      lower.includes("tenant") || lower.includes("unsupported") ? 400 : 502;
+    return NextResponse.json({ error: message }, { status });
   }
 }

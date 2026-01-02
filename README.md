@@ -11,6 +11,12 @@ npm run dev
 
 Configura los tenants OLVM en `.env.local` siguiendo el ejemplo de `.env.example`.
 
+### Configuración de tenants
+- Usa `OLVM_TENANTS` como arreglo JSON; si solo hay un tenant puedes usar las variables `OLVM_BASE_URL/USERNAME/PASSWORD` como fallback.
+- Reinicia `npm run dev` si modificas `.env.local`; de lo contrario el servidor puede no ver los cambios y verás errores tipo `Tenant undefined not found`.
+- Si hay un único tenant configurado, las rutas API lo usarán como fallback cuando el `tenantId` llegue vacío; con múltiples tenants el `tenantId` es obligatorio.
+- Si exportas las variables con `source .env.local`, envuelve `OLVM_TENANTS` en comillas simples (`OLVM_TENANTS='[{"id":"..."}]'`) para conservar el JSON válido.
+
 ---
 
 Propietario: Nicolás Palma

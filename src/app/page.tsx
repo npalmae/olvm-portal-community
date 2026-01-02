@@ -425,8 +425,8 @@ export default function Home() {
                         </span>
                       </div>
                       <p className="text-xs text-white/60">
-                        Cluster: {vm.cluster ?? "N/D"} · Host: {vm.host ?? "N/D"} ·
-                        Template: {vm.template ?? "N/D"}
+                        ID: {vm.id} · Cluster: {vm.cluster ?? "N/D"} · Host:{" "}
+                        {vm.host ?? "N/D"} · Template: {vm.template ?? "N/D"}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
