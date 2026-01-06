@@ -1,4 +1,5 @@
 import https from "https";
+import { Agent as UndiciAgent } from "undici";
 import { getTenantById, type TenantConfig } from "./config";
 
 type RawValue = {
@@ -56,24 +57,24 @@ export type VmSummary = {
 
 type OlvmFetchInit = RequestInit & { allowInsecure?: boolean };
 
-const agentCache = new Map<string, https.Agent>();
+const dispatcherCache = new Map<string, UndiciAgent>();
 
-const getAgent = (tenant: TenantConfig) => {
-  if (agentCache.has(tenant.id)) return agentCache.get(tenant.id);
+// Use undici dispatcher to honor custom CA and allowInsecure; node's global fetch
+// ignores the legacy `agent` option for custom TLS, so we manage per-tenant
+// dispatchers here.
+const getDispatcher = (tenant: TenantConfig) => {
+  if (dispatcherCache.has(tenant.id)) return dispatcherCache.get(tenant.id);
 
-  if (tenant.allowInsecure) {
-    const agent = new https.Agent({ rejectUnauthorized: false });
-    agentCache.set(tenant.id, agent);
-    return agent;
-  }
+  const dispatcher = new UndiciAgent({
+    connect: tenant.allowInsecure
+      ? { rejectUnauthorized: false }
+      : tenant.caCert
+        ? { ca: tenant.caCert.toString() }
+        : undefined,
+  });
 
-  if (tenant.caCert) {
-    const agent = new https.Agent({ ca: tenant.caCert });
-    agentCache.set(tenant.id, agent);
-    return agent;
-  }
-
-  return undefined;
+  dispatcherCache.set(tenant.id, dispatcher);
+  return dispatcher;
 };
 
 const buildHeaders = (tenant: TenantConfig, headers?: HeadersInit) => {
@@ -109,8 +110,7 @@ const olvmFetch = async (
       ...init,
       cache: "no-store",
       headers: buildHeaders(tenant, init?.headers),
-      // @ts-expect-error `agent` is supported in the node runtime
-      agent: getAgent(tenant),
+      dispatcher: getDispatcher(tenant),
     });
   } catch (error) {
     throw new Error(
@@ -200,9 +200,19 @@ const normalizeVm = (vm: RawVm): VmSummary => {
   };
 };
 
+const withJsonFormat = (path: string) => {
+  const hasQuery = path.includes("?");
+  const hasFormat = /[?&]format=/i.test(path);
+  if (hasFormat) return path;
+  return `${path}${hasQuery ? "&" : "?"}format=json`;
+};
+
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
-  const data = (await olvmFetch(tenant, "/vms?all_content=true")) as unknown;
+  const data = (await olvmFetch(
+    tenant,
+    withJsonFormat("/vms?all_content=true"),
+  )) as unknown;
   const root =
     data && typeof data === "object" && !Array.isArray(data) ? data : null;
   const vmsField = root && "vms" in root ? (root as { vms?: unknown }).vms : null;
@@ -223,7 +233,7 @@ export const fetchVmById = async (
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
     tenant,
-    `/vms/${vmId}?all_content=true`,
+    withJsonFormat(`/vms/${vmId}?all_content=true`),
   )) as RawVm;
   return normalizeVm(data);
 };
