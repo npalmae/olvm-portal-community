@@ -27,6 +27,7 @@ npm test       # pruebas unitarias (Vitest)
 
 ## Historial de cambios
 - Última actualización: 2026-01-06
+- 63e7bc4 – Fix: fuerza formato JSON y usa undici dispatcher para TLS/CA
 - 26d460e – Add operational notes and update README
 - bc42acc – Improve OLVM error handling and add tests
 - 2dd1a4b – fix: avoid OLVM Filter header to show all VMs
