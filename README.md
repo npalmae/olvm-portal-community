@@ -25,6 +25,17 @@ npm run lint   # linting con ESLint
 npm test       # pruebas unitarias (Vitest)
 ```
 
+## Historial de cambios
+- Última actualización: 2026-01-06
+- 26d460e – Add operational notes and update README
+- bc42acc – Improve OLVM error handling and add tests
+- 2dd1a4b – fix: avoid OLVM Filter header to show all VMs
+- d965ec8 – fix: guard invalid tenant selection
+- ac03436 – docs: add ownership signature to readme
+- d10e9f3 – chore: initial commit
+- c937203 – Initial commit
+- Revisa `CHANGELOG.md` para ver y actualizar este registro cuando se sincronicen commits nuevos desde GitHub.
+
 ---
 
 Propietario: Nicolás Palma
