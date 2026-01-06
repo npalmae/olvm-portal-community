@@ -215,6 +215,9 @@ export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   )) as unknown;
   const root =
     data && typeof data === "object" && !Array.isArray(data) ? data : null;
+  if (root && "vm" in root && Array.isArray((root as { vm?: unknown }).vm)) {
+    return ((root as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
+  }
   const vmsField = root && "vms" in root ? (root as { vms?: unknown }).vms : null;
   if (Array.isArray(vmsField)) {
     return (vmsField as RawVm[]).map(normalizeVm);

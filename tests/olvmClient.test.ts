@@ -40,38 +40,34 @@ afterEach(() => {
 
 describe("olvmClient", () => {
   it("normalizes VM list and metrics", async () => {
-    const payload = {
-      vms: {
-        vm: [
+    const vmPayload = {
+      id: "1",
+      name: "vm-1",
+      status: { state: "up" },
+      cluster: { name: "cluster-a" },
+      template: { id: "tpl-1" },
+      host: { name: "host-1" },
+      memory: 4096 * 1024 * 1024,
+      cpu: { topology: { cores: 2, sockets: 1 } },
+      statistics: {
+        statistic: [
+          { name: "cpu.current.guest", values: { value: [{ datum: 12.5 }] } },
+          { name: "memory.usage", values: { value: [{ datum: 66 }] } },
+          { name: "disk.read.bytes", values: { value: [{ datum: 1024 }] } },
+          { name: "disk.write.bytes", values: { value: [{ datum: 2048 }] } },
           {
-            id: "1",
-            name: "vm-1",
-            status: { state: "up" },
-            cluster: { name: "cluster-a" },
-            template: { id: "tpl-1" },
-            host: { name: "host-1" },
-            memory: 4096 * 1024 * 1024,
-            cpu: { topology: { cores: 2, sockets: 1 } },
-            statistics: {
-              statistic: [
-                { name: "cpu.current.guest", values: { value: [{ datum: 12.5 }] } },
-                { name: "memory.usage", values: { value: [{ datum: 66 }] } },
-                { name: "disk.read.bytes", values: { value: [{ datum: 1024 }] } },
-                { name: "disk.write.bytes", values: { value: [{ datum: 2048 }] } },
-                {
-                  name: "net.received.bytes",
-                  values: { value: [{ datum: 500 }] },
-                },
-                {
-                  name: "net.transmitted.bytes",
-                  values: { value: [{ datum: 700 }] },
-                },
-              ],
-            },
+            name: "net.received.bytes",
+            values: { value: [{ datum: 500 }] },
+          },
+          {
+            name: "net.transmitted.bytes",
+            values: { value: [{ datum: 700 }] },
           },
         ],
       },
     };
+    // Simulate format=json returning root.vm[]
+    const payload = { vm: [vmPayload] };
 
     const fetchSpy = mockFetch(payload);
     global.fetch = fetchSpy as unknown as typeof fetch;
