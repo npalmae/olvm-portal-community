@@ -43,6 +43,23 @@ type NewVmDraft = {
   comment: string;
 };
 
+const clampPercent = (value?: number) => {
+  if (value === undefined || Number.isNaN(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+};
+
+const UsageBar = ({ value }: { value?: number }) => {
+  const width = `${clampPercent(value)}%`;
+  return (
+    <div className="mt-2 h-2 rounded-full bg-white/10">
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-emerald-400/80 via-sky-400/80 to-amber-300/80 shadow-[0_0_0_2px_rgba(255,255,255,0.04)] transition-all"
+        style={{ width }}
+      />
+    </div>
+  );
+};
+
 const parseJsonSafe = async (res: Response) => {
   const text = await res.text();
   try {
@@ -468,6 +485,7 @@ export default function Home() {
                       <p className="text-lg font-semibold text-white">
                         {formatNumber(vm.metrics?.cpuPercent)}%
                       </p>
+                      <UsageBar value={vm.metrics?.cpuPercent} />
                       <p className="text-xs text-white/50">
                         Topología: {vm.cpuCores ?? "?"} vCPU · {vm.sockets ?? 1} socket
                       </p>
@@ -477,6 +495,7 @@ export default function Home() {
                       <p className="text-lg font-semibold text-white">
                         {toGB(vm.memoryMB)}
                       </p>
+                      <UsageBar value={vm.metrics?.memoryPercent} />
                       <p className="text-xs text-white/50">
                         Uso: {formatNumber(vm.metrics?.memoryPercent)}%
                       </p>
@@ -492,6 +511,13 @@ export default function Home() {
                           notation: "compact",
                         })}
                       </p>
+                      <UsageBar
+                        value={
+                          vm.metrics?.diskReadBytes || vm.metrics?.diskWriteBytes
+                            ? 100
+                            : 0
+                        }
+                      />
                       <p className="text-xs text-white/50">bytes/seg (última muestra)</p>
                     </div>
                     <div className="rounded-xl border border-white/5 bg-black/10 p-3">
@@ -501,6 +527,7 @@ export default function Home() {
                           notation: "compact",
                         })}
                       </p>
+                      <UsageBar value={vm.metrics?.networkBytes ? 100 : 0} />
                       <p className="text-xs text-white/50">bytes combinados</p>
                     </div>
                   </div>
