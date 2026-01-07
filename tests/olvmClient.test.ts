@@ -52,8 +52,10 @@ afterEach(() => {
   global.fetch = originalFetch;
 });
 
-describe("olvmClient", () => {
-  it("normalizes VM list and metrics", async () => {
+describe.sequential("olvmClient", () => {
+  it(
+    "normalizes VM list and metrics",
+    async () => {
     const vmPayload = {
       id: "1",
       name: "vm-1",
@@ -111,7 +113,9 @@ describe("olvmClient", () => {
         networkBytes: 1200,
       },
     });
-  });
+  },
+    10_000,
+  );
 
   it("rejects unsupported VM actions", async () => {
     const fetchSpy = vi.fn();

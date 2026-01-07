@@ -43,6 +43,15 @@ type NewVmDraft = {
   comment: string;
 };
 
+const parseJsonSafe = async (res: Response) => {
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return text ? { error: text } : null;
+  }
+};
+
 const statusBadge = (status: string) => {
   const normalized = status?.toLowerCase?.() ?? "unknown";
   const base =
@@ -117,7 +126,7 @@ export default function Home() {
     const loadTenants = async () => {
       try {
         const res = await fetch("/api/tenants");
-        const data = await res.json();
+        const data = await parseJsonSafe(res);
         if (!res.ok) {
           throw new Error(data?.error ?? "No se pudieron cargar los tenants");
         }
@@ -156,7 +165,7 @@ export default function Home() {
       setError(null);
       try {
         const res = await fetch(`/api/tenants/${selectedTenant}/vms`);
-        const data = await res.json();
+        const data = await parseJsonSafe(res);
         if (!res.ok) throw new Error(data.error ?? "Error cargando VMs");
         setVms(data);
       } catch (err) {
@@ -179,7 +188,7 @@ export default function Home() {
     setError(null);
     try {
       const res = await fetch(`/api/tenants/${selectedTenant}/vms`);
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "Error cargando VMs");
       setVms(data);
     } catch (err) {
@@ -203,7 +212,7 @@ export default function Home() {
           body: JSON.stringify({ action }),
         },
       );
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "Error ejecutando acción");
       setSuccess(`Acción ${action} enviada`);
       await refresh();
@@ -234,7 +243,7 @@ export default function Home() {
           sockets: draft.sockets ? Number(draft.sockets) : undefined,
         }),
       });
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "No se pudo actualizar");
       setSuccess("Recursos actualizados");
       await refresh();
@@ -268,7 +277,7 @@ export default function Home() {
           comment: newVm.comment || undefined,
         }),
       });
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "No se pudo crear la VM");
       setSuccess("VM creada (el aprovisionamiento puede tardar)");
       setNewVm({
