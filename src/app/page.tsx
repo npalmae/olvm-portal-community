@@ -165,16 +165,6 @@ export default function Home() {
     }, 8000);
     return () => clearTimeout(t);
   }, [error, success]);
-  const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
-
-  useEffect(() => {
-    if (!error && !success) return;
-    const t = setTimeout(() => {
-      setError(null);
-      setSuccess(null);
-    }, 8000);
-    return () => clearTimeout(t);
-  }, [error, success]);
 
   useEffect(() => {
     const loadTenants = async () => {
