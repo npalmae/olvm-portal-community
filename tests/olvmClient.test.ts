@@ -93,7 +93,7 @@ describe.sequential("olvmClient", () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0][0]).toBe(
-      "https://olvm.example/api/vms?all_content=true&format=json",
+      "https://olvm.example/api/vms?all_content=true&follow=statistics&format=json",
     );
     expect(vms[0]).toMatchObject({
       id: "1",

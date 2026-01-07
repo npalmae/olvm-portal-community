@@ -183,11 +183,14 @@ const mapStatistics = (
     lookup("cpu.current.guest") ??
     lookup("cpu_usage") ??
     lookup("cpu.current.total") ??
-    lookup("cpu.usage");
+    lookup("cpu.usage") ??
+    lookup("usage.cpu");
   const memoryPercent =
     lookup("memory.usage") ??
     lookup("memory_usage") ??
-    lookup("usage.memory");
+    lookup("usage.memory") ??
+    lookup("memory.utilization") ??
+    lookup("usage.memory.percent");
   const diskReadBytes = lookup("disk.read.bytes");
   const diskWriteBytes = lookup("disk.write.bytes");
   const networkBytes =
@@ -242,7 +245,7 @@ export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
     tenant,
-    withJsonFormat("/vms?all_content=true"),
+    withJsonFormat("/vms?all_content=true&follow=statistics"),
   )) as unknown;
   const root =
     data && typeof data === "object" && !Array.isArray(data) ? data : null;
@@ -267,7 +270,7 @@ export const fetchVmById = async (
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
     tenant,
-    withJsonFormat(`/vms/${vmId}?all_content=true`),
+    withJsonFormat(`/vms/${vmId}?all_content=true&follow=statistics`),
   )) as RawVm;
   return normalizeVm(data);
 };
