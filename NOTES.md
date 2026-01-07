@@ -16,6 +16,9 @@
 - Exposición de acciones soportadas en el cliente OLVM.
 - Pruebas unitarias para `config` y `olvmClient`.
 - README actualizado con scripts y notas de conexión.
+- Manejo robusto de respuestas no-JSON desde OLVM (acciones Start/Stop devuelven XML).
+- Rutas API dinámicas ahora esperan/await `params` (Next.js) para evitar 502 por Promise.
+- Cliente OLVM usa `undici` con CA/allowInsecure por tenant y agrega `format=json` a listas.
 
 ## Próximos pasos sugeridos
 - Propagar mensajes de error detallados hasta la UI (mostrar baseUrl/causas).
