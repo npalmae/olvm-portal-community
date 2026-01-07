@@ -13,8 +13,9 @@ const asPositiveNumber = (value: unknown) => {
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const resolvedParams = await Promise.resolve(params);
   try {
-    const { tenantId, vmId } = params;
+    const { tenantId, vmId } = resolvedParams;
     const vm = await fetchVmById(tenantId, vmId);
     return NextResponse.json(vm);
   } catch (error) {
@@ -27,8 +28,9 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
+  const resolvedParams = await Promise.resolve(params);
   try {
-    const { tenantId, vmId } = params;
+    const { tenantId, vmId } = resolvedParams;
     const body = await request.json();
     const memoryMB = asPositiveNumber(body?.memoryMB);
     const cpuCores = asPositiveNumber(body?.cpuCores);

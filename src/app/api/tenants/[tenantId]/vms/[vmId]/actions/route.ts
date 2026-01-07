@@ -8,8 +8,9 @@ type Params = {
 };
 
 export async function POST(request: Request, { params }: Params) {
+  const resolvedParams = await Promise.resolve(params);
   try {
-    const { tenantId, vmId } = params;
+    const { tenantId, vmId } = resolvedParams;
     const body = await request.json();
     const action = typeof body?.action === "string" ? body.action : "";
     if (!action) {

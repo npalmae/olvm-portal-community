@@ -16,8 +16,9 @@ const asPositiveNumber = (value: unknown) => {
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const resolvedParams = await Promise.resolve(params);
   try {
-    const { tenantId } = params;
+    const { tenantId } = resolvedParams;
     const vms = await fetchVms(tenantId);
     return NextResponse.json(vms);
   } catch (error) {
