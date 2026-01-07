@@ -188,6 +188,7 @@ const mapStatistics = (
   const memoryPercent =
     lookup("memory.usage") ??
     lookup("memory_usage") ??
+    lookup("memory.used.percent") ??
     lookup("usage.memory") ??
     lookup("memory.utilization") ??
     lookup("usage.memory.percent");
