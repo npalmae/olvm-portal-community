@@ -2,7 +2,8 @@
 
 Registro manual de avances recientes. Se actualiza al revisar commits nuevos en GitHub.
 
-- Última actualización: 2026-01-06
+- Última actualización: 2026-01-07
+- 0405b82 – Fix: await params promise en rutas API dinámicas (acciones/VMs)
 - 228ae3d – Fix: parse API respuestas no-JSON en el cliente y serializar tests OLVM
 - 63e7bc4 – Fix: fuerza formato JSON y usa undici dispatcher para TLS/CA
 
