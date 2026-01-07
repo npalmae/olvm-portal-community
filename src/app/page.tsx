@@ -79,6 +79,11 @@ const UsageBar = ({ value }: { value?: number }) => {
 
 const parseJsonSafe = async (res: Response) => {
   const text = await res.text();
+  const trimmed = text.trim();
+  const looksHtml = trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html");
+  if (looksHtml) {
+    return { error: "Respuesta inesperada del servidor (HTML/404)" };
+  }
   try {
     return text ? JSON.parse(text) : null;
   } catch {
