@@ -49,12 +49,18 @@ const clampPercent = (value?: number) => {
 };
 
 const UsageBar = ({ value }: { value?: number }) => {
-  const width = `${clampPercent(value)}%`;
+  const percent = clampPercent(value);
+  const isMissing = value === undefined || Number.isNaN(value);
+  const width =
+    value === undefined || Number.isNaN(value)
+      ? "8%"
+      : `${Math.max(4, percent)}%`;
   return (
-    <div className="mt-2 h-2 rounded-full bg-white/10">
+    <div className="mt-2 h-2 rounded-full border border-white/5 bg-white/10">
       <div
         className="h-full rounded-full bg-gradient-to-r from-emerald-400/80 via-sky-400/80 to-amber-300/80 shadow-[0_0_0_2px_rgba(255,255,255,0.04)] transition-all"
-        style={{ width }}
+        style={{ width, opacity: isMissing ? 0.35 : 1 }}
+        aria-label={isMissing ? "Sin datos" : `${percent}%`}
       />
     </div>
   );
