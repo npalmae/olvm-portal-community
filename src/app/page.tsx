@@ -165,6 +165,16 @@ export default function Home() {
     }, 8000);
     return () => clearTimeout(t);
   }, [error, success]);
+  const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
+
+  useEffect(() => {
+    if (!error && !success) return;
+    const t = setTimeout(() => {
+      setError(null);
+      setSuccess(null);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [error, success]);
 
   useEffect(() => {
     const loadTenants = async () => {
@@ -310,6 +320,21 @@ export default function Home() {
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "No se pudo actualizar");
       setSuccess("Recursos actualizados");
+      setActionHistory((prev) => [
+        {
+          vmId,
+          action: `update resources (${[
+            draft.memoryMB ? `RAM ${draft.memoryMB}MB` : "",
+            draft.cpuCores ? `vCPU ${draft.cpuCores}` : "",
+            draft.sockets ? `sockets ${draft.sockets}` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")})`,
+          status: "ok",
+          timestamp: Date.now(),
+        },
+        ...prev.slice(0, 2),
+      ]);
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -344,6 +369,15 @@ export default function Home() {
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "No se pudo crear la VM");
       setSuccess("VM creada (el aprovisionamiento puede tardar)");
+      setActionHistory((prev) => [
+        {
+          vmId: data?.id ?? newVm.name,
+          action: "create VM",
+          status: "ok",
+          timestamp: Date.now(),
+        },
+        ...prev.slice(0, 2),
+      ]);
       setNewVm({
         name: "",
         clusterId: "",
