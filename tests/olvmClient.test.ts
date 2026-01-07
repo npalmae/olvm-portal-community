@@ -16,11 +16,19 @@ const buildTenantEnv = () => ({
   ]),
 });
 
-const mockFetch = (payload: unknown, status = 200) =>
+const mockFetch = (
+  payload: unknown,
+  status = 200,
+  contentType = "application/json",
+) =>
   vi.fn(async () => ({
     ok: status >= 200 && status < 300,
     status,
     statusText: status === 200 ? "OK" : "Error",
+    headers: {
+      get: (key: string) =>
+        key.toLowerCase() === "content-type" ? contentType : null,
+    },
     text: async () => (payload === null ? "" : JSON.stringify(payload)),
   }));
 

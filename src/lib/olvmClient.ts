@@ -129,10 +129,28 @@ const olvmFetch = async (
 
   const text = await response.text();
   if (!text) return null;
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  const isJson = contentType.includes("application/json");
+  const isXmlOrHtml =
+    contentType.includes("xml") || contentType.includes("html");
+
+  if (isJson) {
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      throw new Error(`Failed to parse OLVM response: ${(error as Error).message}`);
+    }
+  }
+
+  if (isXmlOrHtml) {
+    // Some OLVM actions respond with XML/HTML; upstream callers may ignore the body.
+    return text;
+  }
+
   try {
     return JSON.parse(text);
-  } catch (error) {
-    throw new Error(`Failed to parse OLVM response: ${(error as Error).message}`);
+  } catch {
+    return text;
   }
 };
 
