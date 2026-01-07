@@ -43,6 +43,14 @@ type NewVmDraft = {
   comment: string;
 };
 
+type ActionLog = {
+  vmId: string;
+  action: string;
+  status: "pending" | "ok" | "error";
+  timestamp: number;
+  message?: string;
+};
+
 const clampPercent = (value?: number) => {
   if (value === undefined || Number.isNaN(value)) return 0;
   return Math.max(0, Math.min(100, value));
@@ -56,12 +64,15 @@ const UsageBar = ({ value }: { value?: number }) => {
       ? "8%"
       : `${Math.max(4, percent)}%`;
   return (
-    <div className="mt-2 h-2 rounded-full border border-white/5 bg-white/10">
+    <div className="mt-2 h-2 rounded-full border border-white/5 bg-white/10 relative">
       <div
         className="h-full rounded-full bg-gradient-to-r from-emerald-400/80 via-sky-400/80 to-amber-300/80 shadow-[0_0_0_2px_rgba(255,255,255,0.04)] transition-all"
         style={{ width, opacity: isMissing ? 0.35 : 1 }}
         aria-label={isMissing ? "Sin datos" : `${percent}%`}
       />
+      <span className="absolute inset-y-0 right-2 flex items-center text-[10px] font-semibold text-white/80 drop-shadow">
+        {isMissing ? "—" : `${percent.toFixed(0)}%`}
+      </span>
     </div>
   );
 };
@@ -144,6 +155,16 @@ export default function Home() {
     sockets: "1",
     comment: "",
   });
+  const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
+
+  useEffect(() => {
+    if (!error && !success) return;
+    const t = setTimeout(() => {
+      setError(null);
+      setSuccess(null);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [error, success]);
 
   useEffect(() => {
     const loadTenants = async () => {
@@ -226,6 +247,11 @@ export default function Home() {
     setActionLoading(`${vmId}-${action}`);
     setError(null);
     setSuccess(null);
+    const startedAt = Date.now();
+    setActionHistory((prev) => [
+      { vmId, action, status: "pending", timestamp: startedAt },
+      ...prev.slice(0, 2),
+    ]);
     try {
       const res = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/actions`,
@@ -238,9 +264,24 @@ export default function Home() {
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data.error ?? "Error ejecutando acción");
       setSuccess(`Acción ${action} enviada`);
+      setActionHistory((prev) =>
+        prev.map((entry) =>
+          entry.vmId === vmId && entry.timestamp === startedAt
+            ? { ...entry, status: "ok", message: data?.error }
+            : entry,
+        ),
+      );
       await refresh();
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      setActionHistory((prev) =>
+        prev.map((entry) =>
+          entry.vmId === vmId && entry.timestamp === startedAt
+            ? { ...entry, status: "error", message }
+            : entry,
+        ),
+      );
     } finally {
       setActionLoading(null);
     }
@@ -399,7 +440,37 @@ export default function Home() {
         )}
         {success && (
           <div className="mt-6 rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-50">
-            {success}
+        {success}
+      </div>
+    )}
+        {actionHistory.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/80">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60">
+              Acciones recientes
+            </p>
+            <ul className="mt-2 space-y-1">
+              {actionHistory.map((entry) => (
+                <li key={`${entry.vmId}-${entry.timestamp}`} className="flex items-center justify-between gap-3">
+                  <span>
+                    {entry.action} · {entry.vmId}
+                  </span>
+                  <span className="text-white/60">
+                    {new Date(entry.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span
+                    className={
+                      entry.status === "ok"
+                        ? "text-emerald-200"
+                        : entry.status === "pending"
+                          ? "text-amber-200"
+                          : "text-red-200"
+                    }
+                  >
+                    {entry.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
