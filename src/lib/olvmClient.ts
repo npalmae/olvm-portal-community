@@ -179,8 +179,15 @@ const mapStatistics = (
     return stat ? pickStatisticValue(stat) : undefined;
   };
 
-  const cpuPercent = lookup("cpu.current.guest") ?? lookup("cpu_usage");
-  const memoryPercent = lookup("memory.usage") ?? lookup("memory_usage");
+  const cpuPercent =
+    lookup("cpu.current.guest") ??
+    lookup("cpu_usage") ??
+    lookup("cpu.current.total") ??
+    lookup("cpu.usage");
+  const memoryPercent =
+    lookup("memory.usage") ??
+    lookup("memory_usage") ??
+    lookup("usage.memory");
   const diskReadBytes = lookup("disk.read.bytes");
   const diskWriteBytes = lookup("disk.write.bytes");
   const networkBytes =
@@ -200,6 +207,15 @@ const normalizeVm = (vm: RawVm): VmSummary => {
   const sockets = Number(cpuTopology.sockets ?? cpuTopology["@sockets"]);
   const cores = Number(cpuTopology.cores ?? cpuTopology["@cores"]);
   const threads = Number(cpuTopology.threads ?? cpuTopology["@threads"]);
+  const vcpuCount = Number(
+    (cpuTopology as { vcpu?: { "@count"?: number; count?: number } })?.vcpu?.[
+      "@count"
+    ] ??
+      (cpuTopology as { vcpu?: { "@count"?: number; count?: number } })?.vcpu
+        ?.count ??
+      (cpuTopology as { vcpu?: number })?.vcpu,
+  );
+  const totalCores = (cores || 1) * (sockets || 1) * (threads || 1);
 
   return {
     id: vm.id ?? vm.uuid ?? vm.name,
@@ -209,10 +225,7 @@ const normalizeVm = (vm: RawVm): VmSummary => {
     template: vm.template?.name ?? vm.template?.id,
     host: vm.host?.name ?? vm.host?.id,
     memoryMB: vm.memory ? Math.round(Number(vm.memory) / 1024 / 1024) : undefined,
-    cpuCores:
-      threads && sockets
-        ? threads * sockets
-        : cores || cpuTopology?.vcpu?.["@count"] || undefined,
+    cpuCores: vcpuCount || (cores || sockets || threads ? totalCores : undefined),
     sockets,
     metrics: mapStatistics(vm.statistics),
   };
