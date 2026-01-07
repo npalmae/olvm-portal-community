@@ -4,7 +4,7 @@ import { createVm, fetchVms } from "@/lib/olvmClient";
 export const dynamic = "force-dynamic";
 
 type Params = {
-  params: { tenantId: string };
+  params: Promise<{ tenantId: string }>;
 };
 
 const asString = (value: unknown) =>
@@ -15,10 +15,9 @@ const asPositiveNumber = (value: unknown) => {
   return Number.isFinite(num) && num > 0 ? num : undefined;
 };
 
-export async function GET(_: Request, { params }: Params) {
-  const resolvedParams = await Promise.resolve(params);
+export async function GET(_: Request, context: Params) {
+  const { tenantId } = await context.params;
   try {
-    const { tenantId } = resolvedParams;
     const vms = await fetchVms(tenantId);
     return NextResponse.json(vms);
   } catch (error) {
@@ -30,9 +29,9 @@ export async function GET(_: Request, { params }: Params) {
   }
 }
 
-export async function POST(request: Request, { params }: Params) {
+export async function POST(request: Request, context: Params) {
   try {
-    const { tenantId } = params;
+    const { tenantId } = await context.params;
     const body = await request.json();
     const name = asString(body?.name);
     const clusterId = asString(body?.clusterId);

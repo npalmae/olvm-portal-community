@@ -4,13 +4,12 @@ import { isSupportedAction, sendVmAction } from "@/lib/olvmClient";
 export const dynamic = "force-dynamic";
 
 type Params = {
-  params: { tenantId: string; vmId: string };
+  params: Promise<{ tenantId: string; vmId: string }>;
 };
 
-export async function POST(request: Request, { params }: Params) {
-  const resolvedParams = await Promise.resolve(params);
+export async function POST(request: Request, context: Params) {
+  const { tenantId, vmId } = await context.params;
   try {
-    const { tenantId, vmId } = resolvedParams;
     const body = await request.json();
     const action = typeof body?.action === "string" ? body.action : "";
     if (!action) {

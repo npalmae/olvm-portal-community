@@ -4,7 +4,7 @@ import { fetchVmById, updateVmResources } from "@/lib/olvmClient";
 export const dynamic = "force-dynamic";
 
 type Params = {
-  params: { tenantId: string; vmId: string };
+  params: Promise<{ tenantId: string; vmId: string }>;
 };
 
 const asPositiveNumber = (value: unknown) => {
@@ -12,10 +12,9 @@ const asPositiveNumber = (value: unknown) => {
   return Number.isFinite(num) && num > 0 ? num : undefined;
 };
 
-export async function GET(_: Request, { params }: Params) {
-  const resolvedParams = await Promise.resolve(params);
+export async function GET(_: Request, context: Params) {
+  const { tenantId, vmId } = await context.params;
   try {
-    const { tenantId, vmId } = resolvedParams;
     const vm = await fetchVmById(tenantId, vmId);
     return NextResponse.json(vm);
   } catch (error) {
@@ -27,10 +26,9 @@ export async function GET(_: Request, { params }: Params) {
   }
 }
 
-export async function PATCH(request: Request, { params }: Params) {
-  const resolvedParams = await Promise.resolve(params);
+export async function PATCH(request: Request, context: Params) {
+  const { tenantId, vmId } = await context.params;
   try {
-    const { tenantId, vmId } = resolvedParams;
     const body = await request.json();
     const memoryMB = asPositiveNumber(body?.memoryMB);
     const cpuCores = asPositiveNumber(body?.cpuCores);
