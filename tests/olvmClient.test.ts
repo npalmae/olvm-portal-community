@@ -3,6 +3,8 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
 
+import { sampleXmlAction } from "./__mocks__/xmlActionResponse";
+
 const buildTenantEnv = () => ({
   ...originalEnv,
   OLVM_TENANTS: JSON.stringify([
@@ -29,7 +31,11 @@ const mockFetch = (
       get: (key: string) =>
         key.toLowerCase() === "content-type" ? contentType : null,
     },
-    text: async () => (payload === null ? "" : JSON.stringify(payload)),
+    text: async () => {
+      if (payload === null) return "";
+      if (contentType.includes("xml")) return payload as string;
+      return JSON.stringify(payload);
+    },
   }));
 
 const loadClient = async () => {
@@ -119,7 +125,7 @@ describe("olvmClient", () => {
   });
 
   it("sends supported VM action with POST", async () => {
-    const fetchSpy = mockFetch(null);
+    const fetchSpy = mockFetch(sampleXmlAction, 200, "application/xml");
     global.fetch = fetchSpy as unknown as typeof fetch;
     const { sendVmAction } = await loadClient();
 
