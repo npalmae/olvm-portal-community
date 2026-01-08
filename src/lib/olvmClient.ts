@@ -34,6 +34,14 @@ type RawVm = {
   statistics?: { statistic?: RawStatistic[] } | RawStatistic[];
 };
 
+type RawConsole = {
+  id?: string;
+  protocol?: string;
+  address?: string;
+  port?: number | string;
+  tls_port?: number | string;
+};
+
 export type VmMetric = {
   cpuPercent?: number;
   memoryPercent?: number;
@@ -260,6 +268,42 @@ const withJsonFormat = (path: string) => {
   return `${path}${hasQuery ? "&" : "?"}format=json`;
 };
 
+const parseGraphicsConsoles = (data: unknown): RawConsole[] => {
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  if (!root) return [];
+  const direct = root.graphics_console ?? root.console ?? root.graphics_console_list;
+  const consoles =
+    Array.isArray(direct) && direct.length > 0
+      ? (direct as RawConsole[])
+      : Array.isArray(root.graphics_consoles)
+        ? (root.graphics_consoles as RawConsole[])
+        : Array.isArray((root.graphics_consoles as { graphics_console?: RawConsole[] })?.graphics_console)
+          ? ((root.graphics_consoles as { graphics_console?: RawConsole[] }).graphics_console ??
+            [])
+          : Array.isArray((root as { graphics_console?: RawConsole[] }).graphics_console)
+            ? ((root as { graphics_console?: RawConsole[] }).graphics_console ?? [])
+            : [];
+  return consoles;
+};
+
+const pickConsole = (
+  consoles: RawConsole[],
+  preferred: "spice" | "vnc" = "spice",
+): RawConsole | undefined => {
+  const normalized = consoles
+    .map((c) => ({
+      id: c.id ?? "",
+      protocol: (c.protocol ?? "").toString().toLowerCase(),
+      address: c.address,
+      port: c.port,
+      tls_port: c.tls_port,
+    }))
+    .filter((c) => c.id && c.protocol);
+
+  const preferredConsole = normalized.find((c) => c.protocol === preferred);
+  return preferredConsole ?? normalized[0];
+};
+
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
@@ -292,6 +336,49 @@ export const fetchVmById = async (
     withJsonFormat(`/vms/${vmId}?all_content=true&follow=statistics`),
   )) as RawVm;
   return normalizeVm(data);
+};
+
+export const fetchVmConsoleFile = async (
+  tenantId: string,
+  vmId: string,
+  protocol: "spice" | "vnc" = "spice",
+): Promise<string> => {
+  const tenant = getTenantById(tenantId);
+  const consolesResponse = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/graphicsconsoles`),
+  );
+  const consoles = parseGraphicsConsoles(consolesResponse);
+  const selected = pickConsole(consoles, protocol);
+
+  if (!selected?.id) {
+    throw new Error("La VM no tiene consolas de gráficos disponibles (SPICE/VNC).");
+  }
+
+  const consoleProtocol = (selected.protocol ?? protocol).toLowerCase();
+  const path = `/vms/${vmId}/graphicsconsoles/${selected.id}/remoteviewer`;
+
+  const fetchConsole = async (method: "POST" | "GET") =>
+    olvmFetch(tenant, path, {
+      method,
+      headers: { Accept: "application/x-virt-viewer" },
+    });
+
+  try {
+    const content = await fetchConsole("POST");
+    if (typeof content === "string") return content;
+  } catch {
+    // ignore and try GET fallback
+  }
+
+  const fallback = await fetchConsole("GET");
+  if (typeof fallback !== "string") {
+    throw new Error(
+      "No se pudo obtener el archivo de consola. Verifica permisos en OLVM.",
+    );
+  }
+
+  return fallback.replace("##PROTOCOL##", consoleProtocol);
 };
 
 export const ALLOWED_ACTIONS = [

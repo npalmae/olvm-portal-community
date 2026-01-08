@@ -147,6 +147,38 @@ describe.sequential("olvmClient", () => {
     10_000,
   );
 
+  it("downloads console file using remoteviewer endpoint", async () => {
+    const consolesPayload = {
+      graphics_consoles: {
+        graphics_console: [{ id: "c1", protocol: "spice" }],
+      },
+    };
+    const vvFile = "[virt-viewer]\ntype=spice\nhost=127.0.0.1\n";
+
+    const fetchSpy = vi.fn();
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consolesPayload),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/x-virt-viewer" },
+      text: async () => vvFile,
+    }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const { fetchVmConsoleFile } = await loadClient();
+    const content = await fetchVmConsoleFile("t1", "vm-1");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toContain("/vms/vm-1/graphicsconsoles");
+    expect(fetchSpy.mock.calls[1][0]).toContain("/remoteviewer");
+    expect(content).toBe(vvFile);
+  });
+
   it("rejects unsupported VM actions", async () => {
     const fetchSpy = vi.fn();
     global.fetch = fetchSpy as unknown as typeof fetch;

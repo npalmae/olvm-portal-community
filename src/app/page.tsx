@@ -146,6 +146,7 @@ export default function Home() {
   const [vms, setVms] = useState<Vm[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [consoleLoading, setConsoleLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>(
@@ -289,6 +290,36 @@ export default function Home() {
       );
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const downloadConsole = async (vmId: string, protocol: "spice" | "vnc" = "spice") => {
+    if (!selectedTenant || selectedTenant === "undefined") return;
+    setConsoleLoading(vmId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(
+        `/api/tenants/${selectedTenant}/vms/${vmId}/console?protocol=${protocol}`,
+      );
+      if (!res.ok) {
+        const data = await parseJsonSafe(res);
+        throw new Error(data?.error ?? "No se pudo obtener la consola");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${vmId}-${protocol}.vv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setSuccess("Consola descargada. Ábrela con remote-viewer (Spice/VNC).");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setConsoleLoading(null);
     }
   };
 
@@ -581,6 +612,11 @@ export default function Home() {
                         label="Reboot"
                         onClick={() => runAction(vm.id, "reboot")}
                         loading={actionLoading === `${vm.id}-reboot`}
+                      />
+                      <ActionButton
+                        label="Consola"
+                        onClick={() => downloadConsole(vm.id)}
+                        loading={consoleLoading === vm.id}
                       />
                     </div>
                   </div>
