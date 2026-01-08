@@ -165,6 +165,7 @@ const pickStatisticValue = (stat: RawStatistic) => {
 
 const mapStatistics = (
   statistics?: { statistic?: RawStatistic[] } | RawStatistic[],
+  totalMemoryBytes?: number,
 ): VmMetric => {
   const statsArray = Array.isArray((statistics as { statistic?: RawStatistic[] })?.statistic)
     ? (statistics as { statistic?: RawStatistic[] }).statistic ?? []
@@ -185,13 +186,27 @@ const mapStatistics = (
     lookup("cpu.current.total") ??
     lookup("cpu.usage") ??
     lookup("usage.cpu");
-  const memoryPercent =
+  const memoryPercentStat =
     lookup("memory.usage") ??
     lookup("memory_usage") ??
     lookup("memory.used.percent") ??
     lookup("usage.memory") ??
     lookup("memory.utilization") ??
     lookup("usage.memory.percent");
+  const memoryUsed =
+    lookup("memory.used") ?? lookup("memory.used.bytes") ?? lookup("used.memory");
+
+  let memoryPercent = memoryPercentStat;
+  if (!memoryPercent && memoryUsed && totalMemoryBytes) {
+    let usedBytes = memoryUsed;
+    let percent = (usedBytes / totalMemoryBytes) * 100;
+    if (percent < 0.5 && memoryUsed < 10_000) {
+      // Some deployments expose memory.used en MB; if ratio es casi cero, reintenta en bytes.
+      usedBytes = memoryUsed * 1024 * 1024;
+      percent = (usedBytes / totalMemoryBytes) * 100;
+    }
+    memoryPercent = Math.min(100, Math.max(0, percent));
+  }
   const diskReadBytes = lookup("disk.read.bytes");
   const diskWriteBytes = lookup("disk.write.bytes");
   const networkBytes =
@@ -231,7 +246,10 @@ const normalizeVm = (vm: RawVm): VmSummary => {
     memoryMB: vm.memory ? Math.round(Number(vm.memory) / 1024 / 1024) : undefined,
     cpuCores: vcpuCount || (cores || sockets || threads ? totalCores : undefined),
     sockets,
-    metrics: mapStatistics(vm.statistics),
+    metrics: mapStatistics(
+      vm.statistics,
+      vm.memory ? Number(vm.memory) : undefined,
+    ),
   };
 };
 

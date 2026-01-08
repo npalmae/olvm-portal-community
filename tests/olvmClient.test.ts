@@ -117,6 +117,36 @@ describe.sequential("olvmClient", () => {
     10_000,
   );
 
+  it(
+    "derives memory percent from memory.used when percent is absent",
+    async () => {
+      const vmPayload = {
+        id: "2",
+        name: "vm-2",
+        status: { state: "up" },
+        memory: 4096 * 1024 * 1024,
+        statistics: {
+          statistic: [
+            { name: "cpu.current.guest", values: { value: [{ datum: 4 }] } },
+            {
+              name: "memory.used",
+              values: { value: [{ datum: 2147483648 }] }, // 2 GiB
+            },
+          ],
+        },
+      };
+      const payload = { vm: [vmPayload] };
+      const fetchSpy = mockFetch(payload);
+      global.fetch = fetchSpy as unknown as typeof fetch;
+
+      const { fetchVms } = await loadClient();
+      const vms = await fetchVms("t1");
+
+      expect(vms[0].metrics?.memoryPercent).toBeCloseTo(50, 1);
+    },
+    10_000,
+  );
+
   it("rejects unsupported VM actions", async () => {
     const fetchSpy = vi.fn();
     global.fetch = fetchSpy as unknown as typeof fetch;
