@@ -304,6 +304,17 @@ const pickConsole = (
   return preferredConsole ?? normalized[0];
 };
 
+const parseTicketValue = (payload: unknown): string | undefined => {
+  const root = payload && typeof payload === "object" ? (payload as Record<string, any>) : null;
+  if (!root) return undefined;
+  return (
+    root?.action?.ticket?.value ??
+    root?.ticket?.value ??
+    root?.value ??
+    (typeof root?.action?.ticket === "string" ? root.action.ticket : undefined)
+  );
+};
+
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
@@ -361,24 +372,67 @@ export const fetchVmConsoleFile = async (
   const fetchConsole = async (method: "POST" | "GET") =>
     olvmFetch(tenant, path, {
       method,
-      headers: { Accept: "application/x-virt-viewer" },
+      headers: {
+        Accept: "application/x-virt-viewer",
+        "Content-Type": "application/json",
+      },
     });
 
+  // Try native remoteviewer endpoint first
   try {
     const content = await fetchConsole("POST");
-    if (typeof content === "string") return content;
+    if (typeof content === "string") {
+      return content.replace("##PROTOCOL##", consoleProtocol);
+    }
   } catch {
-    // ignore and try GET fallback
+    // ignore and try GET fallback or manual ticket
   }
 
-  const fallback = await fetchConsole("GET");
-  if (typeof fallback !== "string") {
-    throw new Error(
-      "No se pudo obtener el archivo de consola. Verifica permisos en OLVM.",
-    );
+  try {
+    const fallback = await fetchConsole("GET");
+    if (typeof fallback === "string") {
+      return fallback.replace("##PROTOCOL##", consoleProtocol);
+    }
+  } catch {
+    // ignore and attempt manual ticket
   }
 
-  return fallback.replace("##PROTOCOL##", consoleProtocol);
+  // Manual ticket fallback
+  const consoleDetails = (await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/graphicsconsoles/${selected.id}`),
+  )) as RawConsole;
+
+  const ticketResponse = await olvmFetch(tenant, `/vms/${vmId}/graphicsconsoles/${selected.id}/ticket`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ action: { ticket: { expiry: 120 } } }),
+  });
+
+  const ticket = parseTicketValue(ticketResponse);
+  if (!ticket) {
+    throw new Error("No se pudo obtener ticket de consola desde OLVM.");
+  }
+
+  const host = consoleDetails?.address ?? "localhost";
+  const port = consoleDetails?.port ?? consoleDetails?.tls_port;
+  const tlsPort = consoleDetails?.tls_port;
+
+  const vv = [
+    "[virt-viewer]",
+    `type=${consoleProtocol}`,
+    `host=${host}`,
+    port ? `port=${port}` : null,
+    tlsPort ? `tls-port=${tlsPort}` : null,
+    `password=${ticket}`,
+    "disable-ticketing=0",
+    "fullscreen=0",
+    "delete-this-file=1",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `${vv}\n`;
 };
 
 export const ALLOWED_ACTIONS = [
