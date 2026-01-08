@@ -614,8 +614,8 @@ export default function Home() {
                         loading={actionLoading === `${vm.id}-reboot`}
                       />
                       <ActionButton
-                        label="Consola"
-                        onClick={() => downloadConsole(vm.id)}
+                        label="Consola (VNC)"
+                        onClick={() => downloadConsole(vm.id, "vnc")}
                         loading={consoleLoading === vm.id}
                       />
                     </div>

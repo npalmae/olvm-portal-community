@@ -14,7 +14,7 @@ export async function GET(request: Request, context: Params) {
   const protocol =
     protocolParam === "vnc" || protocolParam === "spice"
       ? (protocolParam as "spice" | "vnc")
-      : "spice";
+      : "vnc";
 
   try {
     const vv = await fetchVmConsoleFile(tenantId, vmId, protocol);
