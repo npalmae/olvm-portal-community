@@ -403,15 +403,34 @@ export const fetchVmConsoleFile = async (
     withJsonFormat(`/vms/${vmId}/graphicsconsoles/${selected.id}`),
   )) as RawConsole;
 
-  const ticketResponse = await olvmFetch(tenant, `/vms/${vmId}/graphicsconsoles/${selected.id}/ticket`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ action: { ticket: { expiry: 120 } } }),
-  });
+  const ticketPath = `/vms/${vmId}/graphicsconsoles/${selected.id}/ticket`;
+  const ticketPayloads = [
+    { action: { ticket: { expiry: 120 } } },
+    { ticket: { expiry: 120 } },
+    null,
+  ];
+
+  let ticketResponse: unknown;
+  let lastError: unknown;
+  for (const payload of ticketPayloads) {
+    try {
+      ticketResponse = await olvmFetch(tenant, ticketPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      lastError = undefined;
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
 
   const ticket = parseTicketValue(ticketResponse);
   if (!ticket) {
-    throw new Error("No se pudo obtener ticket de consola desde OLVM.");
+    throw new Error(
+      `No se pudo obtener ticket de consola desde OLVM.${lastError ? ` Detalle: ${(lastError as Error).message}` : ""}`,
+    );
   }
 
   const host = consoleDetails?.address ?? "localhost";
