@@ -63,6 +63,14 @@ export type VmSummary = {
   metrics?: VmMetric;
 };
 
+export type ConsoleInfo = {
+  protocol: string;
+  host?: string;
+  port?: number | string;
+  tlsPort?: number | string;
+  ticket?: string;
+};
+
 type OlvmFetchInit = RequestInit & { allowInsecure?: boolean };
 
 const dispatcherCache = new Map<string, UndiciAgent>();
@@ -315,6 +323,41 @@ const parseTicketValue = (payload: unknown): string | undefined => {
   );
 };
 
+const requestConsoleTicket = async (
+  tenant: TenantConfig,
+  vmId: string,
+  consoleId: string,
+) => {
+  const ticketPath = `/vms/${vmId}/graphicsconsoles/${consoleId}/ticket`;
+  const ticketPayloads = [
+    { action: { ticket: { expiry: 120 } } },
+    { ticket: { expiry: 120 } },
+    null,
+  ];
+
+  let lastError: unknown;
+  for (const payload of ticketPayloads) {
+    try {
+      const response = await olvmFetch(tenant, ticketPath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      const ticket = parseTicketValue(response);
+      if (ticket) return ticket;
+      lastError = new Error("Ticket vacío");
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  const detail = lastError ? ` Detalle: ${(lastError as Error).message}` : "";
+  throw new Error(`No se pudo obtener ticket de consola desde OLVM.${detail}`);
+};
+
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
@@ -403,35 +446,7 @@ export const fetchVmConsoleFile = async (
     withJsonFormat(`/vms/${vmId}/graphicsconsoles/${selected.id}`),
   )) as RawConsole;
 
-  const ticketPath = `/vms/${vmId}/graphicsconsoles/${selected.id}/ticket`;
-  const ticketPayloads = [
-    { action: { ticket: { expiry: 120 } } },
-    { ticket: { expiry: 120 } },
-    null,
-  ];
-
-  let ticketResponse: unknown;
-  let lastError: unknown;
-  for (const payload of ticketPayloads) {
-    try {
-      ticketResponse = await olvmFetch(tenant, ticketPath, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
-      lastError = undefined;
-      break;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  const ticket = parseTicketValue(ticketResponse);
-  if (!ticket) {
-    throw new Error(
-      `No se pudo obtener ticket de consola desde OLVM.${lastError ? ` Detalle: ${(lastError as Error).message}` : ""}`,
-    );
-  }
+  const ticket = await requestConsoleTicket(tenant, vmId, selected.id);
 
   const host = consoleDetails?.address ?? "localhost";
   const port = consoleDetails?.port ?? consoleDetails?.tls_port;
@@ -452,6 +467,39 @@ export const fetchVmConsoleFile = async (
     .join("\n");
 
   return `${vv}\n`;
+};
+
+export const fetchVmConsoleInfo = async (
+  tenantId: string,
+  vmId: string,
+  protocol: "spice" | "vnc" = "vnc",
+): Promise<ConsoleInfo> => {
+  const tenant = getTenantById(tenantId);
+  const consolesResponse = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/graphicsconsoles`),
+  );
+  const consoles = parseGraphicsConsoles(consolesResponse);
+  const selected = pickConsole(consoles, protocol);
+
+  if (!selected?.id) {
+    throw new Error("La VM no tiene consolas de gráficos disponibles (SPICE/VNC).");
+  }
+
+  const consoleDetails = (await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/graphicsconsoles/${selected.id}`),
+  )) as RawConsole;
+
+  const ticket = await requestConsoleTicket(tenant, vmId, selected.id);
+
+  return {
+    protocol: (selected.protocol ?? protocol).toLowerCase(),
+    host: consoleDetails?.address,
+    port: consoleDetails?.port,
+    tlsPort: consoleDetails?.tls_port,
+    ticket,
+  };
 };
 
 export const ALLOWED_ACTIONS = [

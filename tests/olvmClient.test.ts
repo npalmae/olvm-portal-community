@@ -179,6 +179,54 @@ describe.sequential("olvmClient", () => {
     expect(content).toBe(vvFile);
   });
 
+  it("returns console info with ticket fallback", async () => {
+    const consolesPayload = {
+      graphics_consoles: {
+        graphics_console: [{ id: "c2", protocol: "vnc" }],
+      },
+    };
+    const consoleDetails = {
+      id: "c2",
+      protocol: "vnc",
+      address: "10.0.0.1",
+      port: 5900,
+    };
+    const ticketPayload = { ticket: { value: "abc123" } };
+
+    const fetchSpy = vi.fn();
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consolesPayload),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consoleDetails),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(ticketPayload),
+    }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const { fetchVmConsoleInfo } = await loadClient();
+    const info = await fetchVmConsoleInfo("t1", "vm-1", "vnc");
+
+    expect(info).toMatchObject({
+      protocol: "vnc",
+      host: "10.0.0.1",
+      port: 5900,
+      ticket: "abc123",
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy.mock.calls[2][0]).toContain("/ticket");
+  });
+
   it("rejects unsupported VM actions", async () => {
     const fetchSpy = vi.fn();
     global.fetch = fetchSpy as unknown as typeof fetch;
