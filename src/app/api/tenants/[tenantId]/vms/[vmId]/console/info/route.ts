@@ -22,6 +22,24 @@ const buildWebsocketMeta = (baseUrl: string) => {
   }
 };
 
+const buildNovncUrl = (baseUrl: string, host?: string, port?: string | number, ticket?: string, title?: string) => {
+  if (!host || !port) return null;
+  try {
+    const engine = new URL(baseUrl);
+    engine.pathname = "/ovirt-engine/services/novnc-main.jsp";
+    engine.searchParams.set("host", host);
+    engine.searchParams.set("port", String(port));
+    engine.searchParams.set("title", title ?? "Console");
+    if (ticket) {
+      engine.searchParams.set("ticket", ticket);
+      engine.searchParams.set("password", ticket);
+    }
+    return engine.toString();
+  } catch {
+    return null;
+  }
+};
+
 export async function GET(request: Request, context: Params) {
   const { tenantId, vmId } = await context.params;
   const url = new URL(request.url);
@@ -35,9 +53,17 @@ export async function GET(request: Request, context: Params) {
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol);
     const tenant = getTenantById(tenantId);
     const ws = buildWebsocketMeta(tenant.baseUrl);
+    const novncUrl = buildNovncUrl(
+      tenant.baseUrl,
+      info.host,
+      info.tlsPort ?? info.port,
+      info.ticket,
+      `VM-${vmId}`,
+    );
     return NextResponse.json({
       ...info,
       websocket: ws,
+      novncUrl,
     });
   } catch (error) {
     const message = (error as Error).message;
