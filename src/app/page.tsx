@@ -323,6 +323,37 @@ export default function Home() {
     }
   };
 
+  const openConsoleWeb = async (vmId: string) => {
+    if (!selectedTenant || selectedTenant === "undefined") return;
+    setConsoleLoading(vmId);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(
+        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
+      );
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo obtener la consola web");
+      const novncUrl = data?.novncUrl as string | undefined;
+      if (novncUrl) {
+        window.open(novncUrl, "_blank", "noopener,noreferrer");
+        setSuccess("Consola abierta en nueva pestaña (noVNC).");
+        return;
+      }
+      if (data?.websocket?.wsUrl && data?.ticket && data?.host) {
+        const url = `${data.websocket.wsUrl}?host=${data.host}&port=${data.tlsPort ?? data.port ?? ""}&ticket=${data.ticket}`;
+        window.open(url, "_blank", "noopener,noreferrer");
+        setSuccess("Consola abierta usando proxy WebSocket.");
+        return;
+      }
+      throw new Error("Respuesta de consola incompleta (host/port/ticket faltan).");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setConsoleLoading(null);
+    }
+  };
+
   const updateResources = async (vmId: string) => {
     if (!selectedTenant || selectedTenant === "undefined") return;
     const draft = resourceDrafts[vmId];
@@ -616,6 +647,11 @@ export default function Home() {
                       <ActionButton
                         label="Consola (VNC)"
                         onClick={() => downloadConsole(vm.id, "vnc")}
+                        loading={consoleLoading === vm.id}
+                      />
+                      <ActionButton
+                        label="Consola web"
+                        onClick={() => openConsoleWeb(vm.id)}
                         loading={consoleLoading === vm.id}
                       />
                     </div>
