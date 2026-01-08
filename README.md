@@ -26,7 +26,17 @@ npm test       # pruebas unitarias (Vitest)
 ```
 
 ## Historial de cambios
-- Última actualización: 2026-01-07
+- Última actualización: 2026-01-08
+- 7c5b01d – fix: add memory.used.percent lookup for memory metrics
+- dc0c3de – fix: include statistics in VM requests and broaden metric lookups
+- 000d73c – ui: sanitize HTML responses in client error parsing
+- d665003 – fix: remove duplicate action history state causing build error
+- de4c5fc – ui: log resource updates and VM creations in recent actions
+- d5ce385 – fix: improve CPU topology calc and metric lookups
+- 09aa1ff – ui: add action log, auto-dismiss alerts, and visible usage bars
+- 8a8bcac – ui: make usage bars visible even without metrics
+- f68f16b – ui: add usage bars to VM metrics cards
+- 34feae9 – docs: update last update date in history
 - 0405b82 – Fix: await params promise en rutas API dinámicas (acciones/VMs)
 - 228ae3d – Fix: parse API respuestas no-JSON en el cliente y serializar tests OLVM
 - 63e7bc4 – Fix: fuerza formato JSON y usa undici dispatcher para TLS/CA
