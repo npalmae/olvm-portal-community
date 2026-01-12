@@ -1,7 +1,7 @@
 # olvm-portal
 Portal de administración multitenant para OLVM/oVirt construido con Next.js.
 
-## En esta sesión
+## En esta sesión (2026-01-12 10:31 -03)
 - Revisar la consola de las VMs: descarga de archivos `.vv` (Spice/VNC) y apertura web vía noVNC usando `/api/tenants/[id]/vms/[vmId]/console` y `/console/info`.
 
 ## Ejecutar en local
@@ -29,7 +29,7 @@ npm test       # pruebas unitarias (Vitest)
 ```
 
 ## Historial de cambios
-- Última actualización: 2026-01-08
+- Última actualización: 2026-01-12 10:31 -03
 - 7c5b01d – fix: add memory.used.percent lookup for memory metrics
 - dc0c3de – fix: include statistics in VM requests and broaden metric lookups
 - 000d73c – ui: sanitize HTML responses in client error parsing
