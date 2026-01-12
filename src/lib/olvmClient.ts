@@ -475,6 +475,13 @@ export const fetchVmConsoleInfo = async (
   protocol: "spice" | "vnc" = "vnc",
 ): Promise<ConsoleInfo> => {
   const tenant = getTenantById(tenantId);
+  const engineUrl = new URL(tenant.baseUrl);
+  const engineHost = engineUrl.hostname;
+  const defaultPort = engineUrl.port
+    ? Number(engineUrl.port)
+    : engineUrl.protocol === "https:"
+      ? 443
+      : 80;
   const consolesResponse = await olvmFetch(
     tenant,
     withJsonFormat(`/vms/${vmId}/graphicsconsoles`),
@@ -495,9 +502,12 @@ export const fetchVmConsoleInfo = async (
 
   return {
     protocol: (selected.protocol ?? protocol).toLowerCase(),
-    host: consoleDetails?.address,
-    port: consoleDetails?.port,
-    tlsPort: consoleDetails?.tls_port,
+    host: consoleDetails?.address ?? engineHost,
+    port:
+      consoleDetails?.tls_port ??
+      consoleDetails?.port ??
+      defaultPort,
+    tlsPort: consoleDetails?.tls_port ?? defaultPort,
     ticket,
   };
 };

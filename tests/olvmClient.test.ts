@@ -227,6 +227,47 @@ describe.sequential("olvmClient", () => {
     expect(fetchSpy.mock.calls[2][0]).toContain("/ticket");
   });
 
+  it("fills missing console host/port from engine URL", async () => {
+    const consolesPayload = {
+      graphics_consoles: {
+        graphics_console: [{ id: "c3", protocol: "vnc" }],
+      },
+    };
+    const consoleDetails = {
+      id: "c3",
+      protocol: "vnc",
+    };
+    const ticketPayload = { ticket: { value: "def456" } };
+
+    const fetchSpy = vi.fn();
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consolesPayload),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consoleDetails),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(ticketPayload),
+    }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const { fetchVmConsoleInfo } = await loadClient();
+    const info = await fetchVmConsoleInfo("t1", "vm-1", "vnc");
+
+    expect(info.host).toBe("olvm.example");
+    expect(info.tlsPort).toBe(443);
+    expect(info.ticket).toBe("def456");
+  });
+
   it("rejects unsupported VM actions", async () => {
     const fetchSpy = vi.fn();
     global.fetch = fetchSpy as unknown as typeof fetch;
