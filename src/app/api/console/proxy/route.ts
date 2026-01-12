@@ -5,6 +5,20 @@ import { ensureConsoleProxy } from "@/lib/wsProxy";
 
 export const dynamic = "force-dynamic";
 
+const buildWebsocketMeta = (baseUrl: string) => {
+  const wsPath = process.env.OLVM_WEBSOCKET_PATH ?? "/ovirt-engine/websockify";
+  try {
+    const url = new URL(baseUrl);
+    const protocol = url.protocol === "http:" ? "ws:" : "wss:";
+    const host = url.hostname;
+    const port = url.port ? `:${url.port}` : "";
+    const origin = `${protocol}//${host}${port}`;
+    return { wsUrl: `${origin}${wsPath}`, wsPath, engineHost: host };
+  } catch {
+    return { wsUrl: wsPath, wsPath, engineHost: undefined };
+  }
+};
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const tenantId = url.searchParams.get("tenantId") ?? "";
@@ -22,14 +36,16 @@ export async function GET(request: Request) {
   try {
     const tenant = getTenantById(tenantId);
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol);
-    if (!info.websocket?.wsUrl) {
+
+    const wsMeta = info.websocket ?? buildWebsocketMeta(tenant.baseUrl);
+    if (!wsMeta?.wsUrl) {
       return NextResponse.json(
         { error: "Falta wsUrl del engine para crear proxy" },
         { status: 502 },
       );
     }
 
-    const target = `${info.websocket.wsUrl}?host=${info.host}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket}`;
+    const target = `${wsMeta.wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`;
     const { port } = ensureConsoleProxy();
     const origin = new URL(request.url);
     const isSecure = origin.protocol === "https:";
