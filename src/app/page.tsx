@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RFB } from "@novnc/novnc";
+import { RFB } from "@novnc/novnc/lib/rfb.js";
 
 type Tenant = {
   id: string;
