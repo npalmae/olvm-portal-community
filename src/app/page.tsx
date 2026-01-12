@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RFB } from "@novnc/novnc/lib/rfb.js";
 
 type Tenant = {
   id: string;
@@ -982,6 +981,7 @@ export default function Home() {
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
     try {
+      const { RFB } = await import("@novnc/novnc/lib/rfb.js");
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
       );
