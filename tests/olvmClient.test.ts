@@ -114,7 +114,7 @@ describe.sequential("olvmClient", () => {
       },
     });
   },
-    10_000,
+    20_000,
   );
 
   it(

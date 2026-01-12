@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { RFB } from "@novnc/novnc";
 
 type Tenant = {
   id: string;
@@ -162,6 +163,19 @@ export default function Home() {
     comment: "",
   });
   const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
+  const [embeddedConsole, setEmbeddedConsole] = useState<{
+    vmId: string;
+    status: "idle" | "connecting" | "connected" | "error";
+    error?: string | null;
+    rfb?: RFB | null;
+  }>({ vmId: "", status: "idle", error: null, rfb: null });
+  const [useProxy, setUseProxy] = useState(true);
+  const consoleRef = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const div = document.createElement("div");
+    div.id = "embedded-console";
+    return div;
+  }, []);
 
   useEffect(() => {
     if (!error && !success) return;
@@ -654,6 +668,11 @@ export default function Home() {
                         onClick={() => openConsoleWeb(vm.id)}
                         loading={consoleLoading === vm.id}
                       />
+                      <ActionButton
+                        label="Consola embebida"
+                        onClick={() => openEmbeddedConsole(vm.id)}
+                        loading={consoleLoading === vm.id}
+                      />
                     </div>
                   </div>
 
@@ -900,6 +919,131 @@ export default function Home() {
           </aside>
         </div>
       </div>
+      {embeddedConsole.status !== "idle" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
+          <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-xl">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm uppercase tracking-wide text-white/50">
+                  Consola embebida
+                </p>
+                <p className="text-lg font-semibold text-white">
+                  VM {embeddedConsole.vmId}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-white/80">
+                  <input
+                    type="checkbox"
+                    checked={useProxy}
+                    onChange={(e) => setUseProxy(e.target.checked)}
+                    className="h-4 w-4 rounded border-white/30 bg-transparent"
+                  />
+                  Usar proxy WS local
+                </label>
+                <ActionButton label="Cerrar" onClick={closeEmbeddedConsole} loading={false} />
+              </div>
+            </div>
+            <div
+              className="relative h-[70vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
+              ref={(el) => {
+                if (el && consoleRef && !el.contains(consoleRef)) {
+                  el.appendChild(consoleRef);
+                }
+              }}
+            >
+              {embeddedConsole.status === "connecting" && (
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-white/70">
+                  Conectando consola…
+                </div>
+              )}
+              {embeddedConsole.status === "error" && (
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-red-200">
+                  {embeddedConsole.error ?? "Error de consola"}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+  const closeEmbeddedConsole = () => {
+    embeddedConsole.rfb?.disconnect();
+    setEmbeddedConsole({ vmId: "", status: "idle", error: null, rfb: null });
+    if (consoleRef && consoleRef.parentElement) {
+      consoleRef.replaceChildren();
+    }
+  };
+
+  const openEmbeddedConsole = async (vmId: string) => {
+    if (!selectedTenant || selectedTenant === "undefined" || !consoleRef) return;
+    setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
+    setConsoleLoading(vmId);
+    try {
+      const infoRes = await fetch(
+        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
+      );
+      const info = await parseJsonSafe(infoRes);
+      if (!infoRes.ok || info?.error) {
+        throw new Error(info?.error ?? "No se pudo obtener la consola");
+      }
+
+      let wsUrl: string;
+      if (useProxy) {
+        const proxyRes = await fetch(
+          `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc`,
+        );
+        const proxy = await parseJsonSafe(proxyRes);
+        if (!proxyRes.ok || proxy?.error || !proxy?.proxyWsUrl) {
+          throw new Error(
+            proxy?.error ?? "No se pudo preparar el proxy de consola",
+          );
+        }
+        wsUrl = proxy.proxyWsUrl;
+      } else if (info?.websocket?.wsUrl) {
+        const host = info.host ?? "";
+        const port = info.tlsPort ?? info.port ?? "";
+        wsUrl = `${info.websocket.wsUrl}?host=${host}&port=${port}&ticket=${info.ticket ?? ""}`;
+      } else if (info?.novncUrl) {
+        wsUrl = info.novncUrl;
+      } else {
+        throw new Error("No hay websocket de consola disponible");
+      }
+
+      consoleRef.replaceChildren();
+      const canvas = document.createElement("div");
+      canvas.id = "novnc-canvas";
+      canvas.className = "w-full h-full";
+      consoleRef.appendChild(canvas);
+
+      const rfb = new RFB(canvas, wsUrl, {
+        credentials: { password: info.ticket ?? "" },
+      });
+      rfb.viewOnly = false;
+      rfb.scaleViewport = true;
+      rfb.addEventListener("connect", () =>
+        setEmbeddedConsole((prev) => ({ ...prev, status: "connected" })),
+      );
+      rfb.addEventListener("disconnect", (evt) => {
+        setEmbeddedConsole((prev) => ({
+          ...prev,
+          status: "error",
+          error:
+            (evt.detail?.clean === false && "Conexión cerrada inesperadamente") ||
+            null,
+        }));
+      });
+      setEmbeddedConsole({ vmId, status: "connected", error: null, rfb });
+    } catch (err) {
+      setEmbeddedConsole({
+        vmId,
+        status: "error",
+        error: (err as Error).message,
+        rfb: null,
+      });
+    } finally {
+      setConsoleLoading(null);
+    }
+  };
