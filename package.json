@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NEXT_TURBOPACK=0 NEXT_WEBPACK_USE_LEGACY=1 next dev",
+    "dev": "cross-env NEXT_DISABLE_TURBOPACK=1 NEXT_WEBPACK_USE_LEGACY=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
