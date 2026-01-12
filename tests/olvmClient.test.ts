@@ -264,7 +264,7 @@ describe.sequential("olvmClient", () => {
     const info = await fetchVmConsoleInfo("t1", "vm-1", "vnc");
 
     expect(info.host).toBe("olvm.example");
-    expect(info.tlsPort).toBe(443);
+    expect(info.tlsPort).toBe(5900);
     expect(info.ticket).toBe("def456");
   });
 

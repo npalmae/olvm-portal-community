@@ -477,11 +477,7 @@ export const fetchVmConsoleInfo = async (
   const tenant = getTenantById(tenantId);
   const engineUrl = new URL(tenant.baseUrl);
   const engineHost = engineUrl.hostname;
-  const defaultPort = engineUrl.port
-    ? Number(engineUrl.port)
-    : engineUrl.protocol === "https:"
-      ? 443
-      : 80;
+  const defaultPort = 5900;
   const consolesResponse = await olvmFetch(
     tenant,
     withJsonFormat(`/vms/${vmId}/graphicsconsoles`),
