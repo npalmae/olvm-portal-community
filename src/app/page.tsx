@@ -485,7 +485,7 @@ export default function Home() {
     setConsoleLoading(vmId);
     try {
       const rfbModule = await import(
-        "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js"
+        /* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js"
       );
       const RFB = (rfbModule as { default?: typeof import("@novnc/novnc/lib/rfb.js").default }).default;
       if (!RFB) throw new Error("No se pudo cargar noVNC");
