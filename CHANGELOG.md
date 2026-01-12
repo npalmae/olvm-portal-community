@@ -2,7 +2,14 @@
 
 Registro manual de avances recientes. Se actualiza al revisar commits nuevos en GitHub.
 
-- Última actualización: 2026-01-08
+- Última actualización: 2026-01-12 10:31 -03
+- 6de7b6f – docs: anotar fecha y hora del último commit
+- 2aa09a2 – docs: registrar foco de sesión en consola
+- 46d31d6 – feat: open web console via novnc link
+- 6b7aa75 – feat: include novnc link in console info
+- 1a2660d – feat: expose console info endpoint for noVNC
+- 7c00c04 – fix: try plain ticket payload for console
+- beb4149 – chore: default console to vnc
 - 7c5b01d – fix: add memory.used.percent lookup for memory metrics
 - dc0c3de – fix: include statistics in VM requests and broaden metric lookups
 - 000d73c – ui: sanitize HTML responses in client error parsing
