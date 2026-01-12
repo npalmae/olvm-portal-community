@@ -484,7 +484,7 @@ export default function Home() {
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
     try {
-      const { RFB } = await import("@novnc/novnc/lib/rfb.js");
+      const { default: RFB } = await import("@novnc/novnc/lib/rfb.js");
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
       );
