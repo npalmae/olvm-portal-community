@@ -227,7 +227,7 @@ describe.sequential("olvmClient", () => {
     expect(fetchSpy.mock.calls[2][0]).toContain("/ticket");
   });
 
-  it("fills missing console host/port from engine URL", async () => {
+  it("fills missing console host/port from vv file", async () => {
     const consolesPayload = {
       graphics_consoles: {
         graphics_console: [{ id: "c3", protocol: "vnc" }],
@@ -238,6 +238,14 @@ describe.sequential("olvmClient", () => {
       protocol: "vnc",
     };
     const ticketPayload = { ticket: { value: "def456" } };
+    const vvFile = [
+      "[virt-viewer]",
+      "type=vnc",
+      "host=10.1.1.50",
+      "port=5901",
+      "tls-port=5902",
+      "password=def456",
+    ].join("\n");
 
     const fetchSpy = vi.fn();
     fetchSpy.mockImplementationOnce(async () => ({
@@ -258,14 +266,21 @@ describe.sequential("olvmClient", () => {
       headers: { get: () => "application/json" },
       text: async () => JSON.stringify(ticketPayload),
     }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/x-virt-viewer" },
+      text: async () => vvFile,
+    }));
     global.fetch = fetchSpy as unknown as typeof fetch;
 
     const { fetchVmConsoleInfo } = await loadClient();
     const info = await fetchVmConsoleInfo("t1", "vm-1", "vnc");
 
-    expect(info.host).toBe("olvm.example");
-    expect(info.tlsPort).toBe(5900);
+    expect(info.host).toBe("10.1.1.50");
+    expect(info.tlsPort).toBe(5902);
     expect(info.ticket).toBe("def456");
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 
   it("rejects unsupported VM actions", async () => {

@@ -358,6 +358,29 @@ const requestConsoleTicket = async (
   throw new Error(`No se pudo obtener ticket de consola desde OLVM.${detail}`);
 };
 
+const parseVirtViewerConnection = (
+  vvContent: string,
+): { host?: string; port?: number; tlsPort?: number; password?: string } => {
+  const lines = vvContent.split("\n").map((l) => l.trim());
+  const toNum = (v?: string) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const lookup = (key: string) =>
+    lines
+      .find((line) => line.toLowerCase().startsWith(`${key.toLowerCase()}=`))
+      ?.split("=")
+      ?.slice(1)
+      ?.join("=");
+
+  return {
+    host: lookup("host"),
+    port: toNum(lookup("port")),
+    tlsPort: toNum(lookup("tls-port")),
+    password: lookup("password"),
+  };
+};
+
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
   const data = (await olvmFetch(
@@ -494,16 +517,42 @@ export const fetchVmConsoleInfo = async (
     withJsonFormat(`/vms/${vmId}/graphicsconsoles/${selected.id}`),
   )) as RawConsole;
 
-  const ticket = await requestConsoleTicket(tenant, vmId, selected.id);
+  let ticket = await requestConsoleTicket(tenant, vmId, selected.id);
+
+  let host = consoleDetails?.address;
+  let port = consoleDetails?.tls_port ?? consoleDetails?.port;
+  let tlsPort = consoleDetails?.tls_port;
+
+  if (!host || !port) {
+    try {
+      const vvContent = await olvmFetch(
+        tenant,
+        `/vms/${vmId}/graphicsconsoles/${selected.id}/remoteviewer`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/x-virt-viewer",
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      if (typeof vvContent === "string") {
+        const parsed = parseVirtViewerConnection(vvContent);
+        host = host ?? parsed.host;
+        port = port ?? parsed.tlsPort ?? parsed.port;
+        tlsPort = tlsPort ?? parsed.tlsPort ?? parsed.port;
+        ticket = ticket ?? parsed.password ?? ticket;
+      }
+    } catch {
+      // ignore fallback errors
+    }
+  }
 
   return {
     protocol: (selected.protocol ?? protocol).toLowerCase(),
-    host: consoleDetails?.address ?? engineHost,
-    port:
-      consoleDetails?.tls_port ??
-      consoleDetails?.port ??
-      defaultPort,
-    tlsPort: consoleDetails?.tls_port ?? defaultPort,
+    host: host ?? engineHost,
+    port: port ?? defaultPort,
+    tlsPort: tlsPort ?? port ?? defaultPort,
     ticket,
   };
 };
