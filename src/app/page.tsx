@@ -484,9 +484,7 @@ export default function Home() {
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
     try {
-      const rfbModule = await import(
-        /* webpackIgnore: true */ "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js"
-      );
+      const rfbModule = await import("@novnc/novnc/lib/rfb.js");
       const RFB = (rfbModule as { default?: typeof import("@novnc/novnc/lib/rfb.js").default }).default;
       if (!RFB) throw new Error("No se pudo cargar noVNC");
       const infoRes = await fetch(
