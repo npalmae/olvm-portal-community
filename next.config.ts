@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
       ...(config.experiments || {}),
       topLevelAwait: true,
     };
+    config.module.rules.push({
+      test: /@novnc\/novnc\/lib\/.*\.js$/,
+      type: "javascript/auto",
+      parser: {
+        topLevelAwait: true,
+      },
+    });
     return config;
   },
 };
