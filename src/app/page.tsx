@@ -485,11 +485,24 @@ export default function Home() {
     setConsoleLoading(vmId);
     try {
       // Use dynamic eval import to avoid bundler parsing remote module.
-      const rfbModule = await (0, eval)(
-        `import("https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js")`,
-      );
-      const RFB = (rfbModule as { default?: any }).default;
-      if (!RFB) throw new Error("No se pudo cargar noVNC");
+      const loadNovnc = async () => {
+        const urls = [
+          "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js",
+          "https://unpkg.com/@novnc/novnc@1.6.0/core/rfb.js",
+        ];
+        for (const url of urls) {
+          try {
+            // eslint-disable-next-line no-eval
+            const mod = await (0, eval)(`import("${url}")`);
+            if (mod?.default) return mod.default;
+          } catch {
+            // try next url
+          }
+        }
+        throw new Error("No se pudo cargar noVNC desde CDNs");
+      };
+
+      const RFB = await loadNovnc();
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
       );
