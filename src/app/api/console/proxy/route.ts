@@ -57,17 +57,38 @@ export async function GET(request: Request) {
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol);
 
     const wsMeta = info.websocket ?? buildWebsocketCandidates(tenant.baseUrl);
-    if (!wsMeta?.wsUrls?.length) {
+
+    const candidateUrls: string[] = [];
+
+    if ((info as any)?.websocket?.wsUrl) {
+      const wsUrl = (info as any).websocket.wsUrl as string;
+      candidateUrls.push(
+        `${wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
+      );
+    }
+
+    if ((info as any)?.novncUrl) {
+      candidateUrls.push((info as any).novncUrl as string);
+    }
+
+    if (wsMeta?.wsUrls?.length) {
+      candidateUrls.push(
+        ...wsMeta.wsUrls.map(
+          (wsUrl) =>
+            `${wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
+        ),
+      );
+    }
+
+    const targets = Array.from(new Set(candidateUrls.filter(Boolean)));
+
+    if (targets.length === 0) {
       return NextResponse.json(
         { error: "Falta wsUrl del engine para crear proxy" },
         { status: 502 },
       );
     }
 
-    const targets = wsMeta.wsUrls.map(
-      (wsUrl) =>
-        `${wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
-    );
     const { port } = ensureConsoleProxy({
       ca: tenant.caCert,
       allowInsecure: tenant.allowInsecure,
