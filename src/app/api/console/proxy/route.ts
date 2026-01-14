@@ -51,7 +51,10 @@ export async function GET(request: Request) {
     }
 
     const target = `${wsMeta.wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`;
-    const { port } = ensureConsoleProxy();
+    const { port } = ensureConsoleProxy({
+      ca: tenant.caCert,
+      allowInsecure: tenant.allowInsecure,
+    });
     const origin = new URL(request.url);
     const isSecure = origin.protocol === "https:";
     const proxyUrl = `${isSecure ? "wss" : "ws"}://${origin.hostname}:${port}/?target=${encodeURIComponent(target)}&insecure=${tenant.allowInsecure ? "1" : "0"}`;

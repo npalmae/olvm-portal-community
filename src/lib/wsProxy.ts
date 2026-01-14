@@ -3,11 +3,21 @@ import { WebSocket, WebSocketServer } from "ws";
 
 let server: WebSocketServer | null = null;
 let proxyPort: number | null = null;
+let upstreamCa: Buffer | undefined;
+let allowInsecureDefault = false;
 
-export const ensureConsoleProxy = () => {
+type ProxyOptions = {
+  ca?: Buffer;
+  allowInsecure?: boolean;
+};
+
+export const ensureConsoleProxy = (options?: ProxyOptions) => {
   if (server) {
     return { port: proxyPort as number };
   }
+
+  upstreamCa = options?.ca;
+  allowInsecureDefault = options?.allowInsecure ?? false;
 
   const port = Number(process.env.CONSOLE_PROXY_PORT ?? 3010);
   const httpServer = http.createServer();
@@ -27,7 +37,8 @@ export const ensureConsoleProxy = () => {
     let upstream: WebSocket | null = null;
     try {
       upstream = new WebSocket(target, {
-        rejectUnauthorized: !insecure,
+        rejectUnauthorized: !(insecure || allowInsecureDefault),
+        ca: upstreamCa,
       });
     } catch (err) {
       client.close(1011, `Failed to connect upstream: ${(err as Error).message}`);
