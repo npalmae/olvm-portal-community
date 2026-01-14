@@ -51,8 +51,8 @@ type ActionLog = {
   message?: string;
 };
 
-type RfbCtor = typeof import("@novnc/novnc/core/rfb").default;
-type RfbInstance = InstanceType<RfbCtor>;
+type RfbCtor = any;
+type RfbInstance = any;
 
 const clampPercent = (value?: number) => {
   if (value === undefined || Number.isNaN(value)) return 0;
@@ -487,17 +487,22 @@ export default function Home() {
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
     try {
-      // Use dynamic eval import to avoid bundler parsing remote module.
-      const origin =
-        typeof window !== "undefined" && window.location.origin
-          ? window.location.origin
-          : "";
-      const localUrl = origin
-        ? `${origin}/novnc/rfb.js`
-        : "/novnc/rfb.js";
+      let RFB: RfbCtor | undefined;
+      try {
+        const mod = await import("@novnc/novnc/lib/rfb.js");
+        RFB = (mod as { default?: RfbCtor }).default;
+      } catch (err) {
+        console.warn("Fallo import local noVNC, probando CDN", err);
+      }
 
-      const mod = await (0, eval)(`import("${localUrl}")`);
-      const RFB = (mod as { default?: RfbCtor }).default as RfbCtor | undefined;
+      if (!RFB) {
+        const cdnUrl = "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js";
+        const cdn = await import(
+          /* webpackIgnore: true */ cdnUrl
+        );
+        RFB = (cdn as { default?: RfbCtor }).default;
+      }
+
       if (!RFB) throw new Error("No se pudo cargar noVNC");
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
