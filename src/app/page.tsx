@@ -51,6 +51,9 @@ type ActionLog = {
   message?: string;
 };
 
+type RfbCtor = typeof import("@novnc/novnc/core/rfb").default;
+type RfbInstance = InstanceType<RfbCtor>;
+
 const clampPercent = (value?: number) => {
   if (value === undefined || Number.isNaN(value)) return 0;
   return Math.max(0, Math.min(100, value));
@@ -166,7 +169,7 @@ export default function Home() {
     vmId: string;
     status: "idle" | "connecting" | "connected" | "error";
     error?: string | null;
-    rfb?: RFB | null;
+    rfb?: RfbInstance | null;
   }>({ vmId: "", status: "idle", error: null, rfb: null });
   const [useProxy, setUseProxy] = useState(true);
   const consoleRef = useMemo(() => {
@@ -493,9 +496,8 @@ export default function Home() {
         ? `${origin}/novnc/rfb.js`
         : "/novnc/rfb.js";
 
-      // eslint-disable-next-line no-eval
       const mod = await (0, eval)(`import("${localUrl}")`);
-      const RFB = (mod as { default?: any }).default;
+      const RFB = (mod as { default?: RfbCtor }).default as RfbCtor | undefined;
       if (!RFB) throw new Error("No se pudo cargar noVNC");
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
@@ -541,7 +543,7 @@ export default function Home() {
       rfb.addEventListener("connect", () =>
         setEmbeddedConsole((prev) => ({ ...prev, status: "connected" })),
       );
-      rfb.addEventListener("disconnect", (evt) => {
+      rfb.addEventListener("disconnect", (evt: any) => {
         setEmbeddedConsole((prev) => ({
           ...prev,
           status: "error",

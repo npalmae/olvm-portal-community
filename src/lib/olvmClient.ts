@@ -69,9 +69,13 @@ export type ConsoleInfo = {
   port?: number | string;
   tlsPort?: number | string;
   ticket?: string;
+  websocket?: { wsUrl?: string; wsPath?: string; engineHost?: string };
 };
 
-type OlvmFetchInit = RequestInit & { allowInsecure?: boolean };
+type OlvmFetchInit = RequestInit & {
+  allowInsecure?: boolean;
+  dispatcher?: UndiciAgent;
+};
 
 const dispatcherCache = new Map<string, UndiciAgent>();
 
@@ -122,12 +126,15 @@ const olvmFetch = async (
 
   let response: Response;
   try {
-    response = await fetch(url, {
-      ...init,
-      cache: "no-store",
-      headers: buildHeaders(tenant, init?.headers),
-      dispatcher: getDispatcher(tenant),
-    });
+    response = await fetch(
+      url,
+      {
+        ...init,
+        cache: "no-store",
+        headers: buildHeaders(tenant, init?.headers),
+        dispatcher: getDispatcher(tenant),
+      } as any,
+    );
   } catch (error) {
     throw new Error(
       `No se pudo conectar con OLVM (${tenant.baseUrl}): ${(error as Error).message}`,
@@ -239,9 +246,10 @@ const mapStatistics = (
 
 const normalizeVm = (vm: RawVm): VmSummary => {
   const cpuTopology = vm.cpu?.topology ?? {};
-  const sockets = Number(cpuTopology.sockets ?? cpuTopology["@sockets"]);
-  const cores = Number(cpuTopology.cores ?? cpuTopology["@cores"]);
-  const threads = Number(cpuTopology.threads ?? cpuTopology["@threads"]);
+  const topoAny = cpuTopology as Record<string, unknown>;
+  const sockets = Number(topoAny.sockets ?? topoAny["@sockets"]);
+  const cores = Number(topoAny.cores ?? topoAny["@cores"]);
+  const threads = Number(topoAny.threads ?? topoAny["@threads"]);
   const vcpuCount = Number(
     (cpuTopology as { vcpu?: { "@count"?: number; count?: number } })?.vcpu?.[
       "@count"
@@ -253,9 +261,12 @@ const normalizeVm = (vm: RawVm): VmSummary => {
   const totalCores = (cores || 1) * (sockets || 1) * (threads || 1);
 
   return {
-    id: vm.id ?? vm.uuid ?? vm.name,
+    id: vm.id ?? vm.uuid ?? vm.name ?? "",
     name: vm.name ?? "VM",
-    status: vm.status?.state ?? vm.status ?? "unknown",
+    status:
+      typeof vm.status === "string"
+        ? vm.status
+        : vm.status?.state ?? "unknown",
     cluster: vm.cluster?.name ?? vm.cluster?.id,
     template: vm.template?.name ?? vm.template?.id,
     host: vm.host?.name ?? vm.host?.id,

@@ -7,6 +7,9 @@
   --foreground: #e6f0ff;
   --accent: #3ad4ad;
   --accent-strong: #7ce3ff;
+  --font-display: "Space Grotesk", "Inter", "Segoe UI", system-ui, -apple-system,
+    sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", ui-monospace, "Menlo", monospace;
 }
 
 @theme inline {

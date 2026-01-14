@@ -37,7 +37,12 @@ export async function GET(request: Request) {
     const tenant = getTenantById(tenantId);
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol);
 
-    const wsMeta = info.websocket ?? buildWebsocketMeta(tenant.baseUrl);
+    const wsMeta = (info.websocket ??
+      buildWebsocketMeta(tenant.baseUrl)) as {
+      wsUrl?: string;
+      wsPath?: string;
+      engineHost?: string;
+    };
     if (!wsMeta?.wsUrl) {
       return NextResponse.json(
         { error: "Falta wsUrl del engine para crear proxy" },
