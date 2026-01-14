@@ -1,8 +1,8 @@
 # olvm-portal
 Portal de administración multitenant para OLVM/oVirt construido con Next.js.
 
-## En esta sesión (2026-01-12 10:31 -03)
-- Revisar la consola de las VMs: descarga de archivos `.vv` (Spice/VNC) y apertura web vía noVNC usando `/api/tenants/[id]/vms/[vmId]/console` y `/console/info`.
+## En esta sesión (2026-01-14 17:20 -03)
+- Consola noVNC y acciones de VM visibles en la UI; build ajustado para funcionar sin dependencias externas de fuentes ni fallos de lint.
 
 ## Ejecutar en local
 
