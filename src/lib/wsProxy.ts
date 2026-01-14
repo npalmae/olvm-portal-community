@@ -26,22 +26,17 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
 
   server.on("connection", (client, req) => {
     const url = new URL(req.url ?? "/", "ws://localhost");
-    const target = url.searchParams.get("target");
+    const targetsParam = url.searchParams.get("targets");
+    const targets = targetsParam
+      ? targetsParam.split("|").map((t) => decodeURIComponent(t)).filter(Boolean)
+      : [];
+    const targetSingle = url.searchParams.get("target");
+    if (targetSingle) targets.push(targetSingle);
+    const target = targets[0];
     const insecure = url.searchParams.get("insecure") === "1";
 
     if (!target) {
       client.close(1011, "Missing target");
-      return;
-    }
-
-    let upstream: WebSocket | null = null;
-    try {
-      upstream = new WebSocket(target, {
-        rejectUnauthorized: !(insecure || allowInsecureDefault),
-        ca: upstreamCa,
-      });
-    } catch (err) {
-      client.close(1011, `Failed to connect upstream: ${(err as Error).message}`);
       return;
     }
 
@@ -58,18 +53,42 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
       }
     };
 
-    upstream.on("open", () => {
-      client.on("message", (data) => upstream?.send(data));
-      client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
-      client.on("error", () => closeBoth(1011, "Client socket error"));
-      upstream?.on("message", (data) => client.send(data));
-      upstream?.on("close", (code, reason) => closeBoth(code, reason?.toString()));
-      upstream?.on("error", () => closeBoth(1011, "Upstream socket error"));
-    });
+    let upstream: WebSocket | null = null;
+    let currentIndex = 0;
 
-    upstream.on("error", (err) => {
-      closeBoth(1011, (err as Error).message);
-    });
+    const tryConnect = () => {
+      const currentTarget = targets[currentIndex];
+      if (!currentTarget) {
+        closeBoth(1011, "No upstream target available");
+        return;
+      }
+      try {
+        upstream = new WebSocket(currentTarget, {
+          rejectUnauthorized: !(insecure || allowInsecureDefault),
+          ca: upstreamCa,
+        });
+      } catch {
+        currentIndex += 1;
+        setTimeout(tryConnect, 10);
+        return;
+      }
+
+      upstream.on("open", () => {
+        client.on("message", (data) => upstream?.send(data));
+        client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
+        client.on("error", () => closeBoth(1011, "Client socket error"));
+        upstream?.on("message", (data) => client.send(data));
+        upstream?.on("close", (code, reason) => closeBoth(code, reason?.toString()));
+        upstream?.on("error", () => closeBoth(1011, "Upstream socket error"));
+      });
+
+      upstream.on("error", () => {
+        currentIndex += 1;
+        tryConnect();
+      });
+    };
+
+    tryConnect();
   });
 
   httpServer.listen(port, "0.0.0.0");
