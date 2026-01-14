@@ -6,7 +6,18 @@ import { ensureConsoleProxy } from "@/lib/wsProxy";
 export const dynamic = "force-dynamic";
 
 const buildWebsocketMeta = (baseUrl: string) => {
-  const wsPath = process.env.OLVM_WEBSOCKET_PATH ?? "/ovirt-engine/websockify";
+  const defaultPath = (() => {
+    if (process.env.OLVM_WEBSOCKET_PATH) return process.env.OLVM_WEBSOCKET_PATH;
+    try {
+      const u = new URL(baseUrl);
+      return u.pathname.includes("/ovirt-engine")
+        ? "/ovirt-engine/websockify"
+        : "/websockify";
+    } catch {
+      return "/websockify";
+    }
+  })();
+  const wsPath = defaultPath;
   try {
     const url = new URL(baseUrl);
     const protocol = url.protocol === "http:" ? "ws:" : "wss:";

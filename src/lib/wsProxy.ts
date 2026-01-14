@@ -66,6 +66,10 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
       upstream?.on("close", (code, reason) => closeBoth(code, reason?.toString()));
       upstream?.on("error", () => closeBoth(1011, "Upstream socket error"));
     });
+
+    upstream.on("error", (err) => {
+      closeBoth(1011, (err as Error).message);
+    });
   });
 
   httpServer.listen(port, "0.0.0.0");
