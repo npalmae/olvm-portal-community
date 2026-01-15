@@ -40,25 +40,30 @@ const buildWebsocketCandidates = (baseUrl: string) => {
 
   try {
     const url = new URL(baseUrl);
-    const protocol = url.protocol === "http:" ? "ws:" : "wss:";
+    const defaultProtocol = url.protocol === "http:" ? "ws:" : "wss:";
     const host = url.hostname;
     const basePort = url.port || undefined;
     const portCandidates = Array.from(
       new Set(
         [
           basePort,
-          protocol === "wss:" ? "443" : "80",
+          defaultProtocol === "wss:" ? "443" : "80",
           "6100",
           "6101",
         ].filter(Boolean),
       ),
     );
 
+    const protocols =
+      defaultProtocol === "wss:" ? ["wss:", "ws:"] : ["ws:", "wss:"];
+
     const wsUrls: string[] = [];
-    for (const p of paths) {
-      for (const pc of portCandidates) {
-        const portSuffix = pc ? `:${pc}` : "";
-        wsUrls.push(`${protocol}//${host}${portSuffix}${p}`);
+    for (const proto of protocols) {
+      for (const p of paths) {
+        for (const pc of portCandidates) {
+          const portSuffix = pc ? `:${pc}` : "";
+          wsUrls.push(`${proto}//${host}${portSuffix}${p}`);
+        }
       }
     }
     return { wsUrls, engineHost: host };
@@ -91,14 +96,7 @@ export async function GET(request: Request) {
 
     const rawWsUrl = (info as any)?.websocket?.wsUrl as string | undefined;
     if (rawWsUrl) {
-      const lower = rawWsUrl.toLowerCase();
-      const looksComplete =
-        lower.includes("ticket=") || lower.includes("host=") || lower.includes("port=");
-      candidateUrls.push(
-        looksComplete
-          ? rawWsUrl
-          : `${rawWsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
-      );
+      candidateUrls.push(rawWsUrl);
     }
 
     const novncUrl = (info as any)?.novncUrl as string | undefined;
@@ -107,17 +105,39 @@ export async function GET(request: Request) {
     }
 
     if (wsMeta?.wsUrls?.length) {
-      candidateUrls.push(
-        ...wsMeta.wsUrls.map(
-          (wsUrl) =>
-            `${wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
-        ),
-      );
+      candidateUrls.push(...wsMeta.wsUrls);
     }
 
-    const targets = Array.from(new Set(candidateUrls.filter(Boolean)));
+    const targets: string[] = [];
+    const hostParam = encodeURIComponent(info.host ?? wsMeta.engineHost ?? "");
+    const portParam = encodeURIComponent(
+      (info.tlsPort ?? info.port ?? "").toString(),
+    );
+    const ticketParam = encodeURIComponent(info.ticket ?? "");
+    const buildVariants = (base: string) => {
+      const hasQuery = base.includes("?");
+      const baseClean = base.replace(/\?$/, "");
+      targets.push(`${baseClean}${hasQuery ? "&" : "?"}ticket=${ticketParam}`);
+      targets.push(
+        `${baseClean}${hasQuery ? "&" : "?"}host=${hostParam}&port=${portParam}&ticket=${ticketParam}`,
+      );
+    };
 
-    if (targets.length === 0) {
+    for (const urlCandidate of candidateUrls.filter(Boolean)) {
+      const lower = urlCandidate.toLowerCase();
+      const looksComplete =
+        lower.startsWith("ws") &&
+        (lower.includes("ticket=") || lower.includes("host=") || lower.includes("port="));
+      if (looksComplete) {
+        targets.push(urlCandidate);
+      } else {
+        buildVariants(urlCandidate);
+      }
+    }
+
+    const uniqueTargets = Array.from(new Set(targets.filter(Boolean)));
+
+    if (uniqueTargets.length === 0) {
       return NextResponse.json(
         { error: "Falta wsUrl del engine para crear proxy" },
         { status: 502 },
@@ -130,12 +150,12 @@ export async function GET(request: Request) {
     });
     const origin = new URL(request.url);
     const isSecure = origin.protocol === "https:";
-    const proxyUrl = `${isSecure ? "wss" : "ws"}://${origin.hostname}:${port}/?targets=${encodeURIComponent(targets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
+    const proxyUrl = `${isSecure ? "wss" : "ws"}://${origin.hostname}:${port}/?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
 
     return NextResponse.json({
       proxyWsUrl: proxyUrl,
-      targetWsUrl: targets[0],
-      targets,
+      targetWsUrl: uniqueTargets[0],
+      targets: uniqueTargets,
     });
   } catch (error) {
     const message = (error as Error).message;

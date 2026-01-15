@@ -67,7 +67,7 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
           rejectUnauthorized: !(insecure || allowInsecureDefault),
           ca: upstreamCa,
         });
-      } catch {
+      } catch (err) {
         currentIndex += 1;
         setTimeout(tryConnect, 10);
         return;
@@ -84,7 +84,7 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
 
       upstream.on("error", () => {
         currentIndex += 1;
-        tryConnect();
+        setTimeout(tryConnect, 10);
       });
     };
 
