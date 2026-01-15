@@ -73,15 +73,21 @@ export async function GET(request: Request) {
 
     const candidateUrls: string[] = [];
 
-    if ((info as any)?.websocket?.wsUrl) {
-      const wsUrl = (info as any).websocket.wsUrl as string;
+    const rawWsUrl = (info as any)?.websocket?.wsUrl as string | undefined;
+    if (rawWsUrl) {
+      const lower = rawWsUrl.toLowerCase();
+      const looksComplete =
+        lower.includes("ticket=") || lower.includes("host=") || lower.includes("port=");
       candidateUrls.push(
-        `${wsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
+        looksComplete
+          ? rawWsUrl
+          : `${rawWsUrl}?host=${info.host ?? wsMeta.engineHost ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
       );
     }
 
-    if ((info as any)?.novncUrl) {
-      candidateUrls.push((info as any).novncUrl as string);
+    const novncUrl = (info as any)?.novncUrl as string | undefined;
+    if (novncUrl) {
+      candidateUrls.push(novncUrl);
     }
 
     if (wsMeta?.wsUrls?.length) {
@@ -113,6 +119,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       proxyWsUrl: proxyUrl,
       targetWsUrl: targets[0],
+      targets,
     });
   } catch (error) {
     const message = (error as Error).message;
