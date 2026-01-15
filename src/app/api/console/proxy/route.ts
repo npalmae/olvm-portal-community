@@ -15,11 +15,24 @@ const buildWebsocketCandidates = (baseUrl: string) => {
     try {
       const u = new URL(baseUrl);
       const hasOvirt = u.pathname.includes("/ovirt-engine");
-      return hasOvirt
-        ? ["/ovirt-engine/websockify", "/ovirt-engine/websocket", "/websockify", "/websocket"]
-        : ["/websockify", "/websocket"];
+      const basePaths = [
+        "/websockify",
+        "/websocket",
+        "/websocket-proxy",
+        "/websocketproxy",
+      ];
+      if (hasOvirt) {
+        return [
+          "/ovirt-engine/websockify",
+          "/ovirt-engine/websocket",
+          "/ovirt-engine/websocket-proxy",
+          "/ovirt-engine/websocketproxy",
+          ...basePaths,
+        ];
+      }
+      return basePaths;
     } catch {
-      return ["/websockify", "/websocket"];
+      return ["/websockify", "/websocket", "/websocket-proxy", "/websocketproxy"];
     }
   })();
 
