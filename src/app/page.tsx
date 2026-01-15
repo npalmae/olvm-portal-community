@@ -475,7 +475,7 @@ export default function Home() {
   }, [vms]);
 
   const closeEmbeddedConsole = () => {
-    embeddedConsole.rfb?.disconnect();
+    embeddedConsole.rfb?.disconnect?.();
     setEmbeddedConsole({ vmId: "", status: "idle", error: null, rfb: null });
     if (consoleRef && consoleRef.parentElement) {
       consoleRef.replaceChildren();
@@ -486,6 +486,7 @@ export default function Home() {
     if (!selectedTenant || selectedTenant === "undefined" || !consoleRef) return;
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
+    let cancelled = false;
     try {
       let RFB: RfbCtor | undefined;
       try {
@@ -504,6 +505,7 @@ export default function Home() {
       }
 
       if (!RFB) throw new Error("No se pudo cargar noVNC");
+
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
       );
@@ -512,25 +514,47 @@ export default function Home() {
         throw new Error(info?.error ?? "No se pudo obtener la consola");
       }
 
-      let wsUrl: string;
+      const candidates: string[] = [];
+      let proxyTargets: string[] = [];
+
       if (useProxy) {
         const proxyRes = await fetch(
           `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc`,
         );
         const proxy = await parseJsonSafe(proxyRes);
-        if (!proxyRes.ok || proxy?.error || !proxy?.proxyWsUrl) {
-          throw new Error(
-            proxy?.error ?? "No se pudo preparar el proxy de consola",
-          );
+        if (proxy?.targets && Array.isArray(proxy.targets)) {
+          proxyTargets = proxy.targets.filter((t: unknown) =>
+            typeof t === "string" && (t as string).startsWith("ws"),
+          ) as string[];
         }
-        wsUrl = proxy.proxyWsUrl;
-      } else if (info?.websocket?.wsUrl) {
-        const host = info.host ?? "";
-        const port = info.tlsPort ?? info.port ?? "";
-        wsUrl = `${info.websocket.wsUrl}?host=${host}&port=${port}&ticket=${info.ticket ?? ""}`;
-      } else if (info?.novncUrl) {
-        wsUrl = info.novncUrl;
-      } else {
+        if (proxy?.proxyWsUrl) {
+          candidates.push(proxy.proxyWsUrl as string);
+        }
+      }
+
+      if (proxyTargets.length) {
+        candidates.push(...proxyTargets);
+      }
+
+      const directWs = (info as any)?.websocket?.wsUrl as string | undefined;
+      if (directWs?.startsWith("ws")) {
+        const lower = directWs.toLowerCase();
+        const looksComplete =
+          lower.includes("ticket=") || lower.includes("host=") || lower.includes("port=");
+        candidates.push(
+          looksComplete
+            ? directWs
+            : `${directWs}?host=${info.host ?? ""}&port=${info.tlsPort ?? info.port ?? ""}&ticket=${info.ticket ?? ""}`,
+        );
+      }
+
+      const novncUrl = (info as any)?.novncUrl as string | undefined;
+      if (novncUrl?.startsWith("ws")) {
+        candidates.push(novncUrl);
+      }
+
+      const unique = Array.from(new Set(candidates.filter(Boolean)));
+      if (!unique.length) {
         throw new Error("No hay websocket de consola disponible");
       }
 
@@ -540,24 +564,55 @@ export default function Home() {
       canvas.className = "w-full h-full";
       consoleRef.appendChild(canvas);
 
-      const rfb = new RFB(canvas, wsUrl, {
-        credentials: { password: info.ticket ?? "" },
-      });
-      rfb.viewOnly = false;
-      rfb.scaleViewport = true;
-      rfb.addEventListener("connect", () =>
-        setEmbeddedConsole((prev) => ({ ...prev, status: "connected" })),
-      );
-      rfb.addEventListener("disconnect", (evt: any) => {
-        setEmbeddedConsole((prev) => ({
-          ...prev,
-          status: "error",
-          error:
-            (evt.detail?.clean === false && "Conexión cerrada inesperadamente") ||
-            null,
-        }));
-      });
-      setEmbeddedConsole({ vmId, status: "connected", error: null, rfb });
+      let rfb: RfbInstance | null = null;
+      let connected = false;
+
+      const tryConnect = (index: number) => {
+        if (cancelled) return;
+        const wsUrl = unique[index];
+        if (!wsUrl) {
+          setEmbeddedConsole((prev) => ({
+            ...prev,
+            status: "error",
+            error: "No upstream target available",
+            rfb: null,
+          }));
+          return;
+        }
+        try {
+          rfb = new RFB(canvas, wsUrl, {
+            credentials: { password: info.ticket ?? "" },
+          });
+        } catch (err) {
+          console.warn("Fallo creando RFB, probando siguiente", err);
+          tryConnect(index + 1);
+          return;
+        }
+        rfb.viewOnly = false;
+        rfb.scaleViewport = true;
+        rfb.addEventListener("connect", () => {
+          if (cancelled) return;
+          connected = true;
+          setEmbeddedConsole((prev) => ({ ...prev, status: "connected", rfb }));
+        });
+        rfb.addEventListener("disconnect", (evt: any) => {
+          if (cancelled) return;
+          if (!connected) {
+            tryConnect(index + 1);
+            return;
+          }
+          setEmbeddedConsole((prev) => ({
+            ...prev,
+            status: "error",
+            error:
+              (evt.detail?.clean === false && "Conexión cerrada inesperadamente") ||
+              null,
+            rfb: null,
+          }));
+        });
+      };
+
+      tryConnect(0);
     } catch (err) {
       setEmbeddedConsole({
         vmId,
@@ -567,6 +622,8 @@ export default function Home() {
       });
     } finally {
       setConsoleLoading(null);
+      // Mark future attempts as cancelled to avoid late events updating state.
+      cancelled = true;
     }
   };
 
