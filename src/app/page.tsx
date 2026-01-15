@@ -486,7 +486,6 @@ export default function Home() {
     if (!selectedTenant || selectedTenant === "undefined" || !consoleRef) return;
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
-    let cancelled = false;
     try {
       let RFB: RfbCtor | undefined;
       try {
@@ -568,7 +567,6 @@ export default function Home() {
       let connected = false;
 
       const tryConnect = (index: number) => {
-        if (cancelled) return;
         const wsUrl = unique[index];
         if (!wsUrl) {
           setEmbeddedConsole((prev) => ({
@@ -591,12 +589,10 @@ export default function Home() {
         rfb.viewOnly = false;
         rfb.scaleViewport = true;
         rfb.addEventListener("connect", () => {
-          if (cancelled) return;
           connected = true;
           setEmbeddedConsole((prev) => ({ ...prev, status: "connected", rfb }));
         });
         rfb.addEventListener("disconnect", (evt: any) => {
-          if (cancelled) return;
           if (!connected) {
             tryConnect(index + 1);
             return;
@@ -622,8 +618,6 @@ export default function Home() {
       });
     } finally {
       setConsoleLoading(null);
-      // Mark future attempts as cancelled to avoid late events updating state.
-      cancelled = true;
     }
   };
 

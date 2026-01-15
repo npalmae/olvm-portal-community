@@ -21,14 +21,14 @@ const buildWebsocketCandidates = (baseUrl: string) => {
         "/websocket-proxy",
         "/websocketproxy",
       ];
+      const withEngine = [
+        "/ovirt-engine/websockify",
+        "/ovirt-engine/websocket",
+        "/ovirt-engine/websocket-proxy",
+        "/ovirt-engine/websocketproxy",
+      ];
       if (hasOvirt) {
-        return [
-          "/ovirt-engine/websockify",
-          "/ovirt-engine/websocket",
-          "/ovirt-engine/websocket-proxy",
-          "/ovirt-engine/websocketproxy",
-          ...basePaths,
-        ];
+        return [...withEngine, ...basePaths];
       }
       return basePaths;
     } catch {
@@ -42,9 +42,25 @@ const buildWebsocketCandidates = (baseUrl: string) => {
     const url = new URL(baseUrl);
     const protocol = url.protocol === "http:" ? "ws:" : "wss:";
     const host = url.hostname;
-    const port = url.port ? `:${url.port}` : "";
-    const origin = `${protocol}//${host}${port}`;
-    const wsUrls = paths.map((p) => `${origin}${p}`);
+    const basePort = url.port || undefined;
+    const portCandidates = Array.from(
+      new Set(
+        [
+          basePort,
+          protocol === "wss:" ? "443" : "80",
+          "6100",
+          "6101",
+        ].filter(Boolean),
+      ),
+    );
+
+    const wsUrls: string[] = [];
+    for (const p of paths) {
+      for (const pc of portCandidates) {
+        const portSuffix = pc ? `:${pc}` : "";
+        wsUrls.push(`${protocol}//${host}${portSuffix}${p}`);
+      }
+    }
     return { wsUrls, engineHost: host };
   } catch {
     return { wsUrls: paths, engineHost: undefined };
