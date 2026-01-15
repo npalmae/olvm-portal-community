@@ -1,8 +1,15 @@
 # Changelog
 
-Registro manual de avances recientes. Se actualiza al revisar commits nuevos en GitHub.
+ Registro manual de avances recientes. Se actualiza al revisar commits nuevos en GitHub.
 
-- Última actualización: 2026-01-12 10:31 -03
+- Última actualización: 2026-01-14 21:10 -03
+- 701a5b0 – fix: include websocket and novnc URLs as proxy targets
+- b55a7e7 – fix: try multiple websockify paths and retry upstream
+- d8d664b – fix: default websockify path and handle upstream errors
+- aadfac6 – fix: allow self-signed certs in console proxy
+- 3d54a37 – fix: load noVNC via package with CDN fallback
+- dd45ed0 – chore: fix lint parser and local fonts for console UI
+- 1c2ccfa – docs: actualizar fecha de sesión en README
 - 6de7b6f – docs: anotar fecha y hora del último commit
 - 2aa09a2 – docs: registrar foco de sesión en consola
 - 46d31d6 – feat: open web console via novnc link
