@@ -109,17 +109,25 @@ export async function GET(request: Request) {
     }
 
     const targets: string[] = [];
-    const hostParam = encodeURIComponent(info.host ?? wsMeta.engineHost ?? "");
-    const portParam = encodeURIComponent(
-      (info.tlsPort ?? info.port ?? "").toString(),
-    );
-    const ticketParam = encodeURIComponent(info.ticket ?? "");
+    const hostParam = info.host ?? wsMeta.engineHost ?? "";
+    const portParam = (info.tlsPort ?? info.port ?? "").toString();
+    const ticketRaw = info.ticket ?? "";
+    const ticketEncoded = encodeURIComponent(ticketRaw);
+    const hostEncoded = encodeURIComponent(hostParam);
+    const portEncoded = encodeURIComponent(portParam);
     const buildVariants = (base: string) => {
       const hasQuery = base.includes("?");
       const baseClean = base.replace(/\?$/, "");
-      targets.push(`${baseClean}${hasQuery ? "&" : "?"}ticket=${ticketParam}`);
+      const sep = hasQuery ? "&" : "?";
+      // ticket only (encoded y raw)
+      targets.push(`${baseClean}${sep}ticket=${ticketEncoded}`);
+      targets.push(`${baseClean}${sep}ticket=${ticketRaw}`);
+      // host/port/ticket (encoded y raw)
       targets.push(
-        `${baseClean}${hasQuery ? "&" : "?"}host=${hostParam}&port=${portParam}&ticket=${ticketParam}`,
+        `${baseClean}${sep}host=${hostEncoded}&port=${portEncoded}&ticket=${ticketEncoded}`,
+      );
+      targets.push(
+        `${baseClean}${sep}host=${hostParam}&port=${portParam}&ticket=${ticketRaw}`,
       );
     };
 
