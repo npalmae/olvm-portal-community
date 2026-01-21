@@ -3,6 +3,7 @@ Portal de administración multitenant para OLVM/oVirt construido con Next.js.
 
 ## En esta sesión (2026-01-20 12:36 -03)
 - Consola embebida noVNC con rutas websockify múltiples y manejo de certificados self-signed; acciones de VM y métricas visibles.
+- 2026-01-20 12:36 -03: Se restauró el estado local desde `origin/main` y se mantienen los archivos de respaldo `ovm-portal-backup-*.tar.gz` sin versionar.
 
 ## Ejecutar en local
 
