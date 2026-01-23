@@ -70,7 +70,7 @@ export type ConsoleInfo = {
   tlsPort?: number | string;
   ticket?: string;
   websocket?: { wsUrl?: string; wsPath?: string; engineHost?: string };
-  proxyTicket?: { value: string; host?: string; port?: number };
+  proxyTicket?: { value: string; host?: string; port?: number; sslTarget?: boolean };
 };
 
 type OlvmFetchInit = RequestInit & {
@@ -394,6 +394,7 @@ const requestConsoleProxyTicket = async (
 
     let decodedHost: string | undefined;
     let decodedPort: number | undefined;
+    let sslTarget: boolean | undefined;
     try {
       const decoded = Buffer.from(value, "base64").toString("utf-8");
       const json = JSON.parse(decoded);
@@ -403,12 +404,16 @@ const requestConsoleProxyTicket = async (
         decodedHost = dataJson?.host;
         const portNum = Number(dataJson?.port);
         decodedPort = Number.isFinite(portNum) ? portNum : undefined;
+        sslTarget =
+          dataJson?.ssl_target === true ||
+          dataJson?.ssl_target === "true" ||
+          dataJson?.ssl_target === 1;
       }
     } catch {
       // ignore parsing errors; fallback to raw value only
     }
 
-    return { value, host: decodedHost, port: decodedPort };
+    return { value, host: decodedHost, port: decodedPort, sslTarget };
   } catch {
     return undefined;
   }

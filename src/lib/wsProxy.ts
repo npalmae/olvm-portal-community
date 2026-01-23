@@ -1,5 +1,6 @@
 import http from "http";
 import net from "net";
+import tls from "tls";
 import { WebSocket, WebSocketServer } from "ws";
 
 let server: WebSocketServer | null = null;
@@ -67,6 +68,7 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
     const tryTcpConnect = (target: string) => {
       let hostname: string | undefined;
       let port: number | undefined;
+      const isTls = target.startsWith("tls://");
 
       try {
         const parsed = new URL(target);
@@ -78,10 +80,41 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
         return;
       }
 
-      console.log("[ws-proxy] try TCP", { target, hostname, port, index: currentIndex });
+      console.log("[ws-proxy] try TCP", {
+        target,
+        hostname,
+        port,
+        index: currentIndex,
+        tls: isTls,
+      });
 
-      const socket = net.createConnection({ host: hostname, port }, () => {
-        console.log("[ws-proxy] tcp connected", { target, index: currentIndex });
+      const socketFactory = isTls
+        ? () =>
+            tls.connect(
+              {
+                host: hostname,
+                port,
+                rejectUnauthorized: !(insecure || allowInsecureDefault),
+                ca: upstreamCa,
+              },
+              () => {
+                console.log("[ws-proxy] tls connected", {
+                  target,
+                  index: currentIndex,
+                });
+              },
+            )
+        : () =>
+            net.createConnection({ host: hostname, port }, () => {
+              console.log("[ws-proxy] tcp connected", {
+                target,
+                index: currentIndex,
+              });
+            });
+
+      const socket = socketFactory();
+
+      socket.on("connect", () => {
         client.on("message", (data) => socket.write(data));
         client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
         client.on("error", () => closeBoth(1011, "Client socket error"));
@@ -93,9 +126,11 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
             closeBoth(1011, "Forwarding error");
           }
         });
-        socket.on("close", (code) => closeBoth(code ?? 1011, "TCP upstream closed"));
+        socket.on("close", (code) =>
+          closeBoth(code ?? 1011, isTls ? "TLS upstream closed" : "TCP upstream closed"),
+        );
         socket.on("error", () => {
-          console.warn("[ws-proxy] tcp error", { target, index: currentIndex });
+          console.warn("[ws-proxy] tcp/tls error", { target, index: currentIndex });
           currentIndex += 1;
           setTimeout(tryConnect, 10);
         });

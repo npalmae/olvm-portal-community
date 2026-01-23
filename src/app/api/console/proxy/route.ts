@@ -127,7 +127,8 @@ export async function GET(request: Request) {
       tcpCandidates.push(`tcp://${hostParam}:${portParam}`);
     }
     if (info.proxyTicket?.host && info.proxyTicket?.port) {
-      tcpCandidates.push(`tcp://${info.proxyTicket.host}:${info.proxyTicket.port}`);
+      const schema = info.proxyTicket.sslTarget ? "tls" : "tcp";
+      tcpCandidates.push(`${schema}://${info.proxyTicket.host}:${info.proxyTicket.port}`);
     }
     const buildVariants = (base: string) => {
       const hasQuery = base.includes("?");
