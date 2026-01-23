@@ -1,4 +1,5 @@
 import http from "http";
+import net from "net";
 import { WebSocket, WebSocketServer } from "ws";
 
 let server: WebSocketServer | null = null;
@@ -56,12 +57,57 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
     let upstream: WebSocket | null = null;
     let currentIndex = 0;
 
+    const tryTcpConnect = (target: string) => {
+      let hostname: string | undefined;
+      let port: number | undefined;
+
+      try {
+        const parsed = new URL(target);
+        hostname = parsed.hostname;
+        port = Number(parsed.port) || 5900;
+      } catch {
+        currentIndex += 1;
+        setTimeout(tryConnect, 10);
+        return;
+      }
+
+      const socket = net.createConnection({ host: hostname, port }, () => {
+        client.on("message", (data) => socket.write(data));
+        client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
+        client.on("error", () => closeBoth(1011, "Client socket error"));
+
+        socket.on("data", (data) => {
+          try {
+            client.send(data);
+          } catch {
+            closeBoth(1011, "Forwarding error");
+          }
+        });
+        socket.on("close", (code) => closeBoth(code ?? 1011, "TCP upstream closed"));
+        socket.on("error", () => {
+          currentIndex += 1;
+          setTimeout(tryConnect, 10);
+        });
+      });
+
+      socket.on("error", () => {
+        currentIndex += 1;
+        setTimeout(tryConnect, 10);
+      });
+    };
+
     const tryConnect = () => {
       const currentTarget = targets[currentIndex];
       if (!currentTarget) {
         closeBoth(1011, "No upstream target available");
         return;
       }
+
+      if (currentTarget.startsWith("tcp://")) {
+        tryTcpConnect(currentTarget);
+        return;
+      }
+
       try {
         upstream = new WebSocket(currentTarget, {
           rejectUnauthorized: !(insecure || allowInsecureDefault),

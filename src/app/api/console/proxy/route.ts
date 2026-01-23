@@ -95,8 +95,15 @@ export async function GET(request: Request) {
     const candidateUrls: string[] = [];
 
     const rawWsUrl = (info as any)?.websocket?.wsUrl as string | undefined;
+    const rawWsPath = (info as any)?.websocket?.wsPath as string | undefined;
     if (rawWsUrl) {
       candidateUrls.push(rawWsUrl);
+    }
+    if (!rawWsUrl && rawWsPath && wsMeta.engineHost) {
+      const proto = tenant.baseUrl.startsWith("https") ? "wss" : "ws";
+      const port = wsMeta.port ?? url.port;
+      const portSuffix = port ? `:${port}` : "";
+      candidateUrls.push(`${proto}://${wsMeta.engineHost}${portSuffix}${rawWsPath}`);
     }
 
     const novncUrl = (info as any)?.novncUrl as string | undefined;
@@ -130,6 +137,10 @@ export async function GET(request: Request) {
         `${baseClean}${sep}host=${hostParam}&port=${portParam}&ticket=${ticketRaw}`,
       );
     };
+
+    if (hostParam && portParam) {
+      targets.push(`tcp://${hostParam}:${portParam}`);
+    }
 
     for (const urlCandidate of candidateUrls.filter(Boolean)) {
       const lower = urlCandidate.toLowerCase();
