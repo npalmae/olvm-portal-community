@@ -586,8 +586,22 @@ export default function Home() {
           tryConnect(index + 1);
           return;
         }
-        rfb.viewOnly = false;
+        rfb.viewOnly = true;
         rfb.scaleViewport = true;
+        rfb.addEventListener("securityfailure", (evt: any) => {
+          console.error("noVNC security failure", evt);
+        });
+        rfb.addEventListener("credentialsrequired", () => {
+          console.warn("noVNC credentials required, re-sending ticket");
+          try {
+            rfb?.sendCredentials({ password: info.ticket ?? "" });
+          } catch (err) {
+            console.error("Error sending credentials", err);
+          }
+        });
+        rfb.addEventListener("disconnect", (evt: any) => {
+          console.error("noVNC disconnect", evt);
+        });
         rfb.addEventListener("connect", () => {
           connected = true;
           setEmbeddedConsole((prev) => ({ ...prev, status: "connected", rfb }));
