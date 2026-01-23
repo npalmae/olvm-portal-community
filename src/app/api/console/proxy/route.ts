@@ -122,6 +122,8 @@ export async function GET(request: Request) {
     const ticketEncoded = encodeURIComponent(ticketRaw);
     const hostEncoded = encodeURIComponent(hostParam);
     const portEncoded = encodeURIComponent(portParam);
+    const tcpTarget =
+      hostParam && portParam ? `tcp://${hostParam}:${portParam}` : null;
     const buildVariants = (base: string) => {
       const hasQuery = base.includes("?");
       const baseClean = base.replace(/\?$/, "");
@@ -138,11 +140,13 @@ export async function GET(request: Request) {
       );
     };
 
-    if (hostParam && portParam) {
-      targets.push(`tcp://${hostParam}:${portParam}`);
+    const wsCandidates = candidateUrls.filter(Boolean);
+
+    if (tcpTarget) {
+      targets.push(tcpTarget);
     }
 
-    for (const urlCandidate of candidateUrls.filter(Boolean)) {
+    for (const urlCandidate of wsCandidates) {
       const lower = urlCandidate.toLowerCase();
       const looksComplete =
         lower.startsWith("ws") &&
