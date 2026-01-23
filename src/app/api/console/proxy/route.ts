@@ -122,8 +122,13 @@ export async function GET(request: Request) {
     const ticketEncoded = encodeURIComponent(ticketRaw);
     const hostEncoded = encodeURIComponent(hostParam);
     const portEncoded = encodeURIComponent(portParam);
-    const tcpTarget =
-      hostParam && portParam ? `tcp://${hostParam}:${portParam}` : null;
+    const tcpCandidates: string[] = [];
+    if (hostParam && portParam) {
+      tcpCandidates.push(`tcp://${hostParam}:${portParam}`);
+    }
+    if (info.proxyTicket?.host && info.proxyTicket?.port) {
+      tcpCandidates.push(`tcp://${info.proxyTicket.host}:${info.proxyTicket.port}`);
+    }
     const buildVariants = (base: string) => {
       const hasQuery = base.includes("?");
       const baseClean = base.replace(/\?$/, "");
@@ -142,9 +147,7 @@ export async function GET(request: Request) {
 
     const wsCandidates = candidateUrls.filter(Boolean);
 
-    if (tcpTarget) {
-      targets.push(tcpTarget);
-    }
+    targets.push(...tcpCandidates);
 
     for (const urlCandidate of wsCandidates) {
       const lower = urlCandidate.toLowerCase();

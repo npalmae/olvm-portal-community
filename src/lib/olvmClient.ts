@@ -70,6 +70,7 @@ export type ConsoleInfo = {
   tlsPort?: number | string;
   ticket?: string;
   websocket?: { wsUrl?: string; wsPath?: string; engineHost?: string };
+  proxyTicket?: { value: string; host?: string; port?: number };
 };
 
 type OlvmFetchInit = RequestInit & {
@@ -369,6 +370,50 @@ const requestConsoleTicket = async (
   throw new Error(`No se pudo obtener ticket de consola desde OLVM.${detail}`);
 };
 
+const requestConsoleProxyTicket = async (
+  tenant: TenantConfig,
+  vmId: string,
+  consoleId: string,
+) => {
+  const path = `/vms/${vmId}/graphicsconsoles/${consoleId}/proxyticket`;
+  try {
+    const response = await olvmFetch(tenant, path, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    const value =
+      (response as any)?.proxy_ticket?.value ??
+      (response as any)?.proxyticket ??
+      (response as any)?.value;
+
+    if (!value || typeof value !== "string") return undefined;
+
+    let decodedHost: string | undefined;
+    let decodedPort: number | undefined;
+    try {
+      const decoded = Buffer.from(value, "base64").toString("utf-8");
+      const json = JSON.parse(decoded);
+      if (json?.data) {
+        const dataStr = decodeURIComponent(json.data as string);
+        const dataJson = JSON.parse(dataStr);
+        decodedHost = dataJson?.host;
+        const portNum = Number(dataJson?.port);
+        decodedPort = Number.isFinite(portNum) ? portNum : undefined;
+      }
+    } catch {
+      // ignore parsing errors; fallback to raw value only
+    }
+
+    return { value, host: decodedHost, port: decodedPort };
+  } catch {
+    return undefined;
+  }
+};
+
 const parseVirtViewerConnection = (
   vvContent: string,
 ): { host?: string; port?: number; tlsPort?: number; password?: string } => {
@@ -529,6 +574,7 @@ export const fetchVmConsoleInfo = async (
   )) as RawConsole;
 
   let ticket = await requestConsoleTicket(tenant, vmId, selected.id);
+  const proxyTicket = await requestConsoleProxyTicket(tenant, vmId, selected.id);
 
   let host = consoleDetails?.address;
   let port = consoleDetails?.tls_port ?? consoleDetails?.port;
@@ -559,12 +605,21 @@ export const fetchVmConsoleInfo = async (
     }
   }
 
+  if (proxyTicket?.host) {
+    host = host ?? proxyTicket.host;
+  }
+  if (proxyTicket?.port) {
+    port = port ?? proxyTicket.port;
+    tlsPort = tlsPort ?? proxyTicket.port;
+  }
+
   return {
     protocol: (selected.protocol ?? protocol).toLowerCase(),
     host: host ?? engineHost,
     port: port ?? defaultPort,
     tlsPort: tlsPort ?? port ?? defaultPort,
     ticket,
+    proxyTicket,
   };
 };
 
