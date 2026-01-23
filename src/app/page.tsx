@@ -579,12 +579,7 @@ export default function Home() {
         }
         try {
           rfb = new RFB(canvas, wsUrl, {
-            credentials: {
-              password:
-                (info as any)?.proxyTicket?.value ??
-                info.ticket ??
-                "",
-            },
+            credentials: { password: info.ticket ?? "" },
           });
         } catch (err) {
           console.warn("Fallo creando RFB, probando siguiente", err);
@@ -599,12 +594,7 @@ export default function Home() {
         rfb.addEventListener("credentialsrequired", () => {
           console.warn("noVNC credentials required, re-sending ticket");
           try {
-            rfb?.sendCredentials({
-              password:
-                (info as any)?.proxyTicket?.value ??
-                info.ticket ??
-                "",
-            });
+            rfb?.sendCredentials({ password: info.ticket ?? "" });
           } catch (err) {
             console.error("Error sending credentials", err);
           }
