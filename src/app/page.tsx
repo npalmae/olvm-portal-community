@@ -579,7 +579,9 @@ export default function Home() {
         }
         try {
           rfb = new RFB(canvas, wsUrl, {
-            credentials: { password: info.ticket ?? "" },
+            credentials: {
+              password: (info as any)?.proxyTicket?.value ?? info.ticket ?? "",
+            },
           });
         } catch (err) {
           console.warn("Fallo creando RFB, probando siguiente", err);
