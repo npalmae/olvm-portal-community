@@ -589,7 +589,7 @@ export default function Home() {
         rfb.viewOnly = true;
         rfb.scaleViewport = true;
         rfb.addEventListener("securityfailure", (evt: any) => {
-          console.error("noVNC security failure", evt);
+          console.error("noVNC security failure", evt.detail ?? evt);
         });
         rfb.addEventListener("credentialsrequired", () => {
           console.warn("noVNC credentials required, re-sending ticket");
@@ -600,7 +600,7 @@ export default function Home() {
           }
         });
         rfb.addEventListener("disconnect", (evt: any) => {
-          console.error("noVNC disconnect", evt);
+          console.error("noVNC disconnect", evt.detail ?? evt);
         });
         rfb.addEventListener("connect", () => {
           connected = true;
