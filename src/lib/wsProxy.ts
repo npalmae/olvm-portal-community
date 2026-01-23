@@ -36,6 +36,13 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
     const target = targets[0];
     const insecure = url.searchParams.get("insecure") === "1";
 
+    console.log("[ws-proxy] new client", {
+      url: req.url,
+      targets,
+      insecure,
+      allowInsecureDefault,
+    });
+
     if (!target) {
       client.close(1011, "Missing target");
       return;
@@ -71,7 +78,10 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
         return;
       }
 
+      console.log("[ws-proxy] try TCP", { target, hostname, port, index: currentIndex });
+
       const socket = net.createConnection({ host: hostname, port }, () => {
+        console.log("[ws-proxy] tcp connected", { target, index: currentIndex });
         client.on("message", (data) => socket.write(data));
         client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
         client.on("error", () => closeBoth(1011, "Client socket error"));
@@ -85,6 +95,7 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
         });
         socket.on("close", (code) => closeBoth(code ?? 1011, "TCP upstream closed"));
         socket.on("error", () => {
+          console.warn("[ws-proxy] tcp error", { target, index: currentIndex });
           currentIndex += 1;
           setTimeout(tryConnect, 10);
         });
@@ -103,6 +114,8 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
         return;
       }
 
+      console.log("[ws-proxy] try target", { currentTarget, index: currentIndex });
+
       if (currentTarget.startsWith("tcp://")) {
         tryTcpConnect(currentTarget);
         return;
@@ -114,12 +127,14 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
           ca: upstreamCa,
         });
       } catch (err) {
+        console.warn("[ws-proxy] ws constructor failed", { currentTarget, err });
         currentIndex += 1;
         setTimeout(tryConnect, 10);
         return;
       }
 
       upstream.on("open", () => {
+        console.log("[ws-proxy] ws connected", { currentTarget, index: currentIndex });
         client.on("message", (data) => upstream?.send(data));
         client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
         client.on("error", () => closeBoth(1011, "Client socket error"));
@@ -129,6 +144,7 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
       });
 
       upstream.on("error", () => {
+        console.warn("[ws-proxy] ws error", { currentTarget, index: currentIndex });
         currentIndex += 1;
         setTimeout(tryConnect, 10);
       });
