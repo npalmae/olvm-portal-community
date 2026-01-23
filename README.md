@@ -1,8 +1,8 @@
 # olvm-portal
 Portal de administración multitenant para OLVM/oVirt construido con Next.js.
 
-## En esta sesión (2026-01-20 12:36 -03)
-- Consola embebida noVNC con rutas websockify múltiples y manejo de certificados self-signed; acciones de VM y métricas visibles.
+## En esta sesión (2026-01-23 13:15 -03)
+- Consola embebida con fallback TCP directo al puerto VNC cuando no hay websocket-proxy; host del engine debe coincidir con el CN del cert (`ocloudqa.sixmanager.cl`).
 - 2026-01-20 12:36 -03: Se restauró el estado local desde `origin/main` y se mantienen los archivos de respaldo `ovm-portal-backup-*.tar.gz` sin versionar.
 
 ## Ejecutar en local
@@ -21,6 +21,12 @@ Configura los tenants OLVM en `.env.local` siguiendo el ejemplo de `.env.example
 - Si hay un único tenant configurado, las rutas API lo usarán como fallback cuando el `tenantId` llegue vacío; con múltiples tenants el `tenantId` es obligatorio.
 - Si exportas las variables con `source .env.local`, envuelve `OLVM_TENANTS` en comillas simples (`OLVM_TENANTS='[{"id":"..."}]'`) para conservar el JSON válido.
 - Errores de conexión a OLVM se muestran como `No se pudo conectar con OLVM (<baseUrl>): ...`; revisa URL, CA y conectividad si aparecen mensajes tipo `fetch failed`.
+- Usa en `baseUrl` el hostname que coincide con el certificado del engine (no la IP) para evitar fallos SAN.
+
+### Consola embebida / noVNC
+- La API `/api/console/proxy` intenta primero websockify (si existe) y luego puentea por TCP directo al host/puerto VNC entregado por OLVM.
+- Asegúrate de que desde tu máquina haya salida TCP hacia el host/puerto VNC (`tlsPort`/`port` de la VM); si el puerto está cerrado verás errores 1006/1011.
+- Activa “Usar proxy WS local” en la UI para que el proxy interno gestione certificados y fallback.
 
 ## Scripts de verificación
 
