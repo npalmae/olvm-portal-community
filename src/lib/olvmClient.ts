@@ -578,8 +578,8 @@ export const fetchVmConsoleInfo = async (
     withJsonFormat(`/vms/${vmId}/graphicsconsoles/${selected.id}`),
   )) as RawConsole;
 
-  let ticket = await requestConsoleTicket(tenant, vmId, selected.id);
   const proxyTicket = await requestConsoleProxyTicket(tenant, vmId, selected.id);
+  let ticket = await requestConsoleTicket(tenant, vmId, selected.id);
 
   let host = consoleDetails?.address;
   let port = consoleDetails?.tls_port ?? consoleDetails?.port;
