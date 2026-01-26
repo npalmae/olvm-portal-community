@@ -507,6 +507,7 @@ export default function Home() {
 
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
+        { cache: "no-store" },
       );
       const info = await parseJsonSafe(infoRes);
       if (!infoRes.ok || info?.error) {
@@ -519,6 +520,7 @@ export default function Home() {
       if (useProxy) {
         const proxyRes = await fetch(
           `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc`,
+          { cache: "no-store" },
         );
         const proxy = await parseJsonSafe(proxyRes);
         if (proxy?.targets && Array.isArray(proxy.targets)) {
