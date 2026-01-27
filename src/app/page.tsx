@@ -484,19 +484,20 @@ export default function Home() {
 
   const openEmbeddedConsole = async (vmId: string) => {
     if (!selectedTenant || selectedTenant === "undefined" || !consoleRef) return;
+    // Evita solicitudes duplicadas mientras se conecta la misma VM
+    if (consoleLoading === vmId || embeddedConsole.status === "connecting") return;
+    // Fuerza estado de conexión visible y resetea errores previos
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
     try {
       let RFB: RfbCtor | undefined;
       try {
-        const mod = await import("@novnc/novnc/lib/rfb.js");
+        // Intenta usar el bundle local (incluye el módulo en el build de Next)
+        const mod = await import("@novnc/novnc/lib/rfb");
         RFB = (mod as { default?: RfbCtor }).default;
       } catch (err) {
-        console.warn("Fallo import local noVNC, probando CDN", err);
-      }
-
-      if (!RFB) {
-        const cdnUrl = "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.6.0/core/rfb.js";
+        console.warn("Fallo importando noVNC desde node_modules, probando CDN", err);
+        const cdnUrl = "https://esm.sh/@novnc/novnc@1.6.0/lib/rfb.js";
         const cdn = await import(
           /* webpackIgnore: true */ cdnUrl
         );
@@ -505,6 +506,7 @@ export default function Home() {
 
       if (!RFB) throw new Error("No se pudo cargar noVNC");
 
+      // Pide ticket fresco sin caché antes de abrir la consola
       const infoRes = await fetch(
         `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
         { cache: "no-store" },
@@ -514,12 +516,18 @@ export default function Home() {
         throw new Error(info?.error ?? "No se pudo obtener la consola");
       }
 
+      const currentTicket = info.ticket as string | undefined;
+      if (!currentTicket) {
+        throw new Error("No se recibió el ticket de consola (password) desde OLVM.");
+      }
+
       const candidates: string[] = [];
       let proxyTargets: string[] = [];
 
+      // Proxy con ticket recién emitido
       if (useProxy) {
         const proxyRes = await fetch(
-          `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc`,
+          `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(currentTicket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
           { cache: "no-store" },
         );
         const proxy = await parseJsonSafe(proxyRes);
@@ -568,9 +576,10 @@ export default function Home() {
       let rfb: RfbInstance | null = null;
       let connected = false;
 
+      const maxAttempts = 1; // un solo intento con el ticket emitido
       const tryConnect = (index: number) => {
         const wsUrl = unique[index];
-        if (!wsUrl) {
+        if (!wsUrl || index >= maxAttempts) {
           setEmbeddedConsole((prev) => ({
             ...prev,
             status: "error",
@@ -581,7 +590,8 @@ export default function Home() {
         }
         try {
           rfb = new RFB(canvas, wsUrl, {
-            credentials: { password: info.ticket ?? "" },
+            credentials: { password: currentTicket ?? "" },
+            shared: true,
           });
         } catch (err) {
           console.warn("Fallo creando RFB, probando siguiente", err);
@@ -590,19 +600,33 @@ export default function Home() {
         }
         rfb.viewOnly = true;
         rfb.scaleViewport = true;
-        rfb.addEventListener("securityfailure", (evt: any) => {
+        rfb.addEventListener("securityfailure", async (evt: any) => {
           console.warn("noVNC security failure", evt?.detail ?? evt);
+          setEmbeddedConsole((prev) => ({
+            ...prev,
+            status: "error",
+            error: "Fallo de seguridad en la consola (ticket inválido o expirado)",
+            rfb: null,
+          }));
         });
-        rfb.addEventListener("credentialsrequired", () => {
+        rfb.addEventListener("credentialsrequired", async () => {
           console.warn("noVNC credentials required, re-sending ticket");
           try {
-            rfb?.sendCredentials({ password: info.ticket ?? "" });
+            rfb?.sendCredentials({ password: currentTicket ?? "" });
           } catch (err) {
             console.error("Error sending credentials", err);
           }
         });
-        rfb.addEventListener("disconnect", (evt: any) => {
+        rfb.addEventListener("disconnect", async (evt: any) => {
           console.warn("noVNC disconnect", evt?.detail ?? evt);
+          if (!connected) {
+            setEmbeddedConsole((prev) => ({
+              ...prev,
+              status: "error",
+              error: "Conexión rechazada (verifica ticket/credenciales)",
+              rfb: null,
+            }));
+          }
         });
         rfb.addEventListener("connect", () => {
           connected = true;

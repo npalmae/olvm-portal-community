@@ -13,18 +13,21 @@ type ProxyOptions = {
   allowInsecure?: boolean;
 };
 
-export const ensureConsoleProxy = (options?: ProxyOptions) => {
-  if (server) {
-    return { port: proxyPort as number };
+export const ensureConsoleProxy = async (options?: ProxyOptions) => {
+  if (server && proxyPort) {
+    return { port: proxyPort };
   }
+
+  // Desactiva extensiones nativas de ws para evitar dependencias de bufferutil/utf-8-validate
+  process.env.WS_NO_BUFFER_UTIL = "1";
+  process.env.WS_NO_UTF8_VALIDATE = "1";
 
   upstreamCa = options?.ca;
   allowInsecureDefault = options?.allowInsecure ?? false;
 
-  const port = Number(process.env.CONSOLE_PROXY_PORT ?? 3010);
+  const desiredPort = Number(process.env.CONSOLE_PROXY_PORT ?? 3010);
   const httpServer = http.createServer();
   server = new WebSocketServer({ server: httpServer });
-  proxyPort = port;
 
   server.on("connection", (client, req) => {
     const url = new URL(req.url ?? "/", "ws://localhost");
@@ -188,7 +191,26 @@ export const ensureConsoleProxy = (options?: ProxyOptions) => {
     tryConnect();
   });
 
-  httpServer.listen(port, "0.0.0.0");
+  const startListening = (portToTry: number): Promise<number> =>
+    new Promise((resolve, reject) => {
+      httpServer.once("error", (err: NodeJS.ErrnoException) => {
+        if (err.code === "EADDRINUSE") {
+          // Si el puerto está ocupado, pide uno libre al SO.
+          startListening(0).then(resolve).catch(reject);
+          return;
+        }
+        reject(err);
+      });
+
+      httpServer.listen(portToTry, "0.0.0.0", () => {
+        const address = httpServer.address();
+        proxyPort =
+          typeof address === "object" && address ? address.port : portToTry;
+        resolve(proxyPort as number);
+      });
+    });
+
+  const port = await startListening(desiredPort);
 
   return { port };
 };

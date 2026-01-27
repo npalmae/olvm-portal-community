@@ -68,6 +68,7 @@ export type ConsoleInfo = {
   host?: string;
   port?: number | string;
   tlsPort?: number | string;
+  consoleId?: string;
   ticket?: string;
   websocket?: { wsUrl?: string; wsPath?: string; engineHost?: string };
   proxyTicket?: { value: string; host?: string; port?: number; sslTarget?: boolean };
@@ -324,22 +325,45 @@ const pickConsole = (
   return preferredConsole ?? normalized[0];
 };
 
-const parseTicketValue = (payload: unknown): string | undefined => {
+type TicketInfo = { value: string; expirySeconds?: number };
+
+const parseTicketValue = (payload: unknown): TicketInfo | undefined => {
   const root = payload && typeof payload === "object" ? (payload as Record<string, any>) : null;
   if (!root) return undefined;
-  return (
+  const value =
     root?.action?.ticket?.value ??
     root?.ticket?.value ??
     root?.value ??
-    (typeof root?.action?.ticket === "string" ? root.action.ticket : undefined)
-  );
+    (typeof root?.action?.ticket === "string" ? root.action.ticket : undefined);
+
+  if (!value || typeof value !== "string") return undefined;
+
+  const expiry =
+    root?.action?.ticket?.expiry ??
+    root?.ticket?.expiry ??
+    root?.expiry ??
+    (typeof root?.action?.ticket === "object" ? (root.action.ticket as any)?.expiry : undefined);
+
+  const expirySeconds = typeof expiry === "string" ? Number(expiry) : Number(expiry);
+
+  return { value, expirySeconds: Number.isFinite(expirySeconds) ? expirySeconds : undefined };
 };
+
+type TicketCacheEntry = { value: string; expiresAt: number };
+const ticketCache = new Map<string, TicketCacheEntry>();
 
 const requestConsoleTicket = async (
   tenant: TenantConfig,
   vmId: string,
   consoleId: string,
 ) => {
+  const cacheKey = `${tenant.id}:${vmId}:${consoleId}`;
+  const now = Date.now();
+  const cached = ticketCache.get(cacheKey);
+  if (cached && cached.expiresAt > now + 5_000) {
+    return cached.value;
+  }
+
   const ticketPath = `/vms/${vmId}/graphicsconsoles/${consoleId}/ticket`;
   const ticketPayloads = [
     { action: { ticket: { expiry: 120 } } },
@@ -358,8 +382,12 @@ const requestConsoleTicket = async (
         },
         body: payload ? JSON.stringify(payload) : undefined,
       });
-      const ticket = parseTicketValue(response);
-      if (ticket) return ticket;
+      const parsed = parseTicketValue(response);
+      if (parsed?.value) {
+        const expiryMs = (parsed.expirySeconds ?? 120) * 1000;
+        ticketCache.set(cacheKey, { value: parsed.value, expiresAt: now + expiryMs });
+        return parsed.value;
+      }
       lastError = new Error("Ticket vacío");
     } catch (err) {
       lastError = err;
@@ -557,6 +585,7 @@ export const fetchVmConsoleInfo = async (
   tenantId: string,
   vmId: string,
   protocol: "spice" | "vnc" = "vnc",
+  opts?: { ticket?: string },
 ): Promise<ConsoleInfo> => {
   const tenant = getTenantById(tenantId);
   const engineUrl = new URL(tenant.baseUrl);
@@ -579,7 +608,14 @@ export const fetchVmConsoleInfo = async (
   )) as RawConsole;
 
   const proxyTicket = await requestConsoleProxyTicket(tenant, vmId, selected.id);
-  let ticket = await requestConsoleTicket(tenant, vmId, selected.id);
+  let ticket = opts?.ticket;
+  if (!ticket) {
+    ticket = await requestConsoleTicket(tenant, vmId, selected.id);
+  } else {
+    // si se entrega ticket, cachearlo para que el proxy lo reutilice
+    const cacheKey = `${tenant.id}:${vmId}:${selected.id}`;
+    ticketCache.set(cacheKey, { value: ticket, expiresAt: Date.now() + 110_000 });
+  }
 
   let host = consoleDetails?.address;
   let port = consoleDetails?.tls_port ?? consoleDetails?.port;
@@ -620,6 +656,7 @@ export const fetchVmConsoleInfo = async (
 
   return {
     protocol: (selected.protocol ?? protocol).toLowerCase(),
+    consoleId: selected.id,
     host: host ?? engineHost,
     port: port ?? defaultPort,
     tlsPort: tlsPort ?? port ?? defaultPort,

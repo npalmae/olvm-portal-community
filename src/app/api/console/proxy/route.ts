@@ -88,7 +88,12 @@ export async function GET(request: Request) {
 
   try {
     const tenant = getTenantById(tenantId);
-    const info = await fetchVmConsoleInfo(tenantId, vmId, protocol);
+    const providedTicket = url.searchParams.get("ticket") ?? undefined;
+    const consoleId = url.searchParams.get("consoleId") ?? undefined;
+    const info = await fetchVmConsoleInfo(tenantId, vmId, protocol, {
+      ticket: providedTicket,
+      consoleId,
+    });
 
     const wsMeta = info.websocket ?? buildWebsocketCandidates(tenant.baseUrl);
 
@@ -115,51 +120,13 @@ export async function GET(request: Request) {
       candidateUrls.push(...wsMeta.wsUrls);
     }
 
-    const targets: string[] = [];
     const hostParam = info.host ?? wsMeta.engineHost ?? "";
     const portParam = (info.tlsPort ?? info.port ?? "").toString();
-    const ticketRaw = info.ticket ?? "";
-    const ticketEncoded = encodeURIComponent(ticketRaw);
-    const hostEncoded = encodeURIComponent(hostParam);
-    const portEncoded = encodeURIComponent(portParam);
-    const tcpCandidates: string[] = [];
+    const targets: string[] = [];
+
+    // Solo usamos el destino TCP directo que sabemos que funciona con el ticket.
     if (hostParam && portParam) {
-      tcpCandidates.push(`tcp://${hostParam}:${portParam}`);
-    }
-    if (info.proxyTicket?.host && info.proxyTicket?.port) {
-      const schema = info.proxyTicket.sslTarget ? "tls" : "tcp";
-      tcpCandidates.push(`${schema}://${info.proxyTicket.host}:${info.proxyTicket.port}`);
-    }
-    const buildVariants = (base: string) => {
-      const hasQuery = base.includes("?");
-      const baseClean = base.replace(/\?$/, "");
-      const sep = hasQuery ? "&" : "?";
-      // ticket only (encoded y raw)
-      targets.push(`${baseClean}${sep}ticket=${ticketEncoded}`);
-      targets.push(`${baseClean}${sep}ticket=${ticketRaw}`);
-      // host/port/ticket (encoded y raw)
-      targets.push(
-        `${baseClean}${sep}host=${hostEncoded}&port=${portEncoded}&ticket=${ticketEncoded}`,
-      );
-      targets.push(
-        `${baseClean}${sep}host=${hostParam}&port=${portParam}&ticket=${ticketRaw}`,
-      );
-    };
-
-    const wsCandidates = candidateUrls.filter(Boolean);
-
-    targets.push(...tcpCandidates);
-
-    for (const urlCandidate of wsCandidates) {
-      const lower = urlCandidate.toLowerCase();
-      const looksComplete =
-        lower.startsWith("ws") &&
-        (lower.includes("ticket=") || lower.includes("host=") || lower.includes("port="));
-      if (looksComplete) {
-        targets.push(urlCandidate);
-      } else {
-        buildVariants(urlCandidate);
-      }
+      targets.push(`tcp://${hostParam}:${portParam}`);
     }
 
     const uniqueTargets = Array.from(new Set(targets.filter(Boolean)));
@@ -171,7 +138,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { port } = ensureConsoleProxy({
+    const { port } = await ensureConsoleProxy({
       ca: tenant.caCert,
       allowInsecure: tenant.allowInsecure,
     });

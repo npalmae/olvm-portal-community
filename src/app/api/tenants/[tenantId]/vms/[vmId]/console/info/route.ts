@@ -28,7 +28,13 @@ export async function GET(request: Request, context: Params) {
       novncUrl = `${base}${sep}host=${encodeURIComponent(host)}&port=${encodeURIComponent(port.toString())}&ticket=${encodeURIComponent(info.ticket)}`;
     }
 
-    return NextResponse.json({ ...info, host, port, novncUrl });
+    return NextResponse.json({
+      ...info,
+      host,
+      port,
+      novncUrl,
+      consoleId: info.consoleId,
+    });
   } catch (error) {
     const message = (error as Error).message;
     const lower = message.toLowerCase();
