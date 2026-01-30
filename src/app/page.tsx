@@ -351,7 +351,8 @@ export default function Home() {
     setSuccess(null);
     try {
       const res = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
+        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc&withTicket=1`,
+        { cache: "no-store" },
       );
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo obtener la consola web");
