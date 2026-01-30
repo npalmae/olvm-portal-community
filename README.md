@@ -1,9 +1,11 @@
 # olvm-portal
 Portal de administración multitenant para OLVM/oVirt construido con Next.js.
 
-## En esta sesión (2026-01-23 13:15 -03)
-- Consola embebida con fallback TCP directo al puerto VNC cuando no hay websocket-proxy; host del engine debe coincidir con el CN del cert (`ocloudqa.sixmanager.cl`).
-- 2026-01-20 12:36 -03: Se restauró el estado local desde `origin/main` y se mantienen los archivos de respaldo `ovm-portal-backup-*.tar.gz` sin versionar.
+## En esta sesión (2026-01-30 13:20 -03)
+- Consola embebida: fuerza `fbUpdateRequest` al conectar y reintenta si no llegan FBU; ahora es interactiva (mouse/teclado) y registra eventos `fbupdate`, `desktopname`, etc.
+- Proxy WS local: logs extendidos (hasta 50 mensajes) para depurar RFB, `perMessageDeflate` desactivado y fallback automático de puerto cuando 3010 está ocupado.
+- Mantén el host del engine igual al CN del cert (`ocloudqa.sixmanager.cl`) y asegúrate de salida TCP al puerto VNC (`port`/`tlsPort`).
+- 2026-01-20 12:36 -03: Se restauró el estado local desde `origin/main`; se conservan backups `ovm-portal-backup-*.tar.gz` sin versionar.
 
 ## Ejecutar en local
 
@@ -36,7 +38,8 @@ npm test       # pruebas unitarias (Vitest)
 ```
 
 ## Historial de cambios
-- Última actualización: 2026-01-12 10:31 -03
+- Última actualización: 2026-01-30 13:20 -03
+- 6b7213e – Fix embedded console: request framebuffer and improve ws proxy logging
 - 7c5b01d – fix: add memory.used.percent lookup for memory metrics
 - dc0c3de – fix: include statistics in VM requests and broaden metric lookups
 - 000d73c – ui: sanitize HTML responses in client error parsing
