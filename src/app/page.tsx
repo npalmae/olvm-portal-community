@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Tenant = {
   id: string;
@@ -172,10 +172,15 @@ export default function Home() {
     rfb?: RfbInstance | null;
   }>({ vmId: "", status: "idle", error: null, rfb: null });
   const [useProxy, setUseProxy] = useState(true);
+  const closingConsole = useRef(false);
   const consoleRef = useMemo(() => {
     if (typeof document === "undefined") return null;
     const div = document.createElement("div");
     div.id = "embedded-console";
+    div.style.width = "100%";
+    div.style.height = "100%";
+    div.style.position = "relative";
+    div.style.overflow = "hidden";
     return div;
   }, []);
 
@@ -475,11 +480,18 @@ export default function Home() {
   }, [vms]);
 
   const closeEmbeddedConsole = () => {
+    closingConsole.current = true;
     embeddedConsole.rfb?.disconnect?.();
     setEmbeddedConsole({ vmId: "", status: "idle", error: null, rfb: null });
-    if (consoleRef && consoleRef.parentElement) {
+    if (consoleRef) {
       consoleRef.replaceChildren();
+      if (consoleRef.parentElement) {
+        consoleRef.parentElement.removeChild(consoleRef);
+      }
     }
+    setTimeout(() => {
+      closingConsole.current = false;
+    }, 200);
   };
 
   const openEmbeddedConsole = async (vmId: string) => {
@@ -490,25 +502,13 @@ export default function Home() {
     setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null });
     setConsoleLoading(vmId);
     try {
-      let RFB: RfbCtor | undefined;
-      try {
-        // Intenta usar el bundle local (incluye el módulo en el build de Next)
-        const mod = await import("@novnc/novnc/lib/rfb");
-        RFB = (mod as { default?: RfbCtor }).default;
-      } catch (err) {
-        console.warn("Fallo importando noVNC desde node_modules, probando CDN", err);
-        const cdnUrl = "https://esm.sh/@novnc/novnc@1.6.0/lib/rfb.js";
-        const cdn = await import(
-          /* webpackIgnore: true */ cdnUrl
-        );
-        RFB = (cdn as { default?: RfbCtor }).default;
-      }
-
-      if (!RFB) throw new Error("No se pudo cargar noVNC");
+      const mod = await import("@novnc/novnc/lib/rfb");
+      const RFB = (mod as { default?: RfbCtor }).default;
+      if (!RFB) throw new Error("noVNC no exporta RFB");
 
       // Pide ticket fresco sin caché antes de abrir la consola
       const infoRes = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
+        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc&withTicket=1`,
         { cache: "no-store" },
       );
       const info = await parseJsonSafe(infoRes);
@@ -520,24 +520,55 @@ export default function Home() {
       if (!currentTicket) {
         throw new Error("No se recibió el ticket de consola (password) desde OLVM.");
       }
+      console.log("noVNC ticket recibido", {
+        vmId,
+        ticket: currentTicket,
+        consoleId: info.consoleId,
+        host: info.host,
+        port: info.port,
+        tlsPort: info.tlsPort,
+      });
 
       const candidates: string[] = [];
       let proxyTargets: string[] = [];
 
-      // Proxy con ticket recién emitido
+      // 1) Proxy local (probado que funciona)
       if (useProxy) {
-        const proxyRes = await fetch(
-          `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(currentTicket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
-          { cache: "no-store" },
-        );
+        const proxyUrl = `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(currentTicket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`;
+        const proxyRes = await fetch(proxyUrl, { cache: "no-store" });
         const proxy = await parseJsonSafe(proxyRes);
+        console.log("proxy info", { proxyUrl, proxy });
+        if (proxy?.proxyWsUrl) {
+          candidates.push(proxy.proxyWsUrl as string);
+        }
         if (proxy?.targets && Array.isArray(proxy.targets)) {
           proxyTargets = proxy.targets.filter((t: unknown) =>
             typeof t === "string" && (t as string).startsWith("ws"),
           ) as string[];
         }
-        if (proxy?.proxyWsUrl) {
-          candidates.push(proxy.proxyWsUrl as string);
+      }
+
+      // 2) Websocket-proxy nativo de OLVM con proxyTicket (fallback)
+      const proxyTicket = (info as any)?.proxyTicket?.value as string | undefined;
+      if (proxyTicket) {
+        const base = selectedTenant
+          ? tenants.find((t) => t.id === selectedTenant)?.baseUrl
+          : undefined;
+        if (base) {
+          const u = new URL(base);
+          u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
+          const hostPort = u.port ? `:${u.port}` : "";
+          const paths = [
+            "/ovirt-engine/websocket-proxy",
+            "/ovirt-engine/websocketproxy",
+            "/ovirt-engine/websockify",
+            "/websocket-proxy",
+            "/websocketproxy",
+            "/websockify",
+          ];
+          for (const p of paths) {
+            candidates.push(`${u.protocol}//${u.hostname}${hostPort}${p}?ticket=${encodeURIComponent(proxyTicket)}`);
+          }
         }
       }
 
@@ -563,6 +594,7 @@ export default function Home() {
       }
 
       const unique = Array.from(new Set(candidates.filter(Boolean)));
+      const maxAttempts = unique.length || 1;
       if (!unique.length) {
         throw new Error("No hay websocket de consola disponible");
       }
@@ -571,12 +603,23 @@ export default function Home() {
       const canvas = document.createElement("div");
       canvas.id = "novnc-canvas";
       canvas.className = "w-full h-full";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.position = "relative";
       consoleRef.appendChild(canvas);
 
       let rfb: RfbInstance | null = null;
       let connected = false;
+      let gotFb = false;
 
-      const maxAttempts = 1; // un solo intento con el ticket emitido
+      // Verbose noVNC logging to detectar causas de desconexión
+      try {
+        const logMod: any = await import("@novnc/novnc/lib/util/logging");
+        logMod?.setLevel?.("debug");
+      } catch {
+        // ignore if logging module not available
+      }
+
       const tryConnect = (index: number) => {
         const wsUrl = unique[index];
         if (!wsUrl || index >= maxAttempts) {
@@ -598,8 +641,24 @@ export default function Home() {
           tryConnect(index + 1);
           return;
         }
-        rfb.viewOnly = true;
+        rfb.viewOnly = false; // permitir interacción (teclado/mouse)
         rfb.scaleViewport = true;
+        rfb.clipViewport = true;
+        (rfb as any).resizeSession = true;
+
+        rfb.addEventListener("desktopname", () => {
+          console.log("noVNC desktop name", (rfb as any)?.desktopName);
+        });
+        rfb.addEventListener("bell", () => {
+          console.log("noVNC bell");
+        });
+        rfb.addEventListener("clipboard", (evt: any) => {
+          console.log("noVNC clipboard", evt?.detail);
+        });
+        rfb.addEventListener("fbupdate", (evt: any) => {
+          console.log("noVNC fbupdate", evt?.detail);
+          gotFb = true;
+        });
         rfb.addEventListener("securityfailure", async (evt: any) => {
           console.warn("noVNC security failure", evt?.detail ?? evt);
           setEmbeddedConsole((prev) => ({
@@ -617,22 +676,41 @@ export default function Home() {
             console.error("Error sending credentials", err);
           }
         });
-        rfb.addEventListener("disconnect", async (evt: any) => {
-          console.warn("noVNC disconnect", evt?.detail ?? evt);
-          if (!connected) {
-            setEmbeddedConsole((prev) => ({
-              ...prev,
-              status: "error",
-              error: "Conexión rechazada (verifica ticket/credenciales)",
-              rfb: null,
-            }));
-          }
-        });
         rfb.addEventListener("connect", () => {
           connected = true;
           setEmbeddedConsole((prev) => ({ ...prev, status: "connected", rfb }));
+          // Fuerza un refresh completo por si el servidor no envía FBU inicial
+          try {
+            const anyRfb = rfb as any;
+            const w = anyRfb?._fbWidth ?? info.width ?? 4096;
+            const h = anyRfb?._fbHeight ?? info.height ?? 2160;
+            if ((RFB as any)?.messages && anyRfb?._sock) {
+              (RFB as any).messages.fbUpdateRequest(anyRfb._sock, false, 0, 0, w, h);
+              console.log("noVNC fbUpdateRequest forced", { w, h });
+            }
+          } catch (e) {
+            console.warn("fbUpdateRequest force failed", e);
+          }
+          // watchdog: si no llega un FBU en 2s, pedir otro
+          setTimeout(() => {
+            if (!gotFb) {
+              try {
+                const anyRfb = rfb as any;
+                const w = anyRfb?._fbWidth ?? info.width ?? 4096;
+                const h = anyRfb?._fbHeight ?? info.height ?? 2160;
+                if ((RFB as any)?.messages && anyRfb?._sock) {
+                  (RFB as any).messages.fbUpdateRequest(anyRfb._sock, false, 0, 0, w, h);
+                  console.log("noVNC fbUpdateRequest retry", { w, h });
+                }
+              } catch (err) {
+                console.warn("fbUpdateRequest retry failed", err);
+              }
+            }
+          }, 2000);
         });
         rfb.addEventListener("disconnect", (evt: any) => {
+          console.warn("noVNC disconnect", evt?.detail ?? evt);
+          if (closingConsole.current) return;
           if (!connected) {
             tryConnect(index + 1);
             return;

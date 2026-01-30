@@ -585,7 +585,7 @@ export const fetchVmConsoleInfo = async (
   tenantId: string,
   vmId: string,
   protocol: "spice" | "vnc" = "vnc",
-  opts?: { ticket?: string },
+  opts?: { ticket?: string; consoleId?: string; issueTicket?: boolean },
 ): Promise<ConsoleInfo> => {
   const tenant = getTenantById(tenantId);
   const engineUrl = new URL(tenant.baseUrl);
@@ -596,7 +596,8 @@ export const fetchVmConsoleInfo = async (
     withJsonFormat(`/vms/${vmId}/graphicsconsoles`),
   );
   const consoles = parseGraphicsConsoles(consolesResponse);
-  const selected = pickConsole(consoles, protocol);
+  const preselected = consoles.find((c) => c.id === opts?.consoleId);
+  const selected = preselected ?? pickConsole(consoles, protocol);
 
   if (!selected?.id) {
     throw new Error("La VM no tiene consolas de gráficos disponibles (SPICE/VNC).");
@@ -609,10 +610,9 @@ export const fetchVmConsoleInfo = async (
 
   const proxyTicket = await requestConsoleProxyTicket(tenant, vmId, selected.id);
   let ticket = opts?.ticket;
-  if (!ticket) {
+  if (!ticket && opts?.issueTicket) {
     ticket = await requestConsoleTicket(tenant, vmId, selected.id);
-  } else {
-    // si se entrega ticket, cachearlo para que el proxy lo reutilice
+  } else if (ticket) {
     const cacheKey = `${tenant.id}:${vmId}:${selected.id}`;
     ticketCache.set(cacheKey, { value: ticket, expiresAt: Date.now() + 110_000 });
   }

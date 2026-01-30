@@ -93,6 +93,7 @@ export async function GET(request: Request) {
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol, {
       ticket: providedTicket,
       consoleId,
+      issueTicket: !!providedTicket,
     });
 
     const wsMeta = info.websocket ?? buildWebsocketCandidates(tenant.baseUrl);

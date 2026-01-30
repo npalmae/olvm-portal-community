@@ -27,7 +27,11 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
   const desiredPort = Number(process.env.CONSOLE_PROXY_PORT ?? 3010);
   const httpServer = http.createServer();
-  server = new WebSocketServer({ server: httpServer });
+  server = new WebSocketServer({
+    server: httpServer,
+    // Evita compresión de frames binarios (VNC es binario puro)
+    perMessageDeflate: false,
+  });
 
   server.on("connection", (client, req) => {
     const url = new URL(req.url ?? "/", "ws://localhost");
@@ -53,6 +57,7 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
     }
 
     const closeBoth = (code?: number, reason?: string) => {
+      console.log("[ws-proxy] closing", { code, reason });
       try {
         client.close(code, reason);
       } catch {
@@ -67,11 +72,16 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
     let upstream: WebSocket | null = null;
     let currentIndex = 0;
+    let upstreamEstablished = false;
+    let clientSentFirst = false;
+    let clientMsgCount = 0;
+    let upstreamMsgCount = 0;
 
     const tryTcpConnect = (target: string) => {
       let hostname: string | undefined;
       let port: number | undefined;
       const isTls = target.startsWith("tls://");
+      let firstChunkLogged = false;
 
       try {
         const parsed = new URL(target);
@@ -118,30 +128,85 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
       const socket = socketFactory();
 
       socket.on("connect", () => {
-        client.on("message", (data) => socket.write(data));
-        client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
-        client.on("error", () => closeBoth(1011, "Client socket error"));
+        upstreamEstablished = true;
+        client.on("message", (data) => {
+          clientMsgCount += 1;
+          if (!clientSentFirst || clientMsgCount <= 50) {
+            console.log("[ws-proxy] client msg", {
+              n: clientMsgCount,
+              bytes: (data as Buffer).length ?? 0,
+              index: currentIndex,
+              target,
+              hex: (data as Buffer).subarray(0, 32).toString("hex"),
+            });
+            clientSentFirst = true;
+          }
+          socket.write(data);
+        });
+        client.on("close", (code, reason) => {
+          console.log("[ws-proxy] client closed", { code, reason: reason?.toString() });
+          closeBoth(code, reason?.toString());
+        });
+        client.on("error", (err) => {
+          console.warn("[ws-proxy] client error", err);
+          closeBoth(1011, "Client socket error");
+        });
 
         socket.on("data", (data) => {
+          upstreamMsgCount += 1;
+          if (!firstChunkLogged || upstreamMsgCount <= 50) {
+            console.log("[ws-proxy] upstream data", {
+              n: upstreamMsgCount,
+              bytes: data.length,
+              index: currentIndex,
+              target,
+              hex: data.subarray(0, 32).toString("hex"),
+            });
+            firstChunkLogged = true;
+          }
           try {
-            client.send(data);
+            client.send(data, { binary: true });
           } catch {
             closeBoth(1011, "Forwarding error");
           }
         });
-        socket.on("close", (code) =>
-          closeBoth(code ?? 1011, isTls ? "TLS upstream closed" : "TCP upstream closed"),
-        );
-        socket.on("error", () => {
-          console.warn("[ws-proxy] tcp/tls error", { target, index: currentIndex });
-          currentIndex += 1;
-          setTimeout(tryConnect, 10);
+        socket.on("close", (code) => {
+          console.log("[ws-proxy] upstream closed", {
+            target,
+            index: currentIndex,
+            code,
+          });
+          const hasMore = Boolean(targets[currentIndex + 1]);
+          if (!upstreamEstablished && hasMore) {
+            currentIndex += 1;
+            setTimeout(tryConnect, 10);
+            return;
+          }
+          closeBoth(
+            code ?? 1011,
+            isTls ? "TLS upstream closed" : "TCP upstream closed",
+          );
+        });
+        socket.on("error", (err) => {
+          console.warn("[ws-proxy] tcp/tls error", { target, index: currentIndex, err });
+          const hasMore = Boolean(targets[currentIndex + 1]);
+          if (hasMore) {
+            currentIndex += 1;
+            setTimeout(tryConnect, 10);
+            return;
+          }
+          closeBoth(1011, "TCP/TLS upstream error");
         });
       });
 
       socket.on("error", () => {
-        currentIndex += 1;
-        setTimeout(tryConnect, 10);
+        const hasMore = Boolean(targets[currentIndex + 1]);
+        if (hasMore) {
+          currentIndex += 1;
+          setTimeout(tryConnect, 10);
+          return;
+        }
+        closeBoth(1011, "Socket error before connect");
       });
     };
 
@@ -154,7 +219,7 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
       console.log("[ws-proxy] try target", { currentTarget, index: currentIndex });
 
-      if (currentTarget.startsWith("tcp://")) {
+      if (currentTarget.startsWith("tcp://") || currentTarget.startsWith("tls://")) {
         tryTcpConnect(currentTarget);
         return;
       }
@@ -199,15 +264,20 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
           startListening(0).then(resolve).catch(reject);
           return;
         }
+        console.warn("[ws-proxy] listen error", err);
         reject(err);
       });
 
-      httpServer.listen(portToTry, "0.0.0.0", () => {
-        const address = httpServer.address();
-        proxyPort =
-          typeof address === "object" && address ? address.port : portToTry;
-        resolve(proxyPort as number);
-      });
+      try {
+        httpServer.listen(portToTry, "0.0.0.0", () => {
+          const address = httpServer.address();
+          proxyPort =
+            typeof address === "object" && address ? address.port : portToTry;
+          resolve(proxyPort as number);
+        });
+      } catch (err) {
+        reject(err);
+      }
     });
 
   const port = await startListening(desiredPort);

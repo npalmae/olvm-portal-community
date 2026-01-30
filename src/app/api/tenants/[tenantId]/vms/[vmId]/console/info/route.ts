@@ -17,7 +17,10 @@ export async function GET(request: Request, context: Params) {
       : "vnc";
 
   try {
-    const info = await fetchVmConsoleInfo(tenantId, vmId, protocol);
+    const withTicket = url.searchParams.get("withTicket") === "1";
+    const info = await fetchVmConsoleInfo(tenantId, vmId, protocol, {
+      issueTicket: withTicket,
+    });
     const host = info.host ?? info.websocket?.engineHost;
     const port = info.tlsPort ?? info.port;
     let novncUrl: string | undefined;
