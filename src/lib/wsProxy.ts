@@ -25,7 +25,9 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
   upstreamCa = options?.ca;
   allowInsecureDefault = options?.allowInsecure ?? false;
 
-  const desiredPort = Number(process.env.CONSOLE_PROXY_PORT ?? 3010);
+  // Usar puerto 0 para que el SO asigne uno libre automáticamente
+  // Evita conflictos cuando hay múltiples instancias o reinicios
+  const desiredPort = Number(process.env.CONSOLE_PROXY_PORT ?? 0);
   const httpServer = http.createServer();
   server = new WebSocketServer({
     server: httpServer,
@@ -260,7 +262,7 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
     new Promise((resolve, reject) => {
       httpServer.once("error", (err: NodeJS.ErrnoException) => {
         if (err.code === "EADDRINUSE") {
-          // Si el puerto está ocupado, pide uno libre al SO.
+          console.log("[ws-proxy] Puerto ocupado, intentando puerto dinámico...");
           startListening(0).then(resolve).catch(reject);
           return;
         }
@@ -271,9 +273,11 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
       try {
         httpServer.listen(portToTry, "0.0.0.0", () => {
           const address = httpServer.address();
-          proxyPort =
+          const assignedPort =
             typeof address === "object" && address ? address.port : portToTry;
-          resolve(proxyPort as number);
+          proxyPort = assignedPort;
+          console.log(`[ws-proxy] Proxy iniciado en puerto ${assignedPort}`);
+          resolve(assignedPort);
         });
       } catch (err) {
         reject(err);
@@ -281,6 +285,7 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
     });
 
   const port = await startListening(desiredPort);
+  console.log(`[ws-proxy] Retornando puerto: ${port}`);
 
   return { port };
 };

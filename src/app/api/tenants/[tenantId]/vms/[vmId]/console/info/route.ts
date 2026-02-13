@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { fetchVmConsoleInfo } from "@/lib/olvmClient";
+import { getTenantById } from "@/lib/config";
+import { ensureConsoleProxy } from "@/lib/wsProxy";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type Params = {
   params: Promise<{ tenantId: string; vmId: string }>;
@@ -21,22 +24,41 @@ export async function GET(request: Request, context: Params) {
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol, {
       issueTicket: withTicket,
     });
-    const host = info.host ?? info.websocket?.engineHost;
+    const tenant = getTenantById(tenantId);
+    const host = info.host;
     const port = info.tlsPort ?? info.port;
-    let novncUrl: string | undefined;
+    
+    // Crear proxy WebSocket local para evitar CORS
+    let proxyUrl: string | undefined;
+    if (host && port) {
+      const { port: proxyPort } = await ensureConsoleProxy({
+        ca: tenant.caCert,
+        allowInsecure: tenant.allowInsecure,
+      });
+      const origin = new URL(request.url);
+      const isSecure = origin.protocol === "https:";
+      const target = `tcp://${host}:${port}`;
+      proxyUrl = `${isSecure ? "wss" : "ws"}://${origin.hostname}:${proxyPort}/?targets=${encodeURIComponent(target)}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
+    }
 
-    if (info.websocket?.wsUrl && host && port && info.ticket) {
-      const base = info.websocket.wsUrl.replace(/\?$/, "");
-      const sep = base.includes("?") ? "&" : "?";
-      novncUrl = `${base}${sep}host=${encodeURIComponent(host)}&port=${encodeURIComponent(port.toString())}&ticket=${encodeURIComponent(info.ticket)}`;
+    // URL para noVNC (usando el proxy local)
+    let novncUrl: string | undefined;
+    if (proxyUrl && info.ticket) {
+      novncUrl = proxyUrl;
     }
 
     return NextResponse.json({
       ...info,
       host,
       port,
-      novncUrl,
+      ticket: info.ticket,
       consoleId: info.consoleId,
+      websocket: {
+        wsUrl: proxyUrl,
+        engineHost: host,
+      },
+      novncUrl,
+      proxyWsUrl: proxyUrl,
     });
   } catch (error) {
     const message = (error as Error).message;

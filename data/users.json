@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1b512d2f-b5fe-4647-99b1-d9ce7c4f23fc",
+    "email": "super@test.com",
+    "password": "$2b$10$0pTGjt21ZTnJ5.HEq1dT9eTPIa5YTHFu/46DOHpY4JrFnZZcXWQDe",
+    "name": "Super Admin",
+    "tenantId": "default",
+    "role": "superadmin",
+    "createdAt": "2026-02-12T18:47:11.602Z"
+  },
+  {
+    "id": "32601c54-bbac-4da0-8c0f-c72dac0580cc",
+    "email": "npalma@sixmanager.com",
+    "password": "$2b$10$VdRp5/W.z5ApENASNQJ.ReBsLRNYXxwVHqfWLRQ/eIcDGlE//ELoy",
+    "name": "Nicolas Palma",
+    "tenantId": "default",
+    "role": "superadmin",
+    "createdAt": "2026-02-12T19:01:24.056Z"
+  }
+]
