@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { signOut, useSession } from "next-auth/react";
 
 type Tenant = {
   id: string;
@@ -145,7 +144,6 @@ const ActionButton = ({
 );
 
 export default function Home() {
-  const { data: session, status } = useSession();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [vms, setVms] = useState<Vm[]>([]);
@@ -174,11 +172,6 @@ export default function Home() {
     rfb?: RfbInstance | null;
   }>({ vmId: "", status: "idle", error: null, rfb: null });
   const [useProxy, setUseProxy] = useState(true);
-  const userName =
-    session?.user?.name || session?.user?.email || "Usuario";
-  const userRole = session?.user?.role || "usuario";
-  const isSuperadmin = userRole === "superadmin";
-  const userTenant = session?.user?.tenantId;
   const closingConsole = useRef(false);
   const consoleRef = useMemo(() => {
     if (typeof document === "undefined") return null;
@@ -213,11 +206,7 @@ export default function Home() {
         }
         const sanitized = data.filter((t) => Boolean(t.id));
         setTenants(sanitized);
-        const preferred =
-          isSuperadmin
-            ? sanitized[0]?.id
-            : userTenant || sanitized[0]?.id;
-        setSelectedTenant(preferred ?? "");
+        setSelectedTenant(sanitized[0]?.id ?? "");
       } catch (err) {
         console.error(err);
         setError(
@@ -226,7 +215,7 @@ export default function Home() {
       }
     };
     loadTenants().catch(console.error);
-  }, [isSuperadmin, userTenant]);
+  }, []);
 
   useEffect(() => {
     if (!tenants.length) return;
@@ -239,14 +228,6 @@ export default function Home() {
       setSelectedTenant(firstTenantId);
     }
   }, [selectedTenant, tenants]);
-
-  useEffect(() => {
-    if (isSuperadmin || !session?.user?.tenantId || !tenants.length) return;
-    const match = tenants.find((t) => t.id === session.user.tenantId);
-    if (match) {
-      setSelectedTenant(match.id);
-    }
-  }, [isSuperadmin, session?.user?.tenantId, tenants]);
 
   useEffect(() => {
     if (!selectedTenant || selectedTenant === "undefined") return;
@@ -370,28 +351,23 @@ export default function Home() {
     setSuccess(null);
     try {
       const res = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc&withTicket=1`,
-        { cache: "no-store" },
+        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
       );
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo obtener la consola web");
-      
-      // Usar la nueva página de consola con noVNC
-      const proxyWsUrl = data?.proxyWsUrl as string | undefined;
-      const ticket = data?.ticket as string | undefined;
-      
-      if (proxyWsUrl && ticket) {
-        // DEBUG: Mostrar la URL antes de abrir
-        alert(`DEBUG - proxyWsUrl: ${proxyWsUrl}\nTicket: ${ticket?.substring(0, 10)}...`);
-        console.log("[DEBUG] proxyWsUrl:", proxyWsUrl);
-        console.log("[DEBUG] ticket:", ticket);
-        const consoleUrl = `/console?wsUrl=${encodeURIComponent(proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}`;
-        window.open(consoleUrl, "_blank", "noopener,noreferrer");
+      const novncUrl = data?.novncUrl as string | undefined;
+      if (novncUrl) {
+        window.open(novncUrl, "_blank", "noopener,noreferrer");
         setSuccess("Consola abierta en nueva pestaña (noVNC).");
         return;
       }
-      
-      throw new Error("Respuesta de consola incompleta (proxy/ticket faltan).");
+      if (data?.websocket?.wsUrl && data?.ticket && data?.host) {
+        const url = `${data.websocket.wsUrl}?host=${data.host}&port=${data.tlsPort ?? data.port ?? ""}&ticket=${data.ticket}`;
+        window.open(url, "_blank", "noopener,noreferrer");
+        setSuccess("Consola abierta usando proxy WebSocket.");
+        return;
+      }
+      throw new Error("Respuesta de consola incompleta (host/port/ticket faltan).");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -766,43 +742,6 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/20 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3ad4ad]/20 text-lg font-semibold text-[#3ad4ad]">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">{userName}</p>
-              <p className="text-xs text-white/60 flex items-center gap-2">
-                <span>{session?.user?.email ?? "Sesión activa"} · Rol {userRole}</span>
-                {isSuperadmin && (
-                  <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-2 py-[2px] text-[10px] font-bold uppercase tracking-wide text-amber-100">
-                    SUPERADMIN
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {userTenant && (
-              <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
-                Tenant asignado: {userTenant}
-              </span>
-            )}
-            {isSuperadmin && (
-              <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100 shadow-inner shadow-amber-500/20">
-                Acceso global
-              </span>
-            )}
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-
         <header className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-xl shadow-emerald-500/5 backdrop-blur">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-3">
@@ -822,11 +761,6 @@ export default function Home() {
               <span className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-100">
                 Endpoint: ovirt-engine / REST
               </span>
-              {isSuperadmin && (
-                <span className="rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-amber-100">
-                  SUPERADMIN · todos los tenants
-                </span>
-              )}
               <div className="flex items-center gap-2 text-xs text-white/60">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(58,212,173,0.18)]" />
                 Conexión autenticada por Basic Auth
@@ -843,9 +777,6 @@ export default function Home() {
               </p>
               <p className="text-xs text-white/70">
                 Cada tenant usa sus credenciales y ve solo sus recursos.
-                {isSuperadmin
-                  ? " Como SUPERADMIN puedes alternar libremente entre todos los tenants configurados."
-                  : " Tu sesión está limitada a tu tenant asignado."}
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
