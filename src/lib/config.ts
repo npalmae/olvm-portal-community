@@ -11,6 +11,7 @@ export type TenantConfig = {
   token?: string;
   caFile?: string;
   caCert?: Buffer;
+  tag?: string;
 };
 
 const sanitizeBaseUrl = (baseUrl: string) => {
