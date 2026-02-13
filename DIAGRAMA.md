@@ -1,31 +1,55 @@
-markdown
+```
 # Diagrama de Arquitectura - OVM Portal
 
-## Diagrama General
+## Diagrama General del Sistema
 
-\`\`\`mermaid
+```mermaid
 graph TB
-    USUARIO["👤 Usuario"] --> PORTAL["🚀 OVM Portal"]
+    USUARIO["👤 Usuario (Navegador)"] --> PORTAL["🚀 OVM Portal (Next.js)"]
     PORTAL --> OLVM["☁️ OLVM Manager"]
-    OLVM --> VM1["🖥️ Lab-TESTVM1 (tenant-a)"]
-    OLVM --> VM2["🖥️ Lab-TESTVM1-tenant2 (tenant-b)"]
-\`\`\`
+    OLVM --> VM1["🖥️ Lab-TESTVM1<br/>Tag: tenant-a"]
+    OLVM --> VM2["🖥️ Lab-TESTVM1-tenant2<br/>Tag: tenant-b"]
+```
+Stack Tecnológico
 
-## Stack
+**Frontend**
+• Tecnología: Next.js 15 + React 18 + TypeScript
 
-| Capa | Tecnología |
-|------|-----------|
-| Frontend | Next.js 15 + React 18 |
-| Auth | Auth.js v5 + bcryptjs |
-| Consolas | noVNC |
-| API | OLVM REST API |
+**Estilos**
+• Tecnología: Tailwind CSS
 
-## VMs
+**Auth**
+• Tecnología: Auth.js v5 (bcryptjs)
 
-- Lab-TESTVM1 → Tag: tenant-a
-- Lab-TESTVM1-tenant2 → Tag: tenant-b (3GB RAM, 2 CPU)
+**Consolas**
+• Tecnología: noVNC
 
-## URLs
+**API**
+• Tecnología: OLVM REST API
 
-- Portal: http://localhost:3000
-- OLVM: https://ocloudqa.sixmanager.cl
+VMs en OLVM
+
+**Lab-TESTVM1**
+• ID: f7c1f502...
+• Tag: tenant-a
+• Recursos: Original
+
+**Lab-TESTVM1-tenant2**
+• ID: 49a5cd76...
+• Tag: tenant-b
+• Recursos: 3GB RAM, 2 CPU
+
+URLs de Acceso
+
+• **Portal:** http://localhost:3000
+• **OLVM:** https://ocloudqa.sixmanager.cl
+Tenants Configurados
+
+• **Tenant A - Producción** → Filtra VMs con tag `tenant-a`
+• **Tenant B - Desarrollo** → Filtra VMs con tag `tenant-b`
+
+_Generado: 2026-02-13_
+
+```
+
+```
