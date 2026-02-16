@@ -122,10 +122,10 @@ export async function GET(request: Request) {
     }
 
     const hostParam = info.host ?? wsMeta.engineHost ?? "";
-    const portParam = (info.port ?? info.tlsPort ?? "").toString();
+    const portParam = (info.tlsPort ?? info.port ?? "").toString();
     const targets: string[] = [];
 
-    // Usamos sólo TCP directo; el engine de esta instancia expone VNC sin TLS.
+    // Solo usamos el destino TCP directo que sabemos que funciona con el ticket.
     if (hostParam && portParam) {
       targets.push(`tcp://${hostParam}:${portParam}`);
     }
