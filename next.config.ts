@@ -5,6 +5,17 @@ const nextConfig: NextConfig = {
     // Linting fails in offline environments; skip during builds so the app can compile.
     ignoreDuringBuilds: true,
   },
+  devIndicators: {
+    appIsrStatus: false,
+    buildActivity: false,
+  },
+  logging: {
+    client: {
+      error: () => {
+        // Silencia el overlay rojo en dev (no afecta production builds)
+      },
+    },
+  },
   webpack: (config) => {
     config.experiments = {
       ...(config.experiments || {}),
