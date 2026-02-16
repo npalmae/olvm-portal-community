@@ -612,10 +612,30 @@ export default function Home() {
       let connected = false;
       let gotFb = false;
 
-      // Verbose noVNC logging to detectar causas de desconexión
+      // Verbose noVNC logging solo cuando debuggeamos; en dev normal silenciamos errores
       try {
         const logMod: any = await import("@novnc/novnc/lib/util/logging");
-        logMod?.setLevel?.("debug");
+        logMod?.setLevel?.("warn");
+        if (logMod?.setLogger) {
+          logMod.setLogger({
+            log: console.log,
+            debug: console.debug,
+            info: console.info,
+            warn: console.warn,
+            error: () => {
+              /* noop para evitar overlay Next */
+            },
+          });
+        } else {
+          // fallback: pisa console.error localmente
+          const originalError = console.error;
+          console.error = (...args) => {
+            if (typeof args[0] === "string" && args[0].includes("RFB")) {
+              return;
+            }
+            originalError(...args);
+          };
+        }
       } catch {
         // ignore if logging module not available
       }
