@@ -74,6 +74,11 @@ export type ConsoleInfo = {
   proxyTicket?: { value: string; host?: string; port?: number; sslTarget?: boolean };
 };
 
+type RawTag = {
+  id?: string;
+  name?: string;
+};
+
 type OlvmFetchInit = RequestInit & {
   allowInsecure?: boolean;
   dispatcher?: UndiciAgent;
@@ -305,6 +310,64 @@ const parseGraphicsConsoles = (data: unknown): RawConsole[] => {
             ? ((root as { graphics_console?: RawConsole[] }).graphics_console ?? [])
             : [];
   return consoles;
+};
+
+const parseTagNames = (data: unknown): string[] => {
+  const root =
+    data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  if (!root) return [];
+
+  const vmLevel =
+    root.vm && typeof root.vm === "object"
+      ? (root.vm as Record<string, unknown>)
+      : root;
+
+  const candidates: RawTag[] = [];
+  const pushMany = (value: unknown) => {
+    if (Array.isArray(value)) {
+      candidates.push(...(value as RawTag[]));
+      return;
+    }
+    if (value && typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      if (Array.isArray(obj.tag)) {
+        candidates.push(...(obj.tag as RawTag[]));
+      }
+    }
+  };
+
+  pushMany(vmLevel.tag);
+  pushMany(vmLevel.tags);
+  pushMany(root.tag);
+  pushMany(root.tags);
+
+  return Array.from(
+    new Set(
+      candidates
+        .map((tag) => (tag?.name ?? "").toString().trim())
+        .filter(Boolean),
+    ),
+  );
+};
+
+export const enforceVmTagPolicy = async (tenantId: string, vmId: string) => {
+  const tenant = getTenantById(tenantId);
+  const expectedTag = tenant.tag?.trim();
+  if (!expectedTag) return;
+
+  const payload = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}?follow=tags`),
+  );
+  const tagNames = parseTagNames(payload);
+  const expected = expectedTag.toLowerCase();
+  const hasTag = tagNames.some((tag) => tag.toLowerCase() === expected);
+
+  if (!hasTag) {
+    throw new Error(
+      `Forbidden: VM ${vmId} no tiene tag del tenant (${expectedTag})`,
+    );
+  }
 };
 
 const pickConsole = (
@@ -698,6 +761,262 @@ export const sendVmAction = async (
   }
   const tenant = getTenantById(tenantId);
   await olvmFetch(tenant, `/vms/${vmId}/${action}`, { method: "POST", body: "{}" });
+};
+
+type CloneVmResult = {
+  vmId: string;
+  name: string;
+};
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+type RawNic = {
+  id?: string;
+  name?: string;
+};
+
+type RawDiskAttachment = {
+  id?: string;
+  disk?: {
+    id?: string;
+    name?: string;
+    status?: string | { state?: string };
+  };
+};
+
+const parseNics = (payload: unknown): RawNic[] => {
+  const root =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : null;
+  if (!root) return [];
+
+  if (Array.isArray(root.nic)) return root.nic as RawNic[];
+  if (Array.isArray(root.nics)) return root.nics as RawNic[];
+  if (
+    root.nics &&
+    typeof root.nics === "object" &&
+    Array.isArray((root.nics as { nic?: RawNic[] }).nic)
+  ) {
+    return (root.nics as { nic?: RawNic[] }).nic ?? [];
+  }
+  return [];
+};
+
+const parseDiskAttachments = (payload: unknown): RawDiskAttachment[] => {
+  const root =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : null;
+  if (!root) return [];
+
+  if (Array.isArray(root.disk_attachment)) {
+    return root.disk_attachment as RawDiskAttachment[];
+  }
+  if (Array.isArray(root.disk_attachments)) {
+    return root.disk_attachments as RawDiskAttachment[];
+  }
+  if (
+    root.disk_attachments &&
+    typeof root.disk_attachments === "object" &&
+    Array.isArray(
+      (root.disk_attachments as { disk_attachment?: RawDiskAttachment[] })
+        .disk_attachment,
+    )
+  ) {
+    return (
+      (root.disk_attachments as { disk_attachment?: RawDiskAttachment[] })
+        .disk_attachment ?? []
+    );
+  }
+  return [];
+};
+
+const waitForDisksUnlocked = async (tenant: TenantConfig, vmId: string) => {
+  const timeoutMs = 10 * 60_000;
+  const pollEveryMs = 4_000;
+  const deadline = Date.now() + timeoutMs;
+  let lastLocked: string[] = [];
+
+  while (Date.now() < deadline) {
+    const payload = await olvmFetch(
+      tenant,
+      withJsonFormat(`/vms/${vmId}/diskattachments?follow=disk`),
+    );
+    const attachments = parseDiskAttachments(payload);
+    const locked = attachments
+      .filter((att) => {
+        const raw = att.disk?.status;
+        const status =
+          typeof raw === "string"
+            ? raw.toLowerCase()
+            : raw?.state?.toLowerCase?.() ?? "";
+        return status.includes("locked");
+      })
+      .map((att) => att.disk?.name ?? att.disk?.id ?? att.id ?? "unknown-disk");
+
+    if (!locked.length) return;
+    lastLocked = locked;
+    await sleep(pollEveryMs);
+  }
+
+  throw new Error(
+    `Clon creado, pero los discos siguen bloqueados: ${lastLocked.join(", ")}`,
+  );
+};
+
+const findClonedVmId = async (
+  tenantId: string,
+  sourceVmId: string,
+  newName: string,
+): Promise<string> => {
+  const before = await fetchVms(tenantId);
+  const existingName = before.find((vm) => vm.name === newName);
+  if (existingName) {
+    throw new Error(`Ya existe una VM con nombre ${newName}`);
+  }
+  const knownIds = new Set(before.map((vm) => vm.id));
+  const timeoutMs = 180_000;
+  const pollEveryMs = 3_000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const current = await fetchVms(tenantId);
+    const found = current.find(
+      (vm) =>
+        vm.name === newName && vm.id !== sourceVmId && !knownIds.has(vm.id),
+    );
+    if (found?.id) return found.id;
+    await sleep(pollEveryMs);
+  }
+
+  throw new Error(
+    "No se pudo encontrar la VM clonada dentro del tiempo esperado",
+  );
+};
+
+const ensureVmStopped = async (tenant: TenantConfig, vmId: string) => {
+  try {
+    await olvmFetch(tenant, `/vms/${vmId}/stop`, {
+      method: "POST",
+      body: "{}",
+    });
+  } catch (error) {
+    const message = (error as Error).message.toLowerCase();
+    if (
+      message.includes("already") ||
+      message.includes("down") ||
+      message.includes("conflict")
+    ) {
+      return;
+    }
+    throw error;
+  }
+};
+
+const disconnectVmNics = async (tenant: TenantConfig, vmId: string) => {
+  const payload = await olvmFetch(tenant, withJsonFormat(`/vms/${vmId}/nics`));
+  const nics = parseNics(payload);
+  if (!nics.length) return;
+
+  const failed: string[] = [];
+
+  for (const nic of nics) {
+    if (!nic.id) continue;
+
+    try {
+      await olvmFetch(tenant, `/vms/${vmId}/nics/${nic.id}/deactivate`, {
+        method: "POST",
+        body: "{}",
+      });
+      continue;
+    } catch {
+      // fallback to explicit linked=false update
+    }
+
+    const updatePayloads = [
+      { linked: false },
+      { nic: { linked: false } },
+      nic.name ? { name: nic.name, linked: false } : null,
+      nic.name ? { nic: { name: nic.name, linked: false } } : null,
+    ].filter(Boolean);
+
+    let disconnected = false;
+    for (const updateBody of updatePayloads) {
+      try {
+        await olvmFetch(tenant, `/vms/${vmId}/nics/${nic.id}`, {
+          method: "PUT",
+          body: JSON.stringify(updateBody),
+        });
+        disconnected = true;
+        break;
+      } catch {
+        // try next payload variant
+      }
+    }
+
+    if (!disconnected) {
+      failed.push(nic.id);
+    }
+  }
+
+  if (failed.length) {
+    throw new Error(
+      `No se pudieron desconectar las NICs: ${failed.join(", ")}`,
+    );
+  }
+};
+
+export const cloneVm = async (
+  tenantId: string,
+  sourceVmId: string,
+  newName: string,
+): Promise<CloneVmResult> => {
+  const normalizedName = newName.trim();
+  if (!normalizedName) {
+    throw new Error("El nombre del clon es obligatorio");
+  }
+
+  const tenant = getTenantById(tenantId);
+  const clonePayloads = [
+    { action: { vm: { name: normalizedName } } },
+    { vm: { name: normalizedName } },
+    { name: normalizedName },
+  ];
+
+  let lastError: unknown;
+  for (const payload of clonePayloads) {
+    try {
+      await olvmFetch(tenant, `/vms/${sourceVmId}/clone`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      lastError = undefined;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) {
+    throw new Error(
+      `No se pudo iniciar la clonación: ${(lastError as Error).message}`,
+    );
+  }
+
+  const clonedVmId = await findClonedVmId(tenantId, sourceVmId, normalizedName);
+  await ensureVmStopped(tenant, clonedVmId);
+  await disconnectVmNics(tenant, clonedVmId);
+  await ensureVmStopped(tenant, clonedVmId);
+  await waitForDisksUnlocked(tenant, clonedVmId);
+
+  return {
+    vmId: clonedVmId,
+    name: normalizedName,
+  };
 };
 
 type CreateVmInput = {

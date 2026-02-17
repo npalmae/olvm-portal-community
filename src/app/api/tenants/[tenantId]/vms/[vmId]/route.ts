@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { fetchVmById, updateVmResources } from "@/lib/olvmClient";
+import { auth } from "@/auth";
+import {
+  enforceVmTagPolicy,
+  fetchVmById,
+  updateVmResources,
+} from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +20,14 @@ const asPositiveNumber = (value: unknown) => {
 export async function GET(_: Request, context: Params) {
   const { tenantId, vmId } = await context.params;
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== "superadmin") {
+      await enforceVmTagPolicy(tenantId, vmId);
+    }
+
     const vm = await fetchVmById(tenantId, vmId);
     return NextResponse.json(vm);
   } catch (error) {
@@ -29,6 +42,14 @@ export async function GET(_: Request, context: Params) {
 export async function PATCH(request: Request, context: Params) {
   const { tenantId, vmId } = await context.params;
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== "superadmin") {
+      await enforceVmTagPolicy(tenantId, vmId);
+    }
+
     const body = await request.json();
     const memoryMB = asPositiveNumber(body?.memoryMB);
     const cpuCores = asPositiveNumber(body?.cpuCores);

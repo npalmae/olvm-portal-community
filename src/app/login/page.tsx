@@ -9,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const safeCallbackPath = callbackUrl.startsWith("/") ? callbackUrl : "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +23,7 @@ export default function LoginPage() {
       redirect: false,
       email,
       password,
-      callbackUrl,
+      callbackUrl: safeCallbackPath,
     });
 
     setLoading(false);
@@ -30,7 +31,18 @@ export default function LoginPage() {
       setError("Credenciales inválidas");
       return;
     }
-    router.push(result?.url || callbackUrl || "/");
+    let target = safeCallbackPath;
+    if (result?.url) {
+      try {
+        const parsed = new URL(result.url, window.location.origin);
+        if (parsed.origin === window.location.origin) {
+          target = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+      } catch {
+        // ignore malformed URL and keep safe callback
+      }
+    }
+    router.push(target);
   };
 
   return (

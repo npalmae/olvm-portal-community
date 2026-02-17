@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { fetchVmConsoleFile } from "@/lib/olvmClient";
+import { auth } from "@/auth";
+import { enforceVmTagPolicy, fetchVmConsoleFile } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,14 @@ export async function GET(request: Request, context: Params) {
       : "vnc";
 
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== "superadmin") {
+      await enforceVmTagPolicy(tenantId, vmId);
+    }
+
     const vv = await fetchVmConsoleFile(tenantId, vmId, protocol);
     const filename = `${vmId}-${protocol}.vv`;
     return new Response(vv, {

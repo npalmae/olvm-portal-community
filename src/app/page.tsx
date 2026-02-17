@@ -144,6 +144,7 @@ const ActionButton = ({
 );
 
 export default function Home() {
+  const showExperimentalConsole = true;
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [vms, setVms] = useState<Vm[]>([]);
@@ -172,6 +173,21 @@ export default function Home() {
     rfb?: RfbInstance | null;
   }>({ vmId: "", status: "idle", error: null, rfb: null });
   const [useProxy, setUseProxy] = useState(true);
+  const [cloneWizard, setCloneWizard] = useState<{
+    open: boolean;
+    sourceVmId: string;
+    sourceVmName: string;
+    newName: string;
+    submitting: boolean;
+    error: string | null;
+  }>({
+    open: false,
+    sourceVmId: "",
+    sourceVmName: "",
+    newName: "",
+    submitting: false,
+    error: null,
+  });
   const closingConsole = useRef(false);
   const consoleRef = useMemo(() => {
     if (typeof document === "undefined") return null;
@@ -314,6 +330,100 @@ export default function Home() {
     }
   };
 
+  const openCloneWizard = (vm: Vm) => {
+    setCloneWizard({
+      open: true,
+      sourceVmId: vm.id,
+      sourceVmName: vm.name,
+      newName: `${vm.name}-clone`,
+      submitting: false,
+      error: null,
+    });
+  };
+
+  const closeCloneWizard = () => {
+    if (cloneWizard.submitting) return;
+    setCloneWizard({
+      open: false,
+      sourceVmId: "",
+      sourceVmName: "",
+      newName: "",
+      submitting: false,
+      error: null,
+    });
+  };
+
+  const submitCloneWizard = async () => {
+    if (!selectedTenant || selectedTenant === "undefined") return;
+    const sourceVmId = cloneWizard.sourceVmId;
+    const sourceVmName = cloneWizard.sourceVmName;
+    const cloneName = cloneWizard.newName.trim();
+
+    if (!sourceVmId) return;
+    if (!cloneName) {
+      setCloneWizard((prev) => ({
+        ...prev,
+        error: "Ingresa un nombre para la VM clonada.",
+      }));
+      return;
+    }
+
+    setCloneWizard((prev) => ({ ...prev, submitting: true, error: null }));
+    setActionLoading(`${sourceVmId}-clone`);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch(
+        `/api/tenants/${selectedTenant}/vms/${sourceVmId}/actions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "clone",
+            cloneName,
+          }),
+        },
+      );
+      const data = await parseJsonSafe(res);
+      if (!res.ok) {
+        throw new Error(data?.error ?? "No se pudo clonar la VM");
+      }
+
+      setSuccess(
+        `Clon ${cloneName} creado. Quedó apagado y con red desconectada.`,
+      );
+      setActionHistory((prev) => [
+        {
+          vmId: sourceVmId,
+          action: `clone -> ${cloneName}`,
+          status: "ok",
+          timestamp: Date.now(),
+          message: `Origen: ${sourceVmName}`,
+        },
+        ...prev.slice(0, 2),
+      ]);
+      setCloneWizard({
+        open: false,
+        sourceVmId: "",
+        sourceVmName: "",
+        newName: "",
+        submitting: false,
+        error: null,
+      });
+      await refresh();
+    } catch (err) {
+      const message = (err as Error).message;
+      setCloneWizard((prev) => ({
+        ...prev,
+        submitting: false,
+        error: message,
+      }));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const downloadConsole = async (vmId: string, protocol: "spice" | "vnc" = "spice") => {
     if (!selectedTenant || selectedTenant === "undefined") return;
     setConsoleLoading(vmId);
@@ -337,37 +447,6 @@ export default function Home() {
       a.remove();
       window.URL.revokeObjectURL(url);
       setSuccess("Consola descargada. Ábrela con remote-viewer (Spice/VNC).");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setConsoleLoading(null);
-    }
-  };
-
-  const openConsoleWeb = async (vmId: string) => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
-    setConsoleLoading(vmId);
-    setError(null);
-    setSuccess(null);
-    try {
-      const res = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc`,
-      );
-      const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "No se pudo obtener la consola web");
-      const novncUrl = data?.novncUrl as string | undefined;
-      if (novncUrl) {
-        window.open(novncUrl, "_blank", "noopener,noreferrer");
-        setSuccess("Consola abierta en nueva pestaña (noVNC).");
-        return;
-      }
-      if (data?.websocket?.wsUrl && data?.ticket && data?.host) {
-        const url = `${data.websocket.wsUrl}?host=${data.host}&port=${data.tlsPort ?? data.port ?? ""}&ticket=${data.ticket}`;
-        window.open(url, "_blank", "noopener,noreferrer");
-        setSuccess("Consola abierta usando proxy WebSocket.");
-        return;
-      }
-      throw new Error("Respuesta de consola incompleta (host/port/ticket faltan).");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -946,20 +1025,22 @@ export default function Home() {
                         loading={actionLoading === `${vm.id}-reboot`}
                       />
                       <ActionButton
+                        label="Clone"
+                        onClick={() => openCloneWizard(vm)}
+                        loading={actionLoading === `${vm.id}-clone`}
+                      />
+                      <ActionButton
                         label="Consola (VNC)"
                         onClick={() => downloadConsole(vm.id, "vnc")}
                         loading={consoleLoading === vm.id}
                       />
-                      <ActionButton
-                        label="Consola web"
-                        onClick={() => openConsoleWeb(vm.id)}
-                        loading={consoleLoading === vm.id}
-                      />
-                      <ActionButton
-                        label="Consola embebida"
-                        onClick={() => openEmbeddedConsole(vm.id)}
-                        loading={consoleLoading === vm.id}
-                      />
+                      {showExperimentalConsole && (
+                        <ActionButton
+                          label="Consola embebida"
+                          onClick={() => openEmbeddedConsole(vm.id)}
+                          loading={consoleLoading === vm.id}
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -1206,7 +1287,60 @@ export default function Home() {
           </aside>
         </div>
       </div>
-      {embeddedConsole.status !== "idle" && (
+      {cloneWizard.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
+          <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-xl">
+            <p className="text-xs uppercase tracking-wide text-white/50">
+              Clone Wizard
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-white">
+              Clonar VM {cloneWizard.sourceVmName}
+            </h2>
+            <p className="mt-2 text-sm text-white/70">
+              El clon copiará CPU, memoria y discos del servidor origen. Al terminar
+              quedará apagado y con interfaces de red desconectadas.
+            </p>
+            <label className="mt-4 block text-sm text-white/70">
+              Nuevo nombre
+              <input
+                value={cloneWizard.newName}
+                onChange={(e) =>
+                  setCloneWizard((prev) => ({
+                    ...prev,
+                    newName: e.target.value,
+                    error: null,
+                  }))
+                }
+                disabled={cloneWizard.submitting}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring disabled:opacity-70"
+                placeholder="vm-clone-01"
+              />
+            </label>
+            {cloneWizard.error && (
+              <div className="mt-3 rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+                {cloneWizard.error}
+              </div>
+            )}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                onClick={closeCloneWizard}
+                disabled={cloneWizard.submitting}
+                className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitCloneWizard}
+                disabled={cloneWizard.submitting}
+                className="rounded-xl border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-50 hover:bg-emerald-400/25 disabled:opacity-60"
+              >
+                {cloneWizard.submitting ? "Clonando..." : "Clonar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showExperimentalConsole && embeddedConsole.status !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
           <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-xl">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

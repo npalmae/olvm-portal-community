@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { isSupportedAction, sendVmAction } from "@/lib/olvmClient";
+import { auth } from "@/auth";
+import {
+  cloneVm,
+  enforceVmTagPolicy,
+  isSupportedAction,
+  sendVmAction,
+} from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +16,14 @@ type Params = {
 export async function POST(request: Request, context: Params) {
   const { tenantId, vmId } = await context.params;
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== "superadmin") {
+      await enforceVmTagPolicy(tenantId, vmId);
+    }
+
     const body = await request.json();
     const action = typeof body?.action === "string" ? body.action : "";
     if (!action) {
@@ -17,6 +31,19 @@ export async function POST(request: Request, context: Params) {
         { error: "Action is required" },
         { status: 400 },
       );
+    }
+
+    if (action === "clone") {
+      const cloneName =
+        typeof body?.cloneName === "string" ? body.cloneName.trim() : "";
+      if (!cloneName) {
+        return NextResponse.json(
+          { error: "cloneName is required for clone action" },
+          { status: 400 },
+        );
+      }
+      const cloned = await cloneVm(tenantId, vmId, cloneName);
+      return NextResponse.json({ ok: true, cloned });
     }
 
     if (!isSupportedAction(action)) {

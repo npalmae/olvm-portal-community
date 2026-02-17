@@ -26,6 +26,28 @@ Configura los tenants OLVM en `.env.local` siguiendo el ejemplo de `.env.example
 - Errores de conexión a OLVM se muestran como `No se pudo conectar con OLVM (<baseUrl>): ...`; revisa URL, CA y conectividad si aparecen mensajes tipo `fetch failed`.
 - Usa en `baseUrl` el hostname que coincide con el certificado del engine (no la IP) para evitar fallos SAN.
 
+### Estructura multitenant por tags
+Diseño acordado para aislamiento real por tenant:
+
+1. Modelo canónico
+- Cada tenant en `OLVM_TENANTS` debe tener `id` y `tag` únicos (ej: `tenant-a`, `tenant-b`).
+- Cada VM visible/operable por un tenant debe portar su `tag` en OLVM.
+
+2. Regla de autorización
+- Usuarios no `superadmin` solo pueden operar VMs de su `tenantId` y con el `tag` del tenant.
+- La validación se hace en backend antes de `start/stop/reboot/clone/update/console`.
+
+3. Alcance funcional
+- Listado de VMs: filtrar por `tag` del tenant.
+- Crear/clonar VM: aplicar automáticamente `tag` del tenant al recurso nuevo.
+- Auditoría: detectar VMs sin `tag` o con `tag` cruzado.
+
+4. Orden de implementación
+- Paso 1: enforcement de backend por `tag` (bloqueos por política).
+- Paso 2: filtrado por `tag` en listados.
+- Paso 3: auto-tag en create/clone.
+- Paso 4: endpoint/tarea de auditoría de inconsistencias.
+
 ### Consola embebida / noVNC
 - La API `/api/console/proxy` intenta primero websockify (si existe) y luego puentea por TCP directo al host/puerto VNC entregado por OLVM.
 - Asegúrate de que desde tu máquina haya salida TCP hacia el host/puerto VNC (`tlsPort`/`port` de la VM); si el puerto está cerrado verás errores 1006/1011.

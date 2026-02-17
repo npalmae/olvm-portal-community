@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { fetchVmConsoleInfo } from "@/lib/olvmClient";
+import { enforceVmTagPolicy } from "@/lib/olvmClient";
 import { getTenantById } from "@/lib/config";
 import { ensureConsoleProxy } from "@/lib/wsProxy";
 
@@ -87,6 +89,14 @@ export async function GET(request: Request) {
   }
 
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== "superadmin") {
+      await enforceVmTagPolicy(tenantId, vmId);
+    }
+
     const tenant = getTenantById(tenantId);
     const providedTicket = url.searchParams.get("ticket") ?? undefined;
     const consoleId = url.searchParams.get("consoleId") ?? undefined;
