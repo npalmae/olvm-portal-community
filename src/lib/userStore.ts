@@ -4,18 +4,33 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 export type UserRole = "user" | "admin" | "superadmin";
+export type MembershipRole = Exclude<UserRole, "superadmin">;
+
+export type TenantMembership = {
+  tenantId: string;
+  role: MembershipRole;
+};
 
 export type StoredUser = {
   id: string;
   email: string;
   password: string;
   name: string;
-  tenantId: string;
-  role: UserRole;
+  tenantId?: string;
+  role?: UserRole;
+  defaultTenantId?: string;
+  globalRole?: "superadmin" | null;
+  memberships?: TenantMembership[];
   createdAt: string;
 };
 
-export type PublicUser = Omit<StoredUser, "password">;
+export type PublicUser = Omit<StoredUser, "password"> & {
+  tenantId: string;
+  role: UserRole;
+  defaultTenantId: string;
+  globalRole: "superadmin" | null;
+  memberships: TenantMembership[];
+};
 
 type NewUserInput = {
   email: string;
@@ -55,12 +70,68 @@ const writeUsers = async (users: StoredUser[]) => {
   await fs.writeFile(storePath, JSON.stringify(users, null, 2), "utf8");
 };
 
-export const getUserByEmail = async (
+const normalizeMemberships = (
+  user: Pick<StoredUser, "tenantId" | "role" | "memberships">,
+): TenantMembership[] => {
+  const memberships: TenantMembership[] = (user.memberships ?? [])
+    .map((membership) => ({
+      tenantId: membership.tenantId.trim(),
+      role: membership.role === "admin" ? ("admin" as const) : ("user" as const),
+    }))
+    .filter((membership) => membership.tenantId);
+
+  if (memberships.length) {
+    return Array.from(
+      new Map(
+        memberships.map((membership) => [membership.tenantId, membership]),
+      ).values(),
+    );
+  }
+
+  if (!user.tenantId?.trim()) return [];
+  return [
+    {
+      tenantId: user.tenantId.trim(),
+      role: user.role === "admin" ? "admin" : "user",
+    },
+  ];
+};
+
+const toPublicUser = (user: StoredUser): PublicUser => {
+  const memberships = normalizeMemberships(user);
+  const defaultTenantId =
+    user.defaultTenantId?.trim() || memberships[0]?.tenantId || "";
+  const globalRole =
+    user.globalRole === "superadmin" || user.role === "superadmin"
+      ? "superadmin"
+      : null;
+  const membershipForDefault =
+    memberships.find((membership) => membership.tenantId === defaultTenantId) ??
+    memberships[0];
+
+  return {
+    ...user,
+    tenantId: defaultTenantId,
+    role: globalRole ?? (membershipForDefault?.role === "admin" ? "admin" : "user"),
+    defaultTenantId,
+    globalRole,
+    memberships,
+  };
+};
+
+const getStoredUserByEmail = async (
   email: string,
 ): Promise<StoredUser | null> => {
   const normalized = email.trim().toLowerCase();
   const users = await readUsers();
-  return users.find((u) => u.email.toLowerCase() === normalized) || null;
+  return users.find((user) => user.email.toLowerCase() === normalized) || null;
+};
+
+export const getUserByEmail = async (
+  email: string,
+): Promise<PublicUser | null> => {
+  const user = await getStoredUserByEmail(email);
+  return user ? toPublicUser(user) : null;
 };
 
 export const createUser = async (
@@ -76,14 +147,22 @@ export const createUser = async (
   }
 
   const now = new Date().toISOString();
-  const hashed = await bcrypt.hash(password, 10);
+  const trimmedTenantId = tenantId.trim();
   const newUser: StoredUser = {
     id: crypto.randomUUID(),
     email: normalizedEmail,
-    password: hashed,
+    password: await bcrypt.hash(password, 10),
     name: name.trim(),
-    tenantId: tenantId.trim(),
-    role: normalizedRole,
+    defaultTenantId: trimmedTenantId,
+    globalRole: normalizedRole === "superadmin" ? "superadmin" : null,
+    memberships: trimmedTenantId
+      ? [
+          {
+            tenantId: trimmedTenantId,
+            role: normalizedRole === "admin" ? "admin" : "user",
+          },
+        ]
+      : [],
     createdAt: now,
   };
 
@@ -91,23 +170,21 @@ export const createUser = async (
   users.push(newUser);
   await writeUsers(users);
 
-  const { password: _, ...publicUser } = newUser;
-  return publicUser;
+  return toPublicUser(newUser);
 };
 
 export const verifyUserCredentials = async (
   email: string,
   password: string,
 ): Promise<PublicUser | null> => {
-  const user = await getUserByEmail(email);
+  const user = await getStoredUserByEmail(email);
   if (!user) return null;
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return null;
-  const { password: _, ...publicUser } = user;
-  return publicUser;
+  return toPublicUser(user);
 };
 
 export const listUsers = async (): Promise<PublicUser[]> => {
   const users = await readUsers();
-  return users.map(({ password: _pwd, ...rest }) => rest);
+  return users.map(toPublicUser);
 };

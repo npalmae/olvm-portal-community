@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { createVm, fetchVms } from "@/lib/olvmClient";
+import { assertTenantAccess } from "@/lib/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,12 @@ const asPositiveNumber = (value: unknown) => {
 export async function GET(_: Request, context: Params) {
   const { tenantId } = await context.params;
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    assertTenantAccess(session.user, tenantId);
+
     const vms = await fetchVms(tenantId);
     return NextResponse.json(vms);
   } catch (error) {
@@ -32,6 +40,12 @@ export async function GET(_: Request, context: Params) {
 export async function POST(request: Request, context: Params) {
   try {
     const { tenantId } = await context.params;
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    assertTenantAccess(session.user, tenantId, "admin");
+
     const body = await request.json();
     const name = asString(body?.name);
     const clusterId = asString(body?.clusterId);

@@ -6,6 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "OLVM Admin Portal",
   description: "Portal de administración multitenant para OLVM/oVirt",
+  icons: {
+    icon: "/sixmanager-favicon.png",
+    shortcut: "/sixmanager-favicon.png",
+    apple: "/sixmanager-favicon.png",
+  },
 };
 
 export default function RootLayout({

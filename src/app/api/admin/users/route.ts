@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { listUsers, createUser, type UserRole } from "@/lib/userStore";
+import {
+  getDefaultTenantId,
+  hasTenantAccess,
+  isPlatformSuperadmin,
+} from "@/lib/authz";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,13 +17,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  if (session.user.role !== "superadmin" && session.user.role !== "admin") {
+  const isSuperadmin = isPlatformSuperadmin(session.user);
+  const adminTenantId = getDefaultTenantId(session.user);
+
+  if (!isSuperadmin && !hasTenantAccess(session.user, adminTenantId, "admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   
   try {
     const users = await listUsers();
-    return NextResponse.json(users);
+    const visibleUsers = isSuperadmin
+      ? users
+      : users.filter((user) =>
+          user.memberships.some((membership) => membership.tenantId === adminTenantId),
+        );
+    return NextResponse.json(visibleUsers);
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },
@@ -34,7 +47,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   
-  if (session.user.role !== "superadmin" && session.user.role !== "admin") {
+  const isSuperadmin = isPlatformSuperadmin(session.user);
+  const adminTenantId = getDefaultTenantId(session.user);
+
+  if (!isSuperadmin && !hasTenantAccess(session.user, adminTenantId, "admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   
@@ -42,18 +58,35 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, password, name, tenantId, role } = body;
     
-    if (!email || !password || !name || !tenantId) {
+    if (!email || !password || !name || !(tenantId || adminTenantId)) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios" },
         { status: 400 }
       );
     }
-    
-    // Solo superadmin puede crear admins u otros superadmins
-    if ((role === "admin" || role === "superadmin") && session.user.role !== "superadmin") {
+
+    const requestedTenantId =
+      typeof tenantId === "string" ? tenantId.trim() : "";
+    const targetTenantId = isSuperadmin ? requestedTenantId : adminTenantId;
+    if (!targetTenantId) {
       return NextResponse.json(
-        { error: "Solo superadmin puede crear usuarios admin/superadmin" },
+        { error: "No hay tenant por defecto para este administrador" },
+        { status: 400 },
+      );
+    }
+
+    // Solo superadmin puede crear admins globales; tenant admins crean usuarios en su tenant
+    if (role === "superadmin" && !isSuperadmin) {
+      return NextResponse.json(
+        { error: "Solo superadmin puede crear usuarios superadmin" },
         { status: 403 }
+      );
+    }
+
+    if (!isSuperadmin && requestedTenantId && requestedTenantId !== adminTenantId) {
+      return NextResponse.json(
+        { error: "Tenant mismatch" },
+        { status: 403 },
       );
     }
     
@@ -61,8 +94,8 @@ export async function POST(request: Request) {
       email,
       password,
       name,
-      tenantId,
-      role: (role as UserRole) || "user",
+      tenantId: targetTenantId,
+      role: (isSuperadmin ? role : "user") as UserRole,
     });
     
     return NextResponse.json(user, { status: 201 });

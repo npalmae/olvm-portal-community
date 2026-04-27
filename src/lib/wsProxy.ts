@@ -72,6 +72,7 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
     let upstream: WebSocket | null = null;
     let currentIndex = 0;
+    let currentTargetAttempts = 0;
     let upstreamEstablished = false;
     let clientSentFirst = false;
     let clientMsgCount = 0;
@@ -88,8 +89,7 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
         hostname = parsed.hostname;
         port = Number(parsed.port) || 5900;
       } catch {
-        currentIndex += 1;
-        setTimeout(tryConnect, 10);
+        moveToNextTarget("Invalid TCP target");
         return;
       }
 
@@ -127,21 +127,45 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
       const socket = socketFactory();
 
+      const retryCurrentTarget = (reason: string) => {
+        if (currentTargetAttempts < 15) {
+          currentTargetAttempts += 1;
+          console.warn("[ws-proxy] retry target", {
+            target,
+            index: currentIndex,
+            attempt: currentTargetAttempts,
+            reason,
+          });
+          setTimeout(tryConnect, 1000);
+          return true;
+        }
+        return false;
+      };
+
       socket.on("connect", () => {
         upstreamEstablished = true;
+        currentTargetAttempts = 0;
         client.on("message", (data) => {
+          const chunk =
+            typeof data === "string"
+              ? Buffer.from(data)
+              : data instanceof ArrayBuffer
+                ? Buffer.from(data)
+                : Array.isArray(data)
+                  ? Buffer.concat(data)
+                  : Buffer.from(data);
           clientMsgCount += 1;
           if (!clientSentFirst || clientMsgCount <= 50) {
             console.log("[ws-proxy] client msg", {
               n: clientMsgCount,
-              bytes: (data as Buffer).length ?? 0,
+              bytes: chunk.length,
               index: currentIndex,
               target,
-              hex: (data as Buffer).subarray(0, 32).toString("hex"),
+              hex: chunk.subarray(0, 32).toString("hex"),
             });
             clientSentFirst = true;
           }
-          socket.write(data);
+          socket.write(chunk);
         });
         client.on("close", (code, reason) => {
           console.log("[ws-proxy] client closed", { code, reason: reason?.toString() });
@@ -177,8 +201,12 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
             code,
           });
           const hasMore = Boolean(targets[currentIndex + 1]);
+          if (!upstreamEstablished && retryCurrentTarget("upstream closed before connect")) {
+            return;
+          }
           if (!upstreamEstablished && hasMore) {
             currentIndex += 1;
+            currentTargetAttempts = 0;
             setTimeout(tryConnect, 10);
             return;
           }
@@ -190,8 +218,12 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
         socket.on("error", (err) => {
           console.warn("[ws-proxy] tcp/tls error", { target, index: currentIndex, err });
           const hasMore = Boolean(targets[currentIndex + 1]);
+          if (!upstreamEstablished && retryCurrentTarget("tcp/tls upstream error")) {
+            return;
+          }
           if (hasMore) {
             currentIndex += 1;
+            currentTargetAttempts = 0;
             setTimeout(tryConnect, 10);
             return;
           }
@@ -201,13 +233,33 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
       socket.on("error", () => {
         const hasMore = Boolean(targets[currentIndex + 1]);
+        if (!upstreamEstablished && retryCurrentTarget("socket error before connect")) {
+          return;
+        }
         if (hasMore) {
           currentIndex += 1;
+          currentTargetAttempts = 0;
           setTimeout(tryConnect, 10);
           return;
         }
         closeBoth(1011, "Socket error before connect");
       });
+    };
+
+    const moveToNextTarget = (reason?: string) => {
+      const hasMore = Boolean(targets[currentIndex + 1]);
+      if (hasMore) {
+        currentIndex += 1;
+        currentTargetAttempts = 0;
+        console.warn("[ws-proxy] switching target", {
+          index: currentIndex,
+          reason,
+        });
+        setTimeout(tryConnect, 10);
+        return true;
+      }
+      closeBoth(1011, reason ?? "No upstream target available");
+      return false;
     };
 
     const tryConnect = () => {
@@ -225,19 +277,19 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
       }
 
       try {
-        upstream = new WebSocket(currentTarget, {
+        upstream = new WebSocket(currentTarget, ["binary"], {
           rejectUnauthorized: !(insecure || allowInsecureDefault),
           ca: upstreamCa,
         });
       } catch (err) {
         console.warn("[ws-proxy] ws constructor failed", { currentTarget, err });
-        currentIndex += 1;
-        setTimeout(tryConnect, 10);
+        moveToNextTarget("WebSocket constructor failed");
         return;
       }
 
       upstream.on("open", () => {
         console.log("[ws-proxy] ws connected", { currentTarget, index: currentIndex });
+        currentTargetAttempts = 0;
         client.on("message", (data) => upstream?.send(data));
         client.on("close", (code, reason) => closeBoth(code, reason?.toString()));
         client.on("error", () => closeBoth(1011, "Client socket error"));
@@ -248,8 +300,12 @@ export const ensureConsoleProxy = async (options?: ProxyOptions) => {
 
       upstream.on("error", () => {
         console.warn("[ws-proxy] ws error", { currentTarget, index: currentIndex });
-        currentIndex += 1;
-        setTimeout(tryConnect, 10);
+        if (currentTargetAttempts < 15) {
+          currentTargetAttempts += 1;
+          setTimeout(tryConnect, 1000);
+          return;
+        }
+        moveToNextTarget("WebSocket upstream error");
       });
     };
 

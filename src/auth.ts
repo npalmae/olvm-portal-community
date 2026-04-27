@@ -1,6 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { getUserByEmail, verifyUserCredentials } from "@/lib/userStore";
+import {
+  getUserByEmail,
+  verifyUserCredentials,
+  type UserRole,
+} from "@/lib/userStore";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -26,7 +30,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           tenantId: user.tenantId,
+          defaultTenantId: user.defaultTenantId,
           role: user.role,
+          globalRole: user.globalRole,
+          memberships: user.memberships,
         };
       },
     }),
@@ -38,7 +45,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = (user as any).id;
         token.tenantId = (user as any).tenantId;
+        token.defaultTenantId = (user as any).defaultTenantId;
         token.role = (user as any).role;
+        token.globalRole = (user as any).globalRole;
+        token.memberships = (user as any).memberships ?? [];
         token.name = user.name;
         token.email = user.email;
       }
@@ -48,7 +58,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session?.user) {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
-        session.user.role = token.role as string;
+        session.user.defaultTenantId = token.defaultTenantId as string;
+        session.user.role = token.role as UserRole;
+        session.user.globalRole = (token.globalRole as "superadmin" | null) ?? null;
+        session.user.memberships = (token.memberships as any[]) ?? [];
       }
       return session;
     },

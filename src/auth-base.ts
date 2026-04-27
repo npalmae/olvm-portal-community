@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import type { UserRole } from "@/lib/userStore";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 if (!authSecret) {
@@ -37,7 +38,10 @@ export const {
       if (user) {
         token.id = (user as any).id;
         token.tenantId = (user as any).tenantId;
+        token.defaultTenantId = (user as any).defaultTenantId;
         token.role = (user as any).role;
+        token.globalRole = (user as any).globalRole;
+        token.memberships = (user as any).memberships ?? [];
         token.name = user.name;
         token.email = user.email;
       }
@@ -47,7 +51,10 @@ export const {
       if (session?.user) {
         session.user.id = token.id as string;
         session.user.tenantId = token.tenantId as string;
-        session.user.role = token.role as string;
+        session.user.role = token.role as UserRole;
+        session.user.defaultTenantId = token.defaultTenantId as string;
+        session.user.globalRole = (token.globalRole as "superadmin" | null) ?? null;
+        session.user.memberships = (token.memberships as any[]) ?? [];
       }
       return session;
     },

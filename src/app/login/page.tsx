@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { SixmanagerMark } from "@/components/SixmanagerMark";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
@@ -49,7 +50,10 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[#05070c] text-white flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1321]/80 p-8 shadow-2xl shadow-black/60 backdrop-blur">
         <div className="mb-6 space-y-2 text-center">
-          <p className="text-sm uppercase tracking-[0.2em] text-white/60">OVM Portal</p>
+          <SixmanagerMark
+            align="center"
+            subtitle="OLVM Portal"
+          />
           <h1 className="text-2xl font-semibold text-white">Ingresa a tu cuenta</h1>
           <p className="text-sm text-white/60">
             Accede con tus credenciales asignadas a un tenant.
@@ -105,5 +109,13 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

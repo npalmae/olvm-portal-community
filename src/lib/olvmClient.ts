@@ -32,6 +32,8 @@ type RawVm = {
     };
   };
   statistics?: { statistic?: RawStatistic[] } | RawStatistic[];
+  tag?: RawTag[] | { tag?: RawTag[] };
+  tags?: RawTag[] | { tag?: RawTag[] };
 };
 
 type RawConsole = {
@@ -350,6 +352,12 @@ const parseTagNames = (data: unknown): string[] => {
   );
 };
 
+const vmMatchesTenantTag = (vm: RawVm, expectedTag?: string) => {
+  const normalizedExpected = expectedTag?.trim().toLowerCase();
+  if (!normalizedExpected) return true;
+  return parseTagNames(vm).some((tag) => tag.toLowerCase() === normalizedExpected);
+};
+
 export const enforceVmTagPolicy = async (tenantId: string, vmId: string) => {
   const tenant = getTenantById(tenantId);
   const expectedTag = tenant.tag?.trim();
@@ -415,6 +423,17 @@ const parseTicketValue = (payload: unknown): TicketInfo | undefined => {
 type TicketCacheEntry = { value: string; expiresAt: number };
 const ticketCache = new Map<string, TicketCacheEntry>();
 
+const normalizeOlvmErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+const getFriendlyConsoleTicketError = (error: unknown) => {
+  const message = normalizeOlvmErrorMessage(error);
+  if (message.includes("Cannot set Virtual Machine Ticket because the VM is in Down status")) {
+    return "La VM está apagada. Iníciala antes de abrir la consola embebida.";
+  }
+  return null;
+};
+
 const requestConsoleTicket = async (
   tenant: TenantConfig,
   vmId: string,
@@ -429,9 +448,7 @@ const requestConsoleTicket = async (
 
   const ticketPath = `/vms/${vmId}/graphicsconsoles/${consoleId}/ticket`;
   const ticketPayloads = [
-    { action: { ticket: { expiry: 120 } } },
     { ticket: { expiry: 120 } },
-    null,
   ];
 
   let lastError: unknown;
@@ -453,6 +470,10 @@ const requestConsoleTicket = async (
       }
       lastError = new Error("Ticket vacío");
     } catch (err) {
+      const friendlyError = getFriendlyConsoleTicketError(err);
+      if (friendlyError) {
+        throw new Error(friendlyError);
+      }
       lastError = err;
     }
   }
@@ -535,22 +556,25 @@ const parseVirtViewerConnection = (
 
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const tenant = getTenantById(tenantId);
+  const expectedTag = tenant.tag?.trim();
   const data = (await olvmFetch(
     tenant,
-    withJsonFormat("/vms?all_content=true&follow=statistics"),
+    withJsonFormat("/vms?all_content=true&follow=statistics,tags"),
   )) as unknown;
   const root =
     data && typeof data === "object" && !Array.isArray(data) ? data : null;
+  const filterByTenant = (vms: RawVm[]) =>
+    vms.filter((vm) => vmMatchesTenantTag(vm, expectedTag));
   if (root && "vm" in root && Array.isArray((root as { vm?: unknown }).vm)) {
-    return ((root as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
+    return filterByTenant((root as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
   }
   const vmsField = root && "vms" in root ? (root as { vms?: unknown }).vms : null;
   if (Array.isArray(vmsField)) {
-    return (vmsField as RawVm[]).map(normalizeVm);
+    return filterByTenant(vmsField as RawVm[]).map(normalizeVm);
   }
   const nested = vmsField && typeof vmsField === "object" ? vmsField : null;
   if (nested && "vm" in nested && Array.isArray((nested as { vm?: unknown }).vm)) {
-    return ((nested as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
+    return filterByTenant((nested as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
   }
   return [];
 };
@@ -684,29 +708,31 @@ export const fetchVmConsoleInfo = async (
   let port = consoleDetails?.tls_port ?? consoleDetails?.port;
   let tlsPort = consoleDetails?.tls_port;
 
-  if (!host || !port) {
-    try {
-      const vvContent = await olvmFetch(
-        tenant,
-        `/vms/${vmId}/graphicsconsoles/${selected.id}/remoteviewer`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/x-virt-viewer",
-            "Content-Type": "application/json",
-          },
+  try {
+    const vvContent = await olvmFetch(
+      tenant,
+      `/vms/${vmId}/graphicsconsoles/${selected.id}/remoteviewer`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/x-virt-viewer",
+          "Content-Type": "application/json",
         },
-      );
-      if (typeof vvContent === "string") {
-        const parsed = parseVirtViewerConnection(vvContent);
-        host = host ?? parsed.host;
-        port = port ?? parsed.tlsPort ?? parsed.port;
-        tlsPort = tlsPort ?? parsed.tlsPort ?? parsed.port;
-        ticket = ticket ?? parsed.password ?? ticket;
-      }
-    } catch {
-      // ignore fallback errors
+      },
+    );
+    if (typeof vvContent === "string") {
+      const parsed = parseVirtViewerConnection(vvContent);
+      // El archivo .vv suele traer el destino efectivo que usa remote-viewer.
+      // Lo tomamos como fuente de verdad para que la consola embebida siga el
+      // mismo camino que la consola descargable cuando OLVM publica endpoints
+      // crudos que no son los realmente utilizables desde el cliente.
+      host = parsed.host ?? host;
+      port = parsed.tlsPort ?? parsed.port ?? port;
+      tlsPort = parsed.tlsPort ?? parsed.port ?? tlsPort;
+      ticket = parsed.password ?? ticket;
     }
+  } catch {
+    // ignore remoteviewer fallback errors
   }
 
   if (proxyTicket?.host) {

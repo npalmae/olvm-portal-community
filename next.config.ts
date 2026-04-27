@@ -9,13 +9,6 @@ const nextConfig: NextConfig = {
     appIsrStatus: false,
     buildActivity: false,
   },
-  logging: {
-    client: {
-      error: () => {
-        // Silencia el overlay rojo en dev (no afecta production builds)
-      },
-    },
-  },
   webpack: (config) => {
     config.experiments = {
       ...(config.experiments || {}),

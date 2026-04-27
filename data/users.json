@@ -16,5 +16,35 @@
     "tenantId": "default",
     "role": "superadmin",
     "createdAt": "2026-02-12T19:01:24.056Z"
+  },
+  {
+    "id": "d54f0c4f-ec35-4c06-aa1b-74b1c8fc4101",
+    "email": "user-a@sixmanager.com",
+    "password": "$2b$10$YXFBQ0DCcIG1V6wB4sahxu8g6Tdp3NcTF3TPrjMCY5l3me.9QvGG6",
+    "name": "User A",
+    "defaultTenantId": "tenant-a",
+    "globalRole": null,
+    "memberships": [
+      {
+        "tenantId": "tenant-a",
+        "role": "user"
+      }
+    ],
+    "createdAt": "2026-04-22T20:20:00.000Z"
+  },
+  {
+    "id": "bc818f4a-1f26-44db-bc67-19b4f56c70c7",
+    "email": "user-b@sixmanager.com",
+    "password": "$2b$10$Bhme4o/Oa3lbc0XNESk/Bu1ykPSoOcgUuuv3LEf1Uhx2aYBMIkyCO",
+    "name": "User B",
+    "defaultTenantId": "tenant-b",
+    "globalRole": null,
+    "memberships": [
+      {
+        "tenantId": "tenant-b",
+        "role": "user"
+      }
+    ],
+    "createdAt": "2026-04-22T20:20:00.000Z"
   }
 ]

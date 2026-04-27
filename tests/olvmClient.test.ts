@@ -210,12 +210,20 @@ describe.sequential("olvmClient", () => {
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
+      text: async () => JSON.stringify({}),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
       text: async () => JSON.stringify(ticketPayload),
     }));
     global.fetch = fetchSpy as unknown as typeof fetch;
 
     const { fetchVmConsoleInfo } = await loadClient();
-    const info = await fetchVmConsoleInfo("t1", "vm-1", "vnc");
+    const info = await fetchVmConsoleInfo("t1", "vm-1", "vnc", {
+      issueTicket: true,
+    });
 
     expect(info).toMatchObject({
       protocol: "vnc",
@@ -223,8 +231,61 @@ describe.sequential("olvmClient", () => {
       port: 5900,
       ticket: "abc123",
     });
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-    expect(fetchSpy.mock.calls[2][0]).toContain("/ticket");
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+    expect(fetchSpy.mock.calls[3][0]).toContain("/ticket");
+  });
+
+  it("returns a friendly message when OLVM refuses a ticket for a down VM", async () => {
+    const consolesPayload = {
+      graphics_consoles: {
+        graphics_console: [{ id: "c2", protocol: "vnc" }],
+      },
+    };
+    const consoleDetails = {
+      id: "c2",
+      protocol: "vnc",
+      address: "10.0.0.1",
+      port: 5900,
+    };
+    const ticketError = {
+      detail: "[Cannot set Virtual Machine Ticket because the VM is in Down status.]",
+      reason: "Operation Failed",
+    };
+
+    const fetchSpy = vi.fn();
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consolesPayload),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(consoleDetails),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify({}),
+    }));
+    fetchSpy.mockImplementationOnce(async () => ({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      headers: { get: () => "application/json" },
+      text: async () => JSON.stringify(ticketError),
+    }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const { fetchVmConsoleInfo } = await loadClient();
+
+    await expect(
+      fetchVmConsoleInfo("t1", "vm-1", "vnc", { issueTicket: true }),
+    ).rejects.toThrow(/la vm está apagada/i);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 
   it("fills missing console host/port from vv file", async () => {

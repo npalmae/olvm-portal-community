@@ -1,0 +1,14 @@
+services:
+  olvm-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: olvm-portal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "3010:3010"
+    env_file:
+      - .env.local
+    volumes:
+      - ./data:/app/data

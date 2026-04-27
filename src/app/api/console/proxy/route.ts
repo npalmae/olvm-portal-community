@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { fetchVmConsoleInfo } from "@/lib/olvmClient";
 import { enforceVmTagPolicy } from "@/lib/olvmClient";
 import { getTenantById } from "@/lib/config";
@@ -7,7 +8,16 @@ import { ensureConsoleProxy } from "@/lib/wsProxy";
 
 export const dynamic = "force-dynamic";
 
-const buildWebsocketCandidates = (baseUrl: string) => {
+const getExternalOrigin = (request: Request) => {
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost ?? request.headers.get("host") ?? url.host;
+  const protocol = forwardedProto ?? url.protocol.replace(":", "");
+  return `${protocol}://${host}`;
+};
+
+const getEngineMeta = (baseUrl: string) => {
   const envPathRaw = process.env.OLVM_WEBSOCKET_PATH;
   const envPaths = envPathRaw
     ? envPathRaw.split(",").map((p) => p.trim()).filter(Boolean)
@@ -93,7 +103,8 @@ export async function GET(request: Request) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (session.user.role !== "superadmin") {
+    assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
 
@@ -106,39 +117,77 @@ export async function GET(request: Request) {
       issueTicket: !!providedTicket,
     });
 
-    const wsMeta = info.websocket ?? buildWebsocketCandidates(tenant.baseUrl);
+    const engineMeta = getEngineMeta(tenant.baseUrl);
 
     const candidateUrls: string[] = [];
 
     const rawWsUrl = (info as any)?.websocket?.wsUrl as string | undefined;
     const rawWsPath = (info as any)?.websocket?.wsPath as string | undefined;
-    if (rawWsUrl) {
-      candidateUrls.push(rawWsUrl);
+    const proxyTicketValue =
+      (info as any)?.proxyTicket?.value as string | undefined;
+    const engineWsProtocol = tenant.baseUrl.startsWith("https") ? "wss" : "ws";
+
+    const appendProxyTicket = (wsUrl: string) => {
+      if (!proxyTicketValue) return wsUrl;
+      const sep = wsUrl.includes("?") ? "&" : "?";
+      return `${wsUrl}${sep}ticket=${encodeURIComponent(proxyTicketValue)}`;
+    };
+
+    const isLocalProxyUrl = (value: string) =>
+      value.includes("localhost:3010") || value.includes("127.0.0.1:3010");
+
+    // OLVM/oracle OLVM sirve la noVNC funcional a traves de su propio
+    // websockify TLS en 6100, usando el proxyticket como path de la URL WS.
+    // Cuando este valor existe, lo priorizamos por sobre el VNC TCP directo.
+    if (proxyTicketValue && engineMeta.engineHost) {
+      // OLVM/noVNC usa el proxyticket crudo como path del websocket.
+      // Lo agregamos como candidato aguas arriba, pero manteniendo el browser
+      // conectado a nuestro proxy local para evitar validaciones de Origin
+      // y replicar el mismo tunel server-side que ya usamos para VNC.
+      const directWsUrl = `${engineWsProtocol}://${engineMeta.engineHost}:6100/${proxyTicketValue}`;
+      candidateUrls.push(directWsUrl);
     }
-    if (!rawWsUrl && rawWsPath && wsMeta.engineHost) {
+
+    if (rawWsUrl && !isLocalProxyUrl(rawWsUrl)) {
+      candidateUrls.push(appendProxyTicket(rawWsUrl));
+    }
+    if (!rawWsUrl && rawWsPath && engineMeta.engineHost) {
       const proto = tenant.baseUrl.startsWith("https") ? "wss" : "ws";
-      const port = wsMeta.port ?? url.port;
+      const basePort = (() => {
+        try {
+          return new URL(tenant.baseUrl).port;
+        } catch {
+          return "";
+        }
+      })();
+      const port = basePort || url.port;
       const portSuffix = port ? `:${port}` : "";
-      candidateUrls.push(`${proto}://${wsMeta.engineHost}${portSuffix}${rawWsPath}`);
+      candidateUrls.push(
+        appendProxyTicket(
+          `${proto}://${engineMeta.engineHost}${portSuffix}${rawWsPath}`,
+        ),
+      );
     }
 
     const novncUrl = (info as any)?.novncUrl as string | undefined;
     if (novncUrl) {
-      candidateUrls.push(novncUrl);
+      candidateUrls.push(appendProxyTicket(novncUrl));
     }
 
-    if (wsMeta?.wsUrls?.length) {
-      candidateUrls.push(...wsMeta.wsUrls);
-    }
-
-    const hostParam = info.host ?? wsMeta.engineHost ?? "";
+    const hostParam = info.host ?? engineMeta.engineHost ?? "";
     const portParam = (info.tlsPort ?? info.port ?? "").toString();
     const targets: string[] = [];
 
-    // Solo usamos el destino TCP directo que sabemos que funciona con el ticket.
+    // En este despliegue el VNC TCP directo ha sido el canal más estable
+    // para la consola embebida; algunos websockets nativos del engine
+    // abren pero no siempre entregan framebuffer util. Por eso priorizamos
+    // el destino TCP y dejamos los WS del engine como fallback.
     if (hostParam && portParam) {
       targets.push(`tcp://${hostParam}:${portParam}`);
     }
+
+    // Fallback a los endpoints WebSocket nativos del engine.
+    targets.push(...candidateUrls.filter(Boolean));
 
     const uniqueTargets = Array.from(new Set(targets.filter(Boolean)));
 
@@ -153,12 +202,16 @@ export async function GET(request: Request) {
       ca: tenant.caCert,
       allowInsecure: tenant.allowInsecure,
     });
-    const origin = new URL(request.url);
-    const isSecure = origin.protocol === "https:";
-    const proxyUrl = `${isSecure ? "wss" : "ws"}://${origin.hostname}:${port}/?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
+    const externalOrigin = getExternalOrigin(request);
+    const externalUrl = new URL(externalOrigin);
+    const proxyPath = process.env.CONSOLE_PROXY_PUBLIC_PATH ?? "/console-proxy/";
+    const normalizedProxyPath = proxyPath.endsWith("/") ? proxyPath : `${proxyPath}/`;
+    const wsProtocol = externalUrl.protocol === "https:" ? "wss:" : "ws:";
+    const proxyUrl = `${wsProtocol}//${externalUrl.host}${normalizedProxyPath}?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
 
     return NextResponse.json({
       proxyWsUrl: proxyUrl,
+      proxyPort: port,
       targetWsUrl: uniqueTargets[0],
       targets: uniqueTargets,
     });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import {
   enforceVmTagPolicy,
   fetchVmById,
@@ -24,7 +25,8 @@ export async function GET(_: Request, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (session.user.role !== "superadmin") {
+    assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
 
@@ -46,7 +48,8 @@ export async function PATCH(request: Request, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (session.user.role !== "superadmin") {
+    assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
 
