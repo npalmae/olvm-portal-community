@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 
@@ -1896,6 +1897,15 @@ export default function Home() {
                         {session?.user?.email ?? "desconocido"}
                       </span>
                     </div>
+                    {(session?.user?.role === "admin" ||
+                      session?.user?.role === "superadmin") && (
+                      <Link
+                        href="/admin/users"
+                        className="rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-xs font-semibold text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20"
+                      >
+                        Gestion de usuarios
+                      </Link>
+                    )}
                     <button
                       onClick={handleSignOut}
                       disabled={signingOut}

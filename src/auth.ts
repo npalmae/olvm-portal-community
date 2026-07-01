@@ -5,8 +5,12 @@ import {
   verifyUserCredentials,
   type UserRole,
 } from "@/lib/userStore";
+import { verifyChallenge } from "@/lib/twoFactor";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+// 2FA obligatorio a menos que se desactive explícitamente con REQUIRE_2FA=false
+const isTwoFactorRequired = () => process.env.REQUIRE_2FA !== "false";
 
 // Configuración completa CON userStore - solo para API routes (Node.js runtime)
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -17,14 +21,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
+        code: { label: "Código 2FA", type: "text" },
       },
       authorize: async (credentials) => {
         if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials.email as string;
         const user = await verifyUserCredentials(
-          credentials.email as string,
+          email,
           credentials.password as string,
         );
         if (!user) return null;
+
+        // Segundo factor: código por email (global ON y activado por usuario)
+        const userTwoFactorEnabled = user.twoFactorEnabled !== false;
+        if (isTwoFactorRequired() && userTwoFactorEnabled) {
+          const code = credentials.code;
+          if (typeof code !== "string" || !verifyChallenge(email, code)) {
+            return null;
+          }
+        }
+
         return {
           id: user.id,
           email: user.email,

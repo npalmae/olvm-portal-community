@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest"
+    "test": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@novnc/novnc": "^1.6.0",
@@ -17,11 +18,13 @@
     "next-auth": "^5.0.0-beta.30",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "resend": "^6.16.0",
     "undici": "^6.21.1",
     "utf-8-validate": "^6.0.6",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^18",

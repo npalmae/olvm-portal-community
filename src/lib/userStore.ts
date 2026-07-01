@@ -21,6 +21,7 @@ export type StoredUser = {
   defaultTenantId?: string;
   globalRole?: "superadmin" | null;
   memberships?: TenantMembership[];
+  twoFactorEnabled?: boolean;
   createdAt: string;
 };
 
@@ -30,6 +31,7 @@ export type PublicUser = Omit<StoredUser, "password"> & {
   defaultTenantId: string;
   globalRole: "superadmin" | null;
   memberships: TenantMembership[];
+  twoFactorEnabled: boolean;
 };
 
 type NewUserInput = {
@@ -38,7 +40,24 @@ type NewUserInput = {
   name: string;
   tenantId: string;
   role?: UserRole;
+  twoFactorEnabled?: boolean;
 };
+
+export type UserUpdateInput = {
+  name?: string;
+  email?: string;
+  password?: string;
+  defaultTenantId?: string;
+  globalRole?: "superadmin" | null;
+  memberships?: TenantMembership[];
+  twoFactorEnabled?: boolean;
+};
+
+const isSuperadminRecord = (user: StoredUser) =>
+  user.globalRole === "superadmin" || user.role === "superadmin";
+
+const countSuperadmins = (users: StoredUser[]) =>
+  users.filter(isSuperadminRecord).length;
 
 const storePath =
   process.env.USER_STORE_PATH ||
@@ -116,6 +135,7 @@ const toPublicUser = (user: StoredUser): PublicUser => {
     defaultTenantId,
     globalRole,
     memberships,
+    twoFactorEnabled: user.twoFactorEnabled !== false,
   };
 };
 
@@ -163,6 +183,7 @@ export const createUser = async (
           },
         ]
       : [],
+    twoFactorEnabled: input.twoFactorEnabled !== false,
     createdAt: now,
   };
 
@@ -187,4 +208,108 @@ export const verifyUserCredentials = async (
 export const listUsers = async (): Promise<PublicUser[]> => {
   const users = await readUsers();
   return users.map(toPublicUser);
+};
+
+export const getUserById = async (
+  id: string,
+): Promise<PublicUser | null> => {
+  const users = await readUsers();
+  const user = users.find((entry) => entry.id === id);
+  return user ? toPublicUser(user) : null;
+};
+
+export const updateUser = async (
+  id: string,
+  updates: UserUpdateInput,
+): Promise<PublicUser> => {
+  const users = await readUsers();
+  const index = users.findIndex((entry) => entry.id === id);
+  if (index === -1) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  const current = users[index];
+  const next: StoredUser = { ...current };
+
+  if (updates.name !== undefined) {
+    const trimmed = updates.name.trim();
+    if (!trimmed) throw new Error("El nombre no puede estar vacío");
+    next.name = trimmed;
+  }
+
+  if (updates.email !== undefined) {
+    const normalized = updates.email.trim().toLowerCase();
+    if (!normalized) throw new Error("El email no puede estar vacío");
+    if (normalized !== current.email) {
+      const clash = users.some(
+        (entry) => entry.id !== id && entry.email.toLowerCase() === normalized,
+      );
+      if (clash) throw new Error("El email ya está en uso");
+    }
+    next.email = normalized;
+  }
+
+  if (updates.password !== undefined) {
+    if (updates.password.length < 6) {
+      throw new Error("La contraseña debe tener al menos 6 caracteres");
+    }
+    next.password = await bcrypt.hash(updates.password, 10);
+  }
+
+  if (updates.globalRole !== undefined) {
+    const demoting =
+      updates.globalRole === null && isSuperadminRecord(current);
+    if (demoting && countSuperadmins(users) <= 1) {
+      throw new Error("No se puede degradar al último superadmin");
+    }
+    next.globalRole = updates.globalRole;
+  }
+
+  if (updates.memberships !== undefined) {
+    next.memberships = updates.memberships
+      .filter((membership) => membership.tenantId.trim())
+      .map((membership) => ({
+        tenantId: membership.tenantId.trim(),
+        role: membership.role === "admin" ? "admin" : "user",
+      }));
+  }
+
+  if (updates.defaultTenantId !== undefined) {
+    next.defaultTenantId = updates.defaultTenantId.trim();
+  }
+
+  if (updates.twoFactorEnabled !== undefined) {
+    next.twoFactorEnabled = updates.twoFactorEnabled;
+  }
+
+  // Sincroniza campos legacy (tenantId/role) coherentes con memberships/globalRole
+  const effectiveMemberships = next.memberships ?? [];
+  const defaultMembership =
+    effectiveMemberships.find(
+      (membership) => membership.tenantId === next.defaultTenantId,
+    ) ?? effectiveMemberships[0];
+
+  if (next.globalRole === "superadmin") {
+    next.role = "superadmin";
+  } else {
+    next.role = defaultMembership?.role ?? "user";
+  }
+  next.tenantId = defaultMembership?.tenantId ?? next.defaultTenantId ?? "";
+
+  users[index] = next;
+  await writeUsers(users);
+  return toPublicUser(next);
+};
+
+export const deleteUser = async (id: string): Promise<void> => {
+  const users = await readUsers();
+  const target = users.find((entry) => entry.id === id);
+  if (!target) {
+    throw new Error("Usuario no encontrado");
+  }
+  if (isSuperadminRecord(target) && countSuperadmins(users) <= 1) {
+    throw new Error("No se puede eliminar al último superadmin");
+  }
+  const filtered = users.filter((entry) => entry.id !== id);
+  await writeUsers(filtered);
 };

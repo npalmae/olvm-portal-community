@@ -33,6 +33,11 @@ yarn-error.log*
 # backups
 ovm-portal-backup-*.tar.gz
 
+# playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # env files (can opt-in for committing if needed)
 .env*
 

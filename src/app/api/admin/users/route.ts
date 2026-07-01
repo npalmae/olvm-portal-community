@@ -96,6 +96,8 @@ export async function POST(request: Request) {
       name,
       tenantId: targetTenantId,
       role: (isSuperadmin ? role : "user") as UserRole,
+      twoFactorEnabled:
+        isSuperadmin && body.twoFactorEnabled === false ? false : true,
     });
     
     return NextResponse.json(user, { status: 201 });
