@@ -549,19 +549,33 @@ export default function Home() {
      ════════════════════════════════════════════════════════════════════ */
 
   const SIDEBAR_W = sidebarCollapsed ? 56 : 240;
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
 
+      {/* ── Mobile sidebar overlay ────────────────────────────────────── */}
+      {!sidebarCollapsed && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 sm:hidden"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
       {/* ── Sidebar ───────────────────────────────────────────────────── */}
       <aside
         style={{
-          width: SIDEBAR_W, minWidth: SIDEBAR_W,
+          width: SIDEBAR_W,
+          minWidth: 0,
           background: "var(--sidebar-bg)",
           borderRight: "1px solid var(--sidebar-border)",
-          transition: "width 0.2s ease",
+          transition: "width 0.2s ease, transform 0.2s ease",
         }}
-        className="sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden"
+        className={`
+          fixed left-0 top-0 z-40 h-full flex-col overflow-hidden
+          sm:sticky sm:h-screen sm:flex sm:shrink-0
+          ${sidebarCollapsed ? "-translate-x-full sm:translate-x-0" : "translate-x-0 flex"}
+        `}
       >
         {/* Logo row */}
         <div className="flex items-center justify-between border-b px-3 py-3"
@@ -741,25 +755,48 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 flex-col">
 
         {/* Top bar */}
-        <header className="flex h-11 shrink-0 items-center justify-between border-b bg-white px-4"
+        <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-white px-3"
           style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-semibold text-gray-800">OLVM Portal</span>
-            <span>/</span>
-            <span>{tenantName || "—"}</span>
-            {selectedVm && <><span>/</span><span className="text-gray-700">{selectedVm.name}</span></>}
+          {/* Mobile menu toggle */}
+          <button
+            onClick={() => setSidebarCollapsed((p) => !p)}
+            className="flex sm:hidden items-center justify-center rounded p-1.5 text-gray-500 hover:bg-gray-100"
+            title="Menú"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M2 4h12M2 8h12M2 12h12"/>
+            </svg>
+          </button>
+
+          {/* Breadcrumb — truncates gracefully */}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 overflow-hidden">
+            <span className="shrink-0 font-semibold text-gray-800">OLVM</span>
+            {tenantName && <><span className="shrink-0">/</span><span className="truncate">{tenantName}</span></>}
+            {selectedVm && <><span className="shrink-0">/</span><span className="truncate text-gray-700">{selectedVm.name}</span></>}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-[11px] text-gray-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm" />
-              {session?.user?.email ?? "desconocido"}
+
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="max-w-[140px] truncate">{session?.user?.email ?? "desconocido"}</span>
             </span>
+            {/* Mobile: right panel toggle */}
+            <button
+              onClick={() => setRightPanelOpen((p) => !p)}
+              className="flex lg:hidden items-center justify-center rounded border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+              title="Panel de acciones"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="1" y="1" width="12" height="12" rx="2"/>
+                <path d="M9 1v12"/>
+              </svg>
+            </button>
             <button
               onClick={handleSignOut}
               disabled={signingOut}
-              className="rounded border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+              className="rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
             >
-              {signingOut ? "Saliendo..." : "Cerrar sesión"}
+              {signingOut ? "..." : "Salir"}
             </button>
           </div>
         </header>
@@ -785,34 +822,34 @@ export default function Home() {
             )}
 
             {/* Page title row */}
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h1 className="text-sm font-bold text-gray-900">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-bold text-gray-900">
                   {selectedVm ? selectedVm.name : "Dashboard del tenant"}
                 </h1>
-                <p className="text-[11px] text-gray-500">
+                <p className="truncate text-[11px] text-gray-500">
                   {selectedVm
                     ? `${tenantName} / ${selectedVm.cluster || "Sin cluster"} / ${selectedVm.host || "Host N/D"}`
                     : `Resumen consolidado · ${tenantName || "tenant activo"}`}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {selectedVm && (
                   <>
                     <StatusBadge status={selectedVm.status} />
                     <button
                       onClick={() => setSelectedVmId("")}
-                      className="rounded border border-gray-200 px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+                      className="rounded border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
                     >
-                      ← Volver al dashboard
+                      ← Volver
                     </button>
                   </>
                 )}
                 <button
                   onClick={refresh}
-                  className="rounded border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                  className="rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
                 >
-                  {loading ? "..." : "↻ Actualizar"}
+                  {loading ? "..." : "↻"}
                 </button>
               </div>
             </div>
@@ -821,7 +858,7 @@ export default function Home() {
             {!selectedVm && (
               <>
                 {/* KPI row */}
-                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                   <StatCard label="VMs totales" value={totals.total} />
                   <StatCard label="Encendidas" value={totals.up} sub="estado UP" accent />
                   <StatCard label="Apagadas" value={totals.down} sub="estado DOWN" warning />
@@ -829,7 +866,7 @@ export default function Home() {
                 </div>
 
                 {/* Donut metrics row */}
-                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-3">
                   {/* CPU */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">CPU del tenant</p>
@@ -876,7 +913,7 @@ export default function Home() {
                 </div>
 
                 {/* Top VMs */}
-                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
                   {/* RAM por VM */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Top RAM por VM</p>
@@ -920,12 +957,16 @@ export default function Home() {
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
+                    <table className="w-full min-w-[400px] text-xs">
                       <thead>
                         <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
-                          {["Estado","Nombre","Cluster","Host","CPU","RAM","vCPU"].map((h) => (
-                            <th key={h} className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
-                          ))}
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Estado</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Nombre</th>
+                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Cluster</th>
+                          <th className="hidden lg:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Host</th>
+                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28">CPU</th>
+                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28">RAM</th>
+                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">vCPU</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -942,16 +983,16 @@ export default function Home() {
                             style={{ borderColor: "var(--border)" }}
                           >
                             <td className="px-3 py-2"><StatusBadge status={vm.status} /></td>
-                            <td className="px-3 py-2 font-medium text-gray-900">{vm.name}</td>
-                            <td className="px-3 py-2 text-gray-500">{vm.cluster || "—"}</td>
-                            <td className="px-3 py-2 text-gray-500">{vm.host || "—"}</td>
-                            <td className="px-3 py-2 w-28">
+                            <td className="px-3 py-2 font-medium text-gray-900 max-w-[120px] truncate">{vm.name}</td>
+                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 max-w-[100px] truncate">{vm.cluster || "—"}</td>
+                            <td className="hidden lg:table-cell px-3 py-2 text-gray-500 max-w-[100px] truncate">{vm.host || "—"}</td>
+                            <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.cpuPercent} color="bg-blue-400" />
                             </td>
-                            <td className="px-3 py-2 w-28">
+                            <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.memoryPercent} color="bg-emerald-400" />
                             </td>
-                            <td className="px-3 py-2 text-gray-500">{vm.cpuCores ?? "—"}</td>
+                            <td className="hidden md:table-cell px-3 py-2 text-gray-500">{vm.cpuCores ?? "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1048,7 +1089,21 @@ export default function Home() {
           </main>
 
           {/* ── Right panel (detail/actions) ─────────────────────────── */}
-          <aside className="w-64 shrink-0 overflow-y-auto border-l bg-white" style={{ borderColor: "var(--border)" }}>
+          {/* Mobile overlay backdrop */}
+          {rightPanelOpen && (
+            <div
+              className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+              onClick={() => setRightPanelOpen(false)}
+            />
+          )}
+          <aside
+            className={`
+              fixed right-0 top-0 z-40 h-full w-72 overflow-y-auto border-l bg-white shadow-xl transition-transform duration-200
+              lg:static lg:z-auto lg:w-64 lg:shadow-none lg:translate-x-0
+              ${rightPanelOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+            `}
+            style={{ borderColor: "var(--border)" }}
+          >
             <div className="p-3">
               {/* Tabs */}
               <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
