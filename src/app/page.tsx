@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 
-type Tenant = {
-  id: string;
-  name: string;
-  baseUrl: string;
-};
+/* ── Types ────────────────────────────────────────────────────────────── */
+
+type Tenant = { id: string; name: string; baseUrl: string };
 
 type Vm = {
   id: string;
@@ -30,302 +27,175 @@ type Vm = {
   };
 };
 
-type VmDraft = {
-  memoryMB?: string;
-  cpuCores?: string;
-  sockets?: string;
-};
+type VmDraft = { memoryMB?: string; cpuCores?: string; sockets?: string };
 
 type NewVmDraft = {
-  name: string;
-  clusterId: string;
-  templateId: string;
-  memoryMB: string;
-  cpuCores: string;
-  sockets: string;
-  comment: string;
+  name: string; clusterId: string; templateId: string;
+  memoryMB: string; cpuCores: string; sockets: string; comment: string;
 };
 
 type ActionLog = {
-  vmId: string;
-  action: string;
+  vmId: string; action: string;
   status: "pending" | "ok" | "error";
-  timestamp: number;
-  message?: string;
+  timestamp: number; message?: string;
 };
 
 type RfbCtor = any;
 type RfbInstance = any;
 
-const clampPercent = (value?: number) => {
-  if (value === undefined || Number.isNaN(value)) return 0;
-  return Math.max(0, Math.min(100, value));
-};
+/* ── Helpers ──────────────────────────────────────────────────────────── */
 
-const UsageBar = ({ value }: { value?: number }) => {
-  const percent = clampPercent(value);
-  const isMissing = value === undefined || Number.isNaN(value);
-  const width =
-    value === undefined || Number.isNaN(value)
-      ? "8%"
-      : `${Math.max(4, percent)}%`;
-  return (
-    <div className="mt-2 h-2 rounded-full border border-white/5 bg-white/10 relative">
-      <div
-        className="h-full rounded-full bg-gradient-to-r from-emerald-400/80 via-sky-400/80 to-amber-300/80 shadow-[0_0_0_2px_rgba(255,255,255,0.04)] transition-all"
-        style={{ width, opacity: isMissing ? 0.35 : 1 }}
-        aria-label={isMissing ? "Sin datos" : `${percent}%`}
-      />
-      <span className="absolute inset-y-0 right-2 flex items-center text-[10px] font-semibold text-white/80 drop-shadow">
-        {isMissing ? "—" : `${percent.toFixed(0)}%`}
-      </span>
-    </div>
-  );
-};
-
-const MetricDonut = ({
-  value,
-  label,
-  tint,
-  valueLabel,
-  helper,
-}: {
-  value?: number;
-  label: string;
-  tint: string;
-  valueLabel: string;
-  helper: string;
-}) => {
-  const percent = clampPercent(value);
-  const circumference = 2 * Math.PI * 42;
-  const dashOffset = circumference - (percent / 100) * circumference;
-
-  return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative h-28 w-28 shrink-0">
-          <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth="10"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke={tint}
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              className="transition-all duration-500"
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-2xl font-semibold text-white">
-              {value === undefined || Number.isNaN(value)
-                ? "—"
-                : `${percent.toFixed(0)}%`}
-            </span>
-            <span className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-              live
-            </span>
-          </div>
-        </div>
-        <div className="min-w-0 space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50">
-            {label}
-          </p>
-          <p className="text-2xl font-semibold text-white">{valueLabel}</p>
-          <p className="text-xs text-white/55">{helper}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatusStack = ({
-  total,
-  up,
-  down,
-}: {
-  total: number;
-  up: number;
-  down: number;
-}) => {
-  const other = Math.max(0, total - up - down);
-  const segments = [
-    { label: "Encendidas", value: up, color: "bg-emerald-400" },
-    { label: "Apagadas", value: down, color: "bg-amber-300" },
-    { label: "Transición", value: other, color: "bg-sky-300" },
-  ].filter((segment) => segment.value > 0);
-
-  return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-      <p className="text-xs uppercase tracking-[0.2em] text-white/50">
-        Estado del tenant
-      </p>
-      <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-white/10">
-        {segments.map((segment) => (
-          <div
-            key={segment.label}
-            className={`${segment.color} h-full`}
-            style={{ width: `${(segment.value / Math.max(total, 1)) * 100}%` }}
-            title={`${segment.label}: ${segment.value}`}
-          />
-        ))}
-      </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {[
-          { label: "Encendidas", value: up, color: "bg-emerald-400" },
-          { label: "Apagadas", value: down, color: "bg-amber-300" },
-          { label: "Total", value: total, color: "bg-white/40" },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-2xl border border-white/8 bg-white/5 px-3 py-2"
-          >
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
-              <span className="text-xs text-white/55">{item.label}</span>
-            </div>
-            <p className="mt-2 text-2xl font-semibold text-white">
-              {item.value}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ResourceBars = ({
-  title,
-  items,
-  colorClass,
-}: {
-  title: string;
-  items: { id: string; name: string; value: number; label: string }[];
-  colorClass: string;
-}) => {
-  const max = Math.max(...items.map((item) => item.value), 1);
-  return (
-    <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-      <p className="text-xs uppercase tracking-[0.2em] text-white/50">{title}</p>
-      <div className="mt-4 space-y-3">
-        {items.length === 0 ? (
-          <p className="text-sm text-white/45">Sin datos visibles.</p>
-        ) : (
-          items.map((item) => (
-            <div key={item.id} className="space-y-1">
-              <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-sm font-medium text-white">
-                  {item.name}
-                </p>
-                <span className="text-xs text-white/55">{item.label}</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className={`h-full rounded-full ${colorClass}`}
-                  style={{ width: `${Math.max(6, (item.value / max) * 100)}%` }}
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
-const parseJsonSafe = async (res: Response) => {
-  const text = await res.text();
-  const trimmed = text.trim();
-  const looksHtml = trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html");
-  if (looksHtml) {
-    return { error: "Respuesta inesperada del servidor (HTML/404)" };
-  }
-  try {
-    return text ? JSON.parse(text) : null;
-  } catch {
-    return text ? { error: text } : null;
-  }
-};
-
-const statusBadge = (status: string) => {
-  const normalized = status?.toLowerCase?.() ?? "unknown";
-  const base =
-    "rounded-full px-3 py-1 text-xs font-semibold tracking-wide border";
-  switch (normalized) {
-    case "up":
-      return `${base} border-emerald-500/40 bg-emerald-500/15 text-emerald-200`;
-    case "down":
-    case "stopped":
-      return `${base} border-amber-400/40 bg-amber-400/15 text-amber-100`;
-    case "powering_up":
-    case "reboot_in_progress":
-      return `${base} border-sky-400/40 bg-sky-400/15 text-sky-100`;
-    default:
-      return `${base} border-white/20 bg-white/10 text-white/80`;
-  }
-};
+const clampPercent = (v?: number) =>
+  v === undefined || Number.isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
 
 const formatNumber = (value?: number, opts: Intl.NumberFormatOptions = {}) => {
   if (value === undefined || Number.isNaN(value)) return "—";
-  return new Intl.NumberFormat("es-CL", {
-    maximumFractionDigits: 1,
-    ...opts,
-  }).format(value);
+  return new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1, ...opts }).format(value);
 };
 
 const formatBytes = (value?: number) => {
   if (value === undefined || Number.isNaN(value) || value <= 0) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
-  let size = value;
-  let unitIndex = 0;
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-  return `${formatNumber(size, { maximumFractionDigits: size >= 100 ? 0 : 1 })} ${units[unitIndex]}`;
+  let size = value, ui = 0;
+  while (size >= 1024 && ui < units.length - 1) { size /= 1024; ui++; }
+  return `${formatNumber(size, { maximumFractionDigits: size >= 100 ? 0 : 1 })} ${units[ui]}`;
 };
 
-const toGB = (mb?: number) => {
-  if (!mb) return "—";
-  return `${formatNumber(mb / 1024)} GB`;
+const toGB = (mb?: number) => mb ? `${formatNumber(mb / 1024)} GB` : "—";
+
+const parseJsonSafe = async (res: Response) => {
+  const text = await res.text();
+  const t = text.trim();
+  if (t.startsWith("<!DOCTYPE") || t.startsWith("<html"))
+    return { error: "Respuesta inesperada del servidor" };
+  try { return text ? JSON.parse(text) : null; }
+  catch { return text ? { error: text } : null; }
 };
 
-const ActionButton = ({
-  label,
-  onClick,
-  loading,
-  disabled = false,
-  title,
-}: {
-  label: string;
-  onClick: () => void;
-  loading: boolean;
-  disabled?: boolean;
-  title?: string;
-}) => (
-  <button
-    onClick={onClick}
-    disabled={loading || disabled}
-    title={title}
-    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    {loading ? "…" : label}
-  </button>
+/* ── Mini components ──────────────────────────────────────────────────── */
+
+const StatusDot = ({ status }: { status: string }) => {
+  const s = status?.toLowerCase() ?? "";
+  const cls =
+    s === "up" ? "bg-emerald-500" :
+    s === "down" || s === "stopped" ? "bg-amber-400" :
+    "bg-sky-400";
+  return <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${cls}`} />;
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const s = status?.toLowerCase() ?? "";
+  if (s === "up")
+    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />up
+    </span>;
+  if (s === "down" || s === "stopped")
+    return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{s}
+    </span>;
+  return <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+    <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />{status}
+  </span>;
+};
+
+const MiniBar = ({ value, color = "bg-blue-500" }: { value?: number; color?: string }) => {
+  const pct = clampPercent(value);
+  const missing = value === undefined || Number.isNaN(value);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${color} ${missing ? "opacity-30" : ""}`}
+          style={{ width: missing ? "8%" : `${Math.max(3, pct)}%` }}
+        />
+      </div>
+      <span className="w-8 text-right text-[11px] text-gray-500 tabular-nums">
+        {missing ? "—" : `${pct.toFixed(0)}%`}
+      </span>
+    </div>
+  );
+};
+
+const DonutRing = ({
+  value, color, size = 56,
+}: { value?: number; color: string; size?: number }) => {
+  const pct = clampPercent(value);
+  const r = 20, c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r={r} fill="none" stroke="#e5e7eb" strokeWidth="5" />
+      <circle
+        cx="24" cy="24" r={r} fill="none" stroke={color} strokeWidth="5"
+        strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+        transform="rotate(-90 24 24)" className="transition-all duration-500"
+      />
+      <text x="24" y="28" textAnchor="middle"
+        fontSize="10" fontWeight="600" fill="#374151">
+        {value === undefined || Number.isNaN(value) ? "—" : `${pct.toFixed(0)}%`}
+      </text>
+    </svg>
+  );
+};
+
+/* ── Stat card ────────────────────────────────────────────────────────── */
+const StatCard = ({
+  label, value, sub, accent = false, warning = false,
+}: { label: string; value: string | number; sub?: string; accent?: boolean; warning?: boolean }) => (
+  <div className={`rounded-lg border p-3 ${
+    accent ? "border-blue-200 bg-blue-50" :
+    warning ? "border-amber-200 bg-amber-50" :
+    "border-[--border] bg-white"
+  }`}>
+    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+    <p className={`mt-1 text-2xl font-bold tabular-nums ${
+      accent ? "text-blue-700" : warning ? "text-amber-700" : "text-gray-900"
+    }`}>{value}</p>
+    {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}
+  </div>
 );
+
+/* ── Action button ────────────────────────────────────────────────────── */
+const ActionButton = ({
+  label, onClick, loading, disabled = false, title, variant = "default",
+}: {
+  label: string; onClick: () => void; loading: boolean;
+  disabled?: boolean; title?: string;
+  variant?: "default" | "primary" | "danger";
+}) => {
+  const base = "rounded-md border px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 hover:-translate-y-px";
+  const cls =
+    variant === "primary"
+      ? `${base} border-blue-300 bg-blue-600 text-white hover:bg-blue-700`
+      : variant === "danger"
+      ? `${base} border-red-300 bg-red-50 text-red-700 hover:bg-red-100`
+      : `${base} border-[--border] bg-white text-gray-700 hover:bg-gray-50`;
+  return (
+    <button onClick={onClick} disabled={loading || disabled} title={title} className={cls}>
+      {loading ? <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : label}
+    </button>
+  );
+};
+
+const Field = ({
+  label, children,
+}: { label: string; children: React.ReactNode }) => (
+  <label className="block">
+    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+    <div className="mt-1">{children}</div>
+  </label>
+);
+
+const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-1.5 text-xs text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400";
+
+/* ════════════════════════════════════════════════════════════════════════
+   Main component
+   ════════════════════════════════════════════════════════════════════════ */
 
 export default function Home() {
   const { data: session } = useSession();
   const showExperimentalConsole = true;
+
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [vms, setVms] = useState<Vm[]>([]);
@@ -337,341 +207,180 @@ export default function Home() {
   const [success, setSuccess] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inventoryExpanded, setInventoryExpanded] = useState(true);
-  const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
   const [expandedHosts, setExpandedHosts] = useState<Record<string, boolean>>({});
-  const [detailTab, setDetailTab] = useState<
-    "overview" | "actions" | "resources" | "provisioning"
-  >("overview");
-  const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>(
-    {},
-  );
+  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
+  const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
-    name: "",
-    clusterId: "",
-    templateId: "",
-    memoryMB: "",
-    cpuCores: "",
-    sockets: "1",
-    comment: "",
+    name: "", clusterId: "", templateId: "",
+    memoryMB: "", cpuCores: "", sockets: "1", comment: "",
   });
   const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
   const [embeddedConsole, setEmbeddedConsole] = useState<{
-    vmId: string;
-    status: "idle" | "connecting" | "connected" | "error";
-    error?: string | null;
-    rfb?: RfbInstance | null;
-    iframeUrl?: string | null;
+    vmId: string; status: "idle" | "connecting" | "connected" | "error";
+    error?: string | null; rfb?: RfbInstance | null; iframeUrl?: string | null;
   }>({ vmId: "", status: "idle", error: null, rfb: null });
   const [useProxy, setUseProxy] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [cloneWizard, setCloneWizard] = useState<{
-    open: boolean;
-    sourceVmId: string;
-    sourceVmName: string;
-    newName: string;
-    submitting: boolean;
-    error: string | null;
-  }>({
-    open: false,
-    sourceVmId: "",
-    sourceVmName: "",
-    newName: "",
-    submitting: false,
-    error: null,
-  });
+    open: boolean; sourceVmId: string; sourceVmName: string;
+    newName: string; submitting: boolean; error: string | null;
+  }>({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
+
   const closingConsole = useRef(false);
   const embeddedConsoleSession = useRef(0);
   const consoleRef = useMemo(() => {
     if (typeof document === "undefined") return null;
     const div = document.createElement("div");
     div.id = "embedded-console";
-    div.style.width = "100%";
-    div.style.height = "100%";
-    div.style.position = "relative";
-    div.style.overflow = "hidden";
+    Object.assign(div.style, { width: "100%", height: "100%", position: "relative", overflow: "hidden" });
     return div;
   }, []);
 
+  /* ── Auto-clear toasts ── */
   useEffect(() => {
     if (!error && !success) return;
-    const t = setTimeout(() => {
-      setError(null);
-      setSuccess(null);
-    }, 8000);
+    const t = setTimeout(() => { setError(null); setSuccess(null); }, 6000);
     return () => clearTimeout(t);
   }, [error, success]);
 
+  /* ── Load tenants ── */
   useEffect(() => {
-    const loadTenants = async () => {
+    (async () => {
       try {
         const res = await fetch("/api/tenants");
         const data = await parseJsonSafe(res);
-        if (!res.ok) {
-          throw new Error(data?.error ?? "No se pudieron cargar los tenants");
-        }
-        if (!Array.isArray(data) || data.length === 0) {
-          throw new Error("No hay tenants configurados en OLVM_TENANTS");
-        }
-        const sanitized = data.filter((t) => Boolean(t.id));
-        setTenants(sanitized);
-        setSelectedTenant(sanitized[0]?.id ?? "");
-      } catch (err) {
-        console.error(err);
-        setError(
-          "No pude cargar los tenants. Revisa las variables de entorno OLVM.",
-        );
-      }
-    };
-    loadTenants().catch(console.error);
+        if (!res.ok) throw new Error(data?.error ?? "No se pudieron cargar los tenants");
+        if (!Array.isArray(data) || !data.length) throw new Error("No hay tenants configurados");
+        const s = data.filter((t) => Boolean(t.id));
+        setTenants(s);
+        setSelectedTenant(s[0]?.id ?? "");
+      } catch (err) { setError("No pude cargar los tenants. Revisa las variables OLVM."); }
+    })();
   }, []);
 
   useEffect(() => {
     if (!tenants.length) return;
-    const firstTenantId = tenants[0]?.id;
-    const selectedIsInvalid =
-      !selectedTenant ||
-      selectedTenant === "undefined" ||
-      !tenants.some((t) => t.id === selectedTenant);
-    if (selectedIsInvalid && firstTenantId) {
-      setSelectedTenant(firstTenantId);
-    }
+    const first = tenants[0]?.id;
+    const invalid = !selectedTenant || selectedTenant === "undefined" || !tenants.some((t) => t.id === selectedTenant);
+    if (invalid && first) setSelectedTenant(first);
   }, [selectedTenant, tenants]);
+
+  /* ── Load VMs ── */
+  const loadVms = async (tenantId: string) => {
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/vms`);
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error cargando VMs");
+      setVms(data);
+    } catch (err) { setError((err as Error).message); }
+    finally { setLoading(false); }
+  };
 
   useEffect(() => {
     if (!selectedTenant || selectedTenant === "undefined") return;
-    const loadVms = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/tenants/${selectedTenant}/vms`);
-        const data = await parseJsonSafe(res);
-        if (!res.ok) throw new Error(data.error ?? "Error cargando VMs");
-        setVms(data);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadVms().catch(console.error);
+    loadVms(selectedTenant);
   }, [selectedTenant]);
 
   useEffect(() => {
-    if (!vms.length) {
-      setSelectedVmId("");
-      return;
-    }
-    if (selectedVmId && !vms.some((vm) => vm.id === selectedVmId)) {
-      setSelectedVmId("");
-    }
+    if (!vms.length) { setSelectedVmId(""); return; }
+    if (selectedVmId && !vms.some((vm) => vm.id === selectedVmId)) setSelectedVmId("");
   }, [selectedVmId, vms]);
+
+  const refresh = () => {
+    if (!selectedTenant || selectedTenant === "undefined") return;
+    loadVms(selectedTenant);
+  };
 
   const tenantName = useMemo(
     () => tenants.find((t) => t.id === selectedTenant)?.name ?? "",
     [selectedTenant, tenants],
   );
 
-  const refresh = async () => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/tenants/${selectedTenant}/vms`);
-      const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data.error ?? "Error cargando VMs");
-      setVms(data);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /* ── Actions ── */
   const runAction = async (vmId: string, action: string) => {
     if (!selectedTenant || selectedTenant === "undefined") return;
-    setActionLoading(`${vmId}-${action}`);
-    setError(null);
-    setSuccess(null);
-    const startedAt = Date.now();
-    setActionHistory((prev) => [
-      { vmId, action, status: "pending", timestamp: startedAt },
-      ...prev.slice(0, 2),
-    ]);
+    setActionLoading(`${vmId}-${action}`); setError(null); setSuccess(null);
+    const ts = Date.now();
+    setActionHistory((p) => [{ vmId, action, status: "pending", timestamp: ts }, ...p.slice(0, 2)]);
     try {
-      const res = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/actions`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action }),
-        },
-      );
+      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${vmId}/actions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data.error ?? "Error ejecutando acción");
+      if (!res.ok) throw new Error(data?.error ?? "Error ejecutando acción");
       setSuccess(`Acción ${action} enviada`);
-      setActionHistory((prev) =>
-        prev.map((entry) =>
-          entry.vmId === vmId && entry.timestamp === startedAt
-            ? { ...entry, status: "ok", message: data?.error }
-            : entry,
-        ),
-      );
-      await refresh();
+      setActionHistory((p) => p.map((e) => e.vmId === vmId && e.timestamp === ts ? { ...e, status: "ok" } : e));
+      refresh();
     } catch (err) {
-      const message = (err as Error).message;
-      setError(message);
-      setActionHistory((prev) =>
-        prev.map((entry) =>
-          entry.vmId === vmId && entry.timestamp === startedAt
-            ? { ...entry, status: "error", message }
-            : entry,
-        ),
-      );
-    } finally {
-      setActionLoading(null);
-    }
+      const msg = (err as Error).message;
+      setError(msg);
+      setActionHistory((p) => p.map((e) => e.vmId === vmId && e.timestamp === ts ? { ...e, status: "error", message: msg } : e));
+    } finally { setActionLoading(null); }
   };
 
-  const openCloneWizard = (vm: Vm) => {
-    setCloneWizard({
-      open: true,
-      sourceVmId: vm.id,
-      sourceVmName: vm.name,
-      newName: `${vm.name}-clone`,
-      submitting: false,
-      error: null,
-    });
-  };
+  const openCloneWizard = (vm: Vm) => setCloneWizard({
+    open: true, sourceVmId: vm.id, sourceVmName: vm.name,
+    newName: `${vm.name}-clone`, submitting: false, error: null,
+  });
 
   const closeCloneWizard = () => {
     if (cloneWizard.submitting) return;
-    setCloneWizard({
-      open: false,
-      sourceVmId: "",
-      sourceVmName: "",
-      newName: "",
-      submitting: false,
-      error: null,
-    });
+    setCloneWizard({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
   };
 
   const submitCloneWizard = async () => {
     if (!selectedTenant || selectedTenant === "undefined") return;
-    const sourceVmId = cloneWizard.sourceVmId;
-    const sourceVmName = cloneWizard.sourceVmName;
     const cloneName = cloneWizard.newName.trim();
-
-    if (!sourceVmId) return;
-    if (!cloneName) {
-      setCloneWizard((prev) => ({
-        ...prev,
-        error: "Ingresa un nombre para la VM clonada.",
-      }));
-      return;
-    }
-
-    setCloneWizard((prev) => ({ ...prev, submitting: true, error: null }));
-    setActionLoading(`${sourceVmId}-clone`);
-    setError(null);
-    setSuccess(null);
-
+    if (!cloneName) { setCloneWizard((p) => ({ ...p, error: "Ingresa un nombre para la VM clonada." })); return; }
+    setCloneWizard((p) => ({ ...p, submitting: true, error: null }));
+    setActionLoading(`${cloneWizard.sourceVmId}-clone`);
     try {
-      const res = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${sourceVmId}/actions`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "clone",
-            cloneName,
-          }),
-        },
-      );
-      const data = await parseJsonSafe(res);
-      if (!res.ok) {
-        throw new Error(data?.error ?? "No se pudo clonar la VM");
-      }
-
-      setSuccess(
-        `Clon ${cloneName} creado. Quedó apagado y con red desconectada.`,
-      );
-      setActionHistory((prev) => [
-        {
-          vmId: sourceVmId,
-          action: `clone -> ${cloneName}`,
-          status: "ok",
-          timestamp: Date.now(),
-          message: `Origen: ${sourceVmName}`,
-        },
-        ...prev.slice(0, 2),
-      ]);
-      setCloneWizard({
-        open: false,
-        sourceVmId: "",
-        sourceVmName: "",
-        newName: "",
-        submitting: false,
-        error: null,
+      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${cloneWizard.sourceVmId}/actions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clone", cloneName }),
       });
-      await refresh();
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo clonar la VM");
+      setSuccess(`Clon ${cloneName} creado. Quedó apagado y con red desconectada.`);
+      setActionHistory((p) => [{
+        vmId: cloneWizard.sourceVmId, action: `clone → ${cloneName}`,
+        status: "ok", timestamp: Date.now(), message: `Origen: ${cloneWizard.sourceVmName}`,
+      }, ...p.slice(0, 2)]);
+      setCloneWizard({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
+      refresh();
     } catch (err) {
-      const message = (err as Error).message;
-      setCloneWizard((prev) => ({
-        ...prev,
-        submitting: false,
-        error: message,
-      }));
-    } finally {
-      setActionLoading(null);
-    }
+      setCloneWizard((p) => ({ ...p, submitting: false, error: (err as Error).message }));
+    } finally { setActionLoading(null); }
   };
 
   const downloadConsole = async (vmId: string, protocol: "spice" | "vnc" = "spice") => {
     if (!selectedTenant || selectedTenant === "undefined") return;
-    setConsoleLoading(vmId);
-    setError(null);
-    setSuccess(null);
+    setConsoleLoading(vmId); setError(null);
     try {
-      const res = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/console?protocol=${protocol}`,
-      );
-      if (!res.ok) {
-        const data = await parseJsonSafe(res);
-        throw new Error(data?.error ?? "No se pudo obtener la consola");
-      }
+      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${vmId}/console?protocol=${protocol}`);
+      if (!res.ok) { const d = await parseJsonSafe(res); throw new Error(d?.error ?? "No se pudo obtener la consola"); }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `${vmId}-${protocol}.vv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      a.href = url; a.download = `${vmId}-${protocol}.vv`;
+      document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(url);
-      setSuccess("Consola descargada. Ábrela con remote-viewer (Spice/VNC).");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setConsoleLoading(null);
-    }
+      setSuccess("Consola descargada. Ábrela con remote-viewer.");
+    } catch (err) { setError((err as Error).message); }
+    finally { setConsoleLoading(null); }
   };
 
   const updateResources = async (vmId: string) => {
     if (!selectedTenant || selectedTenant === "undefined") return;
     const draft = resourceDrafts[vmId];
-    if (!draft?.memoryMB && !draft?.cpuCores) {
-      setError("Ingresa memoria y/o CPU para actualizar.");
-      return;
-    }
-    setActionLoading(`${vmId}-update`);
-    setSuccess(null);
-    setError(null);
+    if (!draft?.memoryMB && !draft?.cpuCores) { setError("Ingresa memoria y/o CPU para actualizar."); return; }
+    setActionLoading(`${vmId}-update`); setSuccess(null); setError(null);
     try {
       const res = await fetch(`/api/tenants/${selectedTenant}/vms/${vmId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           memoryMB: draft.memoryMB ? Number(draft.memoryMB) : undefined,
           cpuCores: draft.cpuCores ? Number(draft.cpuCores) : undefined,
@@ -679,47 +388,22 @@ export default function Home() {
         }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data.error ?? "No se pudo actualizar");
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo actualizar");
       setSuccess("Recursos actualizados");
-      setActionHistory((prev) => [
-        {
-          vmId,
-          action: `update resources (${[
-            draft.memoryMB ? `RAM ${draft.memoryMB}MB` : "",
-            draft.cpuCores ? `vCPU ${draft.cpuCores}` : "",
-            draft.sockets ? `sockets ${draft.sockets}` : "",
-          ]
-            .filter(Boolean)
-            .join(", ")})`,
-          status: "ok",
-          timestamp: Date.now(),
-        },
-        ...prev.slice(0, 2),
-      ]);
-      await refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setActionLoading(null);
-    }
+      refresh();
+    } catch (err) { setError((err as Error).message); }
+    finally { setActionLoading(null); }
   };
 
   const handleNewVm = async () => {
     if (!selectedTenant || selectedTenant === "undefined") return;
-    if (!newVm.name || !newVm.clusterId) {
-      setError("Nombre y Cluster ID son obligatorios");
-      return;
-    }
-    setActionLoading("create");
-    setError(null);
-    setSuccess(null);
+    if (!newVm.name || !newVm.clusterId) { setError("Nombre y Cluster ID son obligatorios"); return; }
+    setActionLoading("create"); setError(null); setSuccess(null);
     try {
       const res = await fetch(`/api/tenants/${selectedTenant}/vms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newVm.name,
-          clusterId: newVm.clusterId,
+          name: newVm.name, clusterId: newVm.clusterId,
           templateId: newVm.templateId || undefined,
           memoryMB: newVm.memoryMB ? Number(newVm.memoryMB) : undefined,
           cpuCores: newVm.cpuCores ? Number(newVm.cpuCores) : undefined,
@@ -728,734 +412,112 @@ export default function Home() {
         }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data.error ?? "No se pudo crear la VM");
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo crear la VM");
       setSuccess("VM creada (el aprovisionamiento puede tardar)");
-      setActionHistory((prev) => [
-        {
-          vmId: data?.id ?? newVm.name,
-          action: "create VM",
-          status: "ok",
-          timestamp: Date.now(),
-        },
-        ...prev.slice(0, 2),
-      ]);
-      setNewVm({
-        name: "",
-        clusterId: "",
-        templateId: "",
-        memoryMB: "",
-        cpuCores: "",
-        sockets: "1",
-        comment: "",
-      });
-      await refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setActionLoading(null);
-    }
+      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "" });
+      refresh();
+    } catch (err) { setError((err as Error).message); }
+    finally { setActionLoading(null); }
   };
 
+  /* ── Derived state ── */
   const totals = useMemo(() => {
     const up = vms.filter((vm) => vm.status?.toLowerCase() === "up").length;
-    const down = vms.filter((vm) => vm.status?.toLowerCase() !== "up").length;
-    return { up, down, total: vms.length };
+    return { up, down: vms.length - up, total: vms.length };
   }, [vms]);
 
-  const filteredVms = vms;
-
-  const visibleTotals = useMemo(() => {
-    const up = filteredVms.filter((vm) => vm.status?.toLowerCase() === "up").length;
-    const down = filteredVms.filter((vm) => vm.status?.toLowerCase() !== "up").length;
-    return { up, down, total: filteredVms.length };
-  }, [filteredVms]);
-
   const inventoryTree = useMemo(() => {
-    const clusters = new Map<
-      string,
-      {
-        key: string;
-        label: string;
-        hosts: Map<
-          string,
-          {
-            key: string;
-            label: string;
-            vms: Vm[];
-            up: number;
-            down: number;
-          }
-        >;
-        up: number;
-        down: number;
-      }
-    >();
-
-    for (const vm of filteredVms) {
-      const clusterLabel = vm.cluster?.trim() || "Sin cluster";
-      const clusterKey = clusterLabel.toLowerCase();
-      const hostLabel = vm.host?.trim() || "Host N/D";
-      const hostKey = `${clusterKey}::${hostLabel.toLowerCase()}`;
-
-      const currentCluster = clusters.get(clusterKey) ?? {
-        key: clusterKey,
-        label: clusterLabel,
-        hosts: new Map(),
-        up: 0,
-        down: 0,
-      };
-
-      const currentHost = currentCluster.hosts.get(hostKey) ?? {
-        key: hostKey,
-        label: hostLabel,
-        vms: [],
-        up: 0,
-        down: 0,
-      };
-
-      currentHost.vms.push(vm);
-      if ((vm.status?.toLowerCase?.() ?? "") === "up") {
-        currentHost.up += 1;
-        currentCluster.up += 1;
-      } else {
-        currentHost.down += 1;
-        currentCluster.down += 1;
-      }
-
-      currentCluster.hosts.set(hostKey, currentHost);
-      clusters.set(clusterKey, currentCluster);
+    const clusters = new Map<string, {
+      key: string; label: string;
+      hosts: Map<string, { key: string; label: string; vms: Vm[]; up: number; down: number }>;
+      up: number; down: number;
+    }>();
+    for (const vm of vms) {
+      const clLabel = vm.cluster?.trim() || "Sin cluster";
+      const clKey = clLabel.toLowerCase();
+      const hLabel = vm.host?.trim() || "Host N/D";
+      const hKey = `${clKey}::${hLabel.toLowerCase()}`;
+      const cluster = clusters.get(clKey) ?? { key: clKey, label: clLabel, hosts: new Map(), up: 0, down: 0 };
+      const host = cluster.hosts.get(hKey) ?? { key: hKey, label: hLabel, vms: [], up: 0, down: 0 };
+      host.vms.push(vm);
+      if ((vm.status?.toLowerCase() ?? "") === "up") { host.up++; cluster.up++; }
+      else { host.down++; cluster.down++; }
+      cluster.hosts.set(hKey, host);
+      clusters.set(clKey, cluster);
     }
+    return [...clusters.values()].map((c) => ({
+      ...c,
+      hosts: [...c.hosts.values()]
+        .map((h) => ({ ...h, vms: [...h.vms].sort((a, b) => a.name.localeCompare(b.name)) }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [vms]);
 
-    return Array.from(clusters.values())
-      .map((cluster) => ({
-        ...cluster,
-        hosts: Array.from(cluster.hosts.values())
-          .map((host) => ({
-            ...host,
-            vms: [...host.vms].sort((a, b) => a.name.localeCompare(b.name)),
-          }))
-          .sort((a, b) => a.label.localeCompare(b.label)),
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [filteredVms]);
-
-  const selectedVm = useMemo(
-    () => vms.find((vm) => vm.id === selectedVmId) ?? null,
-    [selectedVmId, vms],
-  );
-
-  useEffect(() => {
-    if (!inventoryTree.length) {
-      setExpandedClusters({});
-      setExpandedHosts({});
-      return;
-    }
-
-    setExpandedClusters((prev) => {
-      const next: Record<string, boolean> = {};
-      for (const cluster of inventoryTree) {
-        next[cluster.key] = prev[cluster.key] ?? true;
-      }
-      return next;
-    });
-  }, [inventoryTree]);
-
-  useEffect(() => {
-    if (!inventoryTree.length) {
-      setExpandedHosts({});
-      return;
-    }
-
-    setExpandedHosts((prev) => {
-      const next: Record<string, boolean> = {};
-      for (const cluster of inventoryTree) {
-        for (const host of cluster.hosts) {
-          next[host.key] = prev[host.key] ?? true;
-        }
-      }
-      return next;
-    });
-  }, [inventoryTree]);
-
-  useEffect(() => {
-    setDetailTab(selectedVmId ? "overview" : "overview");
-  }, [selectedVmId]);
+  const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
   const tenantResourceSummary = useMemo(() => {
-    const provisionedMemoryMB = vms.reduce(
-      (sum, vm) => sum + (vm.memoryMB ?? 0),
-      0,
-    );
-    const provisionedCpuCores = vms.reduce(
-      (sum, vm) => sum + (vm.cpuCores ?? 0),
-      0,
-    );
-    const estimatedCpuUsed = vms.reduce((sum, vm) => {
-      const cpuCores = vm.cpuCores ?? 0;
-      const cpuPercent = vm.metrics?.cpuPercent ?? 0;
-      return sum + cpuCores * (cpuPercent / 100);
-    }, 0);
-    const estimatedMemoryUsedMB = vms.reduce((sum, vm) => {
-      const memoryMB = vm.memoryMB ?? 0;
-      const memoryPercent = vm.metrics?.memoryPercent ?? 0;
-      return sum + memoryMB * (memoryPercent / 100);
-    }, 0);
-    const diskTrafficBytes = vms.reduce(
-      (sum, vm) =>
-        sum +
-        (vm.metrics?.diskReadBytes ?? 0) +
-        (vm.metrics?.diskWriteBytes ?? 0),
-      0,
-    );
-    const networkTrafficBytes = vms.reduce(
-      (sum, vm) => sum + (vm.metrics?.networkBytes ?? 0),
-      0,
-    );
-
+    const provisionedCpu = vms.reduce((s, vm) => s + (vm.cpuCores ?? 0), 0);
+    const provisionedMem = vms.reduce((s, vm) => s + (vm.memoryMB ?? 0), 0);
+    const estCpu = vms.reduce((s, vm) => s + (vm.cpuCores ?? 0) * ((vm.metrics?.cpuPercent ?? 0) / 100), 0);
+    const estMem = vms.reduce((s, vm) => s + (vm.memoryMB ?? 0) * ((vm.metrics?.memoryPercent ?? 0) / 100), 0);
+    const disk = vms.reduce((s, vm) => s + (vm.metrics?.diskReadBytes ?? 0) + (vm.metrics?.diskWriteBytes ?? 0), 0);
+    const net = vms.reduce((s, vm) => s + (vm.metrics?.networkBytes ?? 0), 0);
     return {
-      provisionedMemoryMB,
-      provisionedCpuCores,
-      estimatedCpuUsed,
-      estimatedMemoryUsedMB,
-      cpuUsagePercent:
-        provisionedCpuCores > 0
-          ? (estimatedCpuUsed / provisionedCpuCores) * 100
-          : undefined,
-      memoryUsagePercent:
-        provisionedMemoryMB > 0
-          ? (estimatedMemoryUsedMB / provisionedMemoryMB) * 100
-          : undefined,
-      diskTrafficBytes,
-      networkTrafficBytes,
+      provisionedCpu, provisionedMem, estCpu, estMem,
+      cpuPct: provisionedCpu > 0 ? (estCpu / provisionedCpu) * 100 : undefined,
+      memPct: provisionedMem > 0 ? (estMem / provisionedMem) * 100 : undefined,
+      disk, net,
     };
   }, [vms]);
 
-  const topMemoryVms = useMemo(
-    () =>
-      [...vms]
-        .sort((a, b) => (b.memoryMB ?? 0) - (a.memoryMB ?? 0))
-        .slice(0, 5)
-        .map((vm) => ({
-          id: vm.id,
-          name: vm.name,
-          value: vm.memoryMB ?? 0,
-          label: toGB(vm.memoryMB),
-        })),
-    [vms],
-  );
+  const topMemVms = useMemo(() =>
+    [...vms].sort((a, b) => (b.memoryMB ?? 0) - (a.memoryMB ?? 0)).slice(0, 5)
+    .map((vm) => ({ id: vm.id, name: vm.name, value: vm.memoryMB ?? 0, label: toGB(vm.memoryMB) })),
+  [vms]);
 
-  const topCpuVms = useMemo(
-    () =>
-      [...vms]
-        .sort(
-          (a, b) => (b.metrics?.cpuPercent ?? 0) - (a.metrics?.cpuPercent ?? 0),
-        )
-        .slice(0, 5)
-        .map((vm) => ({
-          id: vm.id,
-          name: vm.name,
-          value: vm.metrics?.cpuPercent ?? 0,
-          label: `${formatNumber(vm.metrics?.cpuPercent)}%`,
-        })),
-    [vms],
-  );
+  const topCpuVms = useMemo(() =>
+    [...vms].sort((a, b) => (b.metrics?.cpuPercent ?? 0) - (a.metrics?.cpuPercent ?? 0)).slice(0, 5)
+    .map((vm) => ({ id: vm.id, name: vm.name, value: vm.metrics?.cpuPercent ?? 0, label: `${formatNumber(vm.metrics?.cpuPercent)}%` })),
+  [vms]);
 
-  const tenantDashboardPanel = (
-    <section className="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-lg shadow-sky-500/5 backdrop-blur">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-white">Dashboard del tenant</p>
-          <p className="text-xs text-white/60">
-            Resumen consolidado de capacidad asignada y consumo visible en{" "}
-            {tenantName || "este tenant"}.
-          </p>
-        </div>
-        <p className="text-xs text-white/45">
-          Selecciona una VM en el inventario para cambiar a vista detallada.
-        </p>
-      </div>
+  /* ── Tree expand init ── */
+  useEffect(() => {
+    if (!inventoryTree.length) { setExpandedClusters({}); setExpandedHosts({}); return; }
+    setExpandedClusters((p) => {
+      const n: Record<string, boolean> = {};
+      for (const c of inventoryTree) n[c.key] = p[c.key] ?? true;
+      return n;
+    });
+  }, [inventoryTree]);
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[1.15fr,1.15fr,0.85fr]">
-        <MetricDonut
-          label="CPU del tenant"
-          tint="#38bdf8"
-          value={tenantResourceSummary.cpuUsagePercent}
-          valueLabel={`${formatNumber(
-            tenantResourceSummary.provisionedCpuCores,
-            { maximumFractionDigits: 0 },
-          )} vCPU`}
-          helper={`Uso estimado: ${formatNumber(
-            tenantResourceSummary.estimatedCpuUsed,
-          )} vCPU`}
-        />
-        <MetricDonut
-          label="RAM del tenant"
-          tint="#34d399"
-          value={tenantResourceSummary.memoryUsagePercent}
-          valueLabel={toGB(tenantResourceSummary.provisionedMemoryMB)}
-          helper={`Uso estimado: ${toGB(
-            tenantResourceSummary.estimatedMemoryUsedMB,
-          )}`}
-        />
-        <StatusStack total={totals.total} up={totals.up} down={totals.down} />
-      </div>
+  useEffect(() => {
+    if (!inventoryTree.length) { setExpandedHosts({}); return; }
+    setExpandedHosts((p) => {
+      const n: Record<string, boolean> = {};
+      for (const c of inventoryTree) for (const h of c.hosts) n[h.key] = p[h.key] ?? true;
+      return n;
+    });
+  }, [inventoryTree]);
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr,1fr,0.9fr]">
-        <ResourceBars
-          title="Huella de RAM por servidor"
-          items={topMemoryVms}
-          colorClass="bg-gradient-to-r from-emerald-400 to-teal-300"
-        />
-        <ResourceBars
-          title="Carga CPU visible"
-          items={topCpuVms}
-          colorClass="bg-gradient-to-r from-sky-400 to-cyan-300"
-        />
-        <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50">
-            Tráfico activo
-          </p>
-          <div className="mt-4 grid gap-3">
-            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4">
-              <p className="text-xs text-amber-50/75">Disco</p>
-              <p className="mt-2 text-3xl font-semibold text-white">
-                {formatBytes(tenantResourceSummary.diskTrafficBytes)}
-              </p>
-              <p className="mt-1 text-xs text-white/55">
-                Lectura + escritura acumulada en las VMs visibles.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-sky-300/15 bg-sky-300/10 p-4">
-              <p className="text-xs text-sky-50/75">Red</p>
-              <p className="mt-2 text-3xl font-semibold text-white">
-                {formatBytes(tenantResourceSummary.networkTrafficBytes)}
-              </p>
-              <p className="mt-1 text-xs text-white/55">
-                Tráfico combinado reportado por OLVM.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-
-  const detailPanel = (
-    <aside className="rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/25 backdrop-blur">
-      <div className="border-b border-white/10 pb-4">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">
-          Panel de detalles
-        </p>
-        <div className="mt-3">
-          {selectedVm ? (
-            <>
-              <div className="flex items-center gap-3">
-                <h3 className="text-xl font-semibold text-white">{selectedVm.name}</h3>
-                <span className={statusBadge(selectedVm.status)}>
-                  {selectedVm.status ?? "desconocido"}
-                </span>
-              </div>
-              <p className="mt-2 text-xs text-white/55">
-                {tenantName || "Tenant"} / {selectedVm.cluster || "Sin cluster"} / {selectedVm.host || "Host N/D"}
-              </p>
-            </>
-          ) : (
-            <>
-              <h3 className="text-xl font-semibold text-white">Vista general</h3>
-              <p className="mt-2 text-sm text-white/55">
-                Selecciona un recurso en el árbol o en la grilla para ver su detalle.
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {[
-          { key: "overview", label: "Detalle" },
-          { key: "actions", label: "Acciones" },
-          { key: "resources", label: "Recursos" },
-          { key: "provisioning", label: "Provisionar" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() =>
-              setDetailTab(
-                tab.key as "overview" | "actions" | "resources" | "provisioning",
-              )
-            }
-            className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
-              detailTab === tab.key
-                ? "border-emerald-400/35 bg-emerald-400/12 text-emerald-100"
-                : "border-white/10 bg-black/15 text-white/65 hover:bg-white/5"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 space-y-4">
-        {detailTab === "overview" && (
-          selectedVm ? (
-            <>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/45">Identidad</p>
-                <div className="mt-3 space-y-2 text-sm text-white/70">
-                  <p><span className="text-white/45">ID:</span> {selectedVm.id}</p>
-                  <p><span className="text-white/45">Template:</span> {selectedVm.template ?? "N/D"}</p>
-                  <p><span className="text-white/45">Cluster:</span> {selectedVm.cluster ?? "N/D"}</p>
-                  <p><span className="text-white/45">Host:</span> {selectedVm.host ?? "N/D"}</p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-white/50">CPU</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">
-                    {formatNumber(selectedVm.metrics?.cpuPercent)}%
-                  </p>
-                  <UsageBar value={selectedVm.metrics?.cpuPercent} />
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-white/50">Memoria</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{toGB(selectedVm.memoryMB)}</p>
-                  <UsageBar value={selectedVm.metrics?.memoryPercent} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                  Tenant activo
-                </p>
-                <p className="mt-2 text-xl font-semibold text-white">
-                  {tenantName || "Sin tenant"}
-                </p>
-                <p className="mt-2 text-sm text-white/55">
-                  Usa el árbol o la grilla para hacer drill-down sobre un recurso.
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-white/45">Total</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{totals.total}</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-                  <p className="text-xs text-white/45">Up</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{totals.up}</p>
-                </div>
-                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
-                  <p className="text-xs text-white/45">Down</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">{totals.down}</p>
-                </div>
-              </div>
-            </div>
-          )
-        )}
-
-        {detailTab === "actions" && (
-          selectedVm ? (
-            <div className="space-y-4">
-              <div className="grid gap-2">
-                <ActionButton
-                  label="Start"
-                  onClick={() => runAction(selectedVm.id, "start")}
-                  loading={actionLoading === `${selectedVm.id}-start`}
-                />
-                <ActionButton
-                  label="Stop"
-                  onClick={() => runAction(selectedVm.id, "stop")}
-                  loading={actionLoading === `${selectedVm.id}-stop`}
-                />
-                <ActionButton
-                  label="Shutdown"
-                  onClick={() => runAction(selectedVm.id, "shutdown")}
-                  loading={actionLoading === `${selectedVm.id}-shutdown`}
-                />
-                <ActionButton
-                  label="Reboot"
-                  onClick={() => runAction(selectedVm.id, "reboot")}
-                  loading={actionLoading === `${selectedVm.id}-reboot`}
-                />
-                <ActionButton
-                  label="Clone"
-                  onClick={() => openCloneWizard(selectedVm)}
-                  loading={actionLoading === `${selectedVm.id}-clone`}
-                />
-                <ActionButton
-                  label="Consola (VNC)"
-                  onClick={() => downloadConsole(selectedVm.id, "vnc")}
-                  loading={consoleLoading === selectedVm.id}
-                />
-                {showExperimentalConsole && (
-                  <ActionButton
-                    label="Consola embebida"
-                    onClick={() => openEmbeddedConsole(selectedVm.id)}
-                    loading={consoleLoading === selectedVm.id}
-                    disabled={(selectedVm.status?.toLowerCase?.() ?? "") !== "up"}
-                  />
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedVmId("")}
-                className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-              >
-                Volver a vista general
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/55">
-              Selecciona una VM para habilitar acciones operativas.
-            </div>
-          )
-        )}
-
-        {detailTab === "resources" && (
-          selectedVm ? (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm font-semibold text-white">Ajuste de recursos</p>
-              <p className="mt-1 text-xs text-white/55">
-                Edita memoria, vCPU y sockets para la VM seleccionada.
-              </p>
-              <div className="mt-4 space-y-3">
-                <label className="text-xs text-white/60">
-                  Memoria (MB)
-                  <input
-                    type="number"
-                    min={512}
-                    value={resourceDrafts[selectedVm.id]?.memoryMB ?? ""}
-                    onChange={(e) =>
-                      setResourceDrafts((prev) => ({
-                        ...prev,
-                        [selectedVm.id]: {
-                          ...prev[selectedVm.id],
-                          memoryMB: e.target.value,
-                        },
-                      }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                  />
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="text-xs text-white/60">
-                    vCPU
-                    <input
-                      type="number"
-                      min={1}
-                      value={resourceDrafts[selectedVm.id]?.cpuCores ?? ""}
-                      onChange={(e) =>
-                        setResourceDrafts((prev) => ({
-                          ...prev,
-                          [selectedVm.id]: {
-                            ...prev[selectedVm.id],
-                            cpuCores: e.target.value,
-                          },
-                        }))
-                      }
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                    />
-                  </label>
-                  <label className="text-xs text-white/60">
-                    Sockets
-                    <input
-                      type="number"
-                      min={1}
-                      value={resourceDrafts[selectedVm.id]?.sockets ?? ""}
-                      onChange={(e) =>
-                        setResourceDrafts((prev) => ({
-                          ...prev,
-                          [selectedVm.id]: {
-                            ...prev[selectedVm.id],
-                            sockets: e.target.value,
-                          },
-                        }))
-                      }
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                    />
-                  </label>
-                </div>
-                <button
-                  onClick={() => updateResources(selectedVm.id)}
-                  disabled={actionLoading === `${selectedVm.id}-update`}
-                  className="w-full rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:-translate-y-0.5 hover:bg-emerald-400/25 disabled:opacity-60"
-                >
-                  {actionLoading === `${selectedVm.id}-update`
-                    ? "Actualizando…"
-                    : "Actualizar recursos"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/55">
-              Elige una VM para editar sus recursos.
-            </div>
-          )
-        )}
-
-        {detailTab === "provisioning" && (
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">Crear nueva VM</p>
-                <p className="text-xs text-white/60">
-                  Usa IDs de cluster y template disponibles en OLVM.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-3">
-              <label className="text-xs text-white/70">
-                Nombre
-                <input
-                  value={newVm.name}
-                  onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                  placeholder="vm-app-01"
-                />
-              </label>
-              <label className="text-xs text-white/70">
-                Cluster ID
-                <input
-                  value={newVm.clusterId}
-                  onChange={(e) =>
-                    setNewVm((v) => ({ ...v, clusterId: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                  placeholder="00000000-0000-0000-0000-000000000000"
-                />
-              </label>
-              <label className="text-xs text-white/70">
-                Template ID (opcional)
-                <input
-                  value={newVm.templateId}
-                  onChange={(e) =>
-                    setNewVm((v) => ({ ...v, templateId: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                  placeholder="template uuid"
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-xs text-white/70">
-                  Memoria (MB)
-                  <input
-                    type="number"
-                    min={512}
-                    value={newVm.memoryMB}
-                    onChange={(e) =>
-                      setNewVm((v) => ({ ...v, memoryMB: e.target.value }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                    placeholder="4096"
-                  />
-                </label>
-                <label className="text-xs text-white/70">
-                  vCPU
-                  <input
-                    type="number"
-                    min={1}
-                    value={newVm.cpuCores}
-                    onChange={(e) =>
-                      setNewVm((v) => ({ ...v, cpuCores: e.target.value }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                    placeholder="2"
-                  />
-                </label>
-              </div>
-              <label className="text-xs text-white/70">
-                Sockets
-                <input
-                  type="number"
-                  min={1}
-                  value={newVm.sockets}
-                  onChange={(e) =>
-                    setNewVm((v) => ({ ...v, sockets: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                  placeholder="1"
-                />
-              </label>
-              <label className="text-xs text-white/70">
-                Comentario (opcional)
-                <textarea
-                  value={newVm.comment}
-                  onChange={(e) =>
-                    setNewVm((v) => ({ ...v, comment: e.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                  placeholder="Propósito, ticket, etc."
-                  rows={3}
-                />
-              </label>
-              <button
-                onClick={handleNewVm}
-                disabled={actionLoading === "create"}
-                className="mt-2 w-full rounded-xl border border-sky-400/40 bg-sky-400/15 px-4 py-3 text-sm font-semibold text-sky-50 transition hover:-translate-y-0.5 hover:bg-sky-400/25 disabled:opacity-60"
-              >
-                {actionLoading === "create" ? "Creando..." : "Crear VM"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-
+  /* ── Console ── */
   const closeEmbeddedConsole = () => {
-    embeddedConsoleSession.current += 1;
+    embeddedConsoleSession.current++;
     closingConsole.current = true;
     embeddedConsole.rfb?.disconnect?.();
-    setEmbeddedConsole({
-      vmId: "",
-      status: "idle",
-      error: null,
-      rfb: null,
-      iframeUrl: null,
-    });
+    setEmbeddedConsole({ vmId: "", status: "idle", error: null, rfb: null, iframeUrl: null });
     if (consoleRef) {
       consoleRef.replaceChildren();
-      if (consoleRef.parentElement) {
-        consoleRef.parentElement.removeChild(consoleRef);
-      }
+      consoleRef.parentElement?.removeChild(consoleRef);
     }
-    setTimeout(() => {
-      closingConsole.current = false;
-    }, 1000);
-  };
-
-  const focusEmbeddedConsole = (rfb?: RfbInstance | null) => {
-    try {
-      rfb?.focus?.({ preventScroll: true });
-    } catch {
-      // no-op
-    }
-
-    try {
-      const canvas = consoleRef?.querySelector("canvas") as HTMLCanvasElement | null;
-      canvas?.focus?.({ preventScroll: true });
-    } catch {
-      // no-op
-    }
+    setTimeout(() => { closingConsole.current = false; }, 1000);
   };
 
   const openEmbeddedConsole = async (vmId: string) => {
     if (!selectedTenant || selectedTenant === "undefined" || !consoleRef) return;
-    // Evita solicitudes duplicadas mientras se conecta la misma VM
     if (consoleLoading === vmId || embeddedConsole.status === "connecting") return;
-    // Fuerza estado de conexión visible y resetea errores previos
-    const sessionId = embeddedConsoleSession.current + 1;
-    embeddedConsoleSession.current = sessionId;
+    const sid = ++embeddedConsoleSession.current;
     closingConsole.current = false;
-    setEmbeddedConsole({
-      vmId,
-      status: "connecting",
-      error: null,
-      rfb: null,
-      iframeUrl: null,
-    });
+    setEmbeddedConsole({ vmId, status: "connecting", error: null, rfb: null, iframeUrl: null });
     setConsoleLoading(vmId);
     try {
       const infoRes = await fetch(
@@ -1463,647 +525,801 @@ export default function Home() {
         { cache: "no-store" },
       );
       const info = await parseJsonSafe(infoRes);
-      if (!infoRes.ok || info?.error) {
-        throw new Error(info?.error ?? "No se pudo obtener la consola");
-      }
-
-      const currentTicket = info.ticket as string | undefined;
-      if (!currentTicket) {
-        throw new Error("No se recibió el ticket de consola (password) desde OLVM.");
-      }
-      const proxyUrl = `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(currentTicket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`;
-      const proxyRes = await fetch(proxyUrl, { cache: "no-store" });
+      if (!infoRes.ok || info?.error) throw new Error(info?.error ?? "No se pudo obtener la consola");
+      const ticket = info.ticket as string | undefined;
+      if (!ticket) throw new Error("No se recibió el ticket de consola desde OLVM.");
+      const proxyRes = await fetch(
+        `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(ticket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
+        { cache: "no-store" },
+      );
       const proxy = await parseJsonSafe(proxyRes);
-      if (!proxyRes.ok || !proxy?.proxyWsUrl) {
-        throw new Error(proxy?.error ?? "No hay websocket de consola disponible");
-      }
-
-      const iframeUrl =
-        `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl as string)}` +
-        `&ticket=${encodeURIComponent(currentTicket)}` +
-        `&vmId=${encodeURIComponent(vmId)}`;
-
-      setEmbeddedConsole({
-        vmId,
-        status: "connected",
-        error: null,
-        rfb: null,
-        iframeUrl,
-      });
+      if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? "No hay websocket disponible");
+      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}`;
+      setEmbeddedConsole({ vmId, status: "connected", error: null, rfb: null, iframeUrl });
     } catch (err) {
-      if (embeddedConsoleSession.current !== sessionId) return;
-      setEmbeddedConsole({
-        vmId,
-        status: "error",
-        error: (err as Error).message,
-        rfb: null,
-        iframeUrl: null,
-      });
-    } finally {
-      setConsoleLoading(null);
-    }
+      if (embeddedConsoleSession.current !== sid) return;
+      setEmbeddedConsole({ vmId, status: "error", error: (err as Error).message, rfb: null, iframeUrl: null });
+    } finally { setConsoleLoading(null); }
   };
 
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    await signOut({ callbackUrl: "/login" });
-  };
+  const handleSignOut = async () => { setSigningOut(true); await signOut({ callbackUrl: "/login" }); };
+
+  /* ════════════════════════════════════════════════════════════════════
+     Render
+     ════════════════════════════════════════════════════════════════════ */
+
+  const SIDEBAR_W = sidebarCollapsed ? 56 : 240;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_26%),#07111f]">
-      <div className="flex min-h-screen">
-        <aside
-          className={`sticky top-0 flex h-screen shrink-0 flex-col border-r border-white/10 bg-slate-950/95 shadow-2xl shadow-black/40 transition-all duration-300 ${
-            sidebarCollapsed ? "w-[92px]" : "w-[320px]"
-          }`}
-        >
-          <div className="border-b border-white/8 px-4 py-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className={sidebarCollapsed ? "hidden" : "block"}>
-                <SixmanagerMark subtitle="OLVM multitenant" />
-                <p className="mt-4 text-[11px] uppercase tracking-[0.24em] text-white/35">
-                  Menu lateral
-                </p>
-                <p className="mt-1 text-sm font-semibold text-white">
-                  Inventario de virtualizacion
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed((prev) => !prev)}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10"
-                title={sidebarCollapsed ? "Expandir menu" : "Contraer menu"}
-              >
-                {sidebarCollapsed ? ">>" : "<<"}
-              </button>
+    <div className="flex min-h-screen" style={{ background: "var(--bg)" }}>
+
+      {/* ── Sidebar ───────────────────────────────────────────────────── */}
+      <aside
+        style={{
+          width: SIDEBAR_W, minWidth: SIDEBAR_W,
+          background: "var(--sidebar-bg)",
+          borderRight: "1px solid var(--sidebar-border)",
+          transition: "width 0.2s ease",
+        }}
+        className="sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden"
+      >
+        {/* Logo row */}
+        <div className="flex items-center justify-between border-b px-3 py-3"
+          style={{ borderColor: "var(--sidebar-border)" }}>
+          {!sidebarCollapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-bold text-white leading-tight">SIXMANAGER</div>
+              <div className="text-[10px] font-medium uppercase tracking-widest"
+                style={{ color: "var(--sidebar-muted)" }}>OLVM Multitenant</div>
             </div>
+          )}
+          <button
+            onClick={() => setSidebarCollapsed((p) => !p)}
+            className="rounded-md p-1.5 transition-colors"
+            style={{ color: "var(--sidebar-muted)" }}
+            title={sidebarCollapsed ? "Expandir" : "Contraer"}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
+              {sidebarCollapsed
+                ? <><path d="M3 7h8M7 3l4 4-4 4"/></>
+                : <><path d="M11 7H3M7 3L3 7l4 4"/></>}
+            </svg>
+          </button>
+        </div>
+
+        {/* Tenant selector */}
+        {!sidebarCollapsed && (
+          <div className="border-b px-3 py-2.5" style={{ borderColor: "var(--sidebar-border)" }}>
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5"
+              style={{ color: "var(--sidebar-muted)" }}>Tenant activo</p>
+            <select
+              value={selectedTenant}
+              onChange={(e) => setSelectedTenant(e.target.value)}
+              className="w-full rounded-md border px-2 py-1.5 text-xs font-medium outline-none"
+              style={{
+                background: "rgba(255,255,255,0.07)", color: "var(--sidebar-text)",
+                borderColor: "var(--sidebar-border)",
+              }}
+            >
+              {tenants.map((t) => (
+                <option key={t.id} value={t.id} style={{ background: "#1e2535" }}>{t.name}</option>
+              ))}
+            </select>
           </div>
+        )}
 
-          <div className="flex-1 overflow-y-auto px-3 py-4">
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-3">
-                {sidebarCollapsed ? (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={refresh}
-                      className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-100"
-                      title="Refrescar inventario"
-                    >
-                      R
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <label className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                      Tenant activo
-                      <select
-                        value={selectedTenant}
-                        onChange={(e) => setSelectedTenant(e.target.value)}
-                        className="mt-3 w-full rounded-xl border border-white/15 bg-slate-900/90 px-3 py-3 text-sm font-semibold text-white outline-none ring-emerald-400/30 focus:ring-2"
-                      >
-                        {tenants.map((tenant) => (
-                          <option
-                            key={tenant.id}
-                            value={tenant.id}
-                            className="bg-slate-900 text-white"
-                          >
-                            {tenant.name} ({tenant.id})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      onClick={refresh}
-                      className="mt-3 w-full rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/15"
-                    >
-                      Refrescar inventario
-                    </button>
-                  </>
-                )}
-              </div>
+        {/* Nav tree */}
+        <div className="flex-1 overflow-y-auto py-2">
+          {/* Vista general */}
+          <button
+            onClick={() => setSelectedVmId("")}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-colors"
+            style={{
+              background: !selectedVm ? "var(--sidebar-active)" : "transparent",
+              color: !selectedVm ? "#93c5fd" : "var(--sidebar-text)",
+            }}
+            title="Vista general"
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
+              <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+            </svg>
+            {!sidebarCollapsed && <span>Vista general</span>}
+          </button>
 
-              <nav className="rounded-2xl border border-white/8 bg-white/[0.04] p-2">
+          {/* Separator + label */}
+          {!sidebarCollapsed && (
+            <div className="px-3 pt-3 pb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest"
+                style={{ color: "var(--sidebar-muted)" }}>
+                Inventario · {vms.length} VMs
+              </p>
+            </div>
+          )}
+
+          {/* Refresh */}
+          <button
+            onClick={refresh}
+            className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors"
+            style={{ color: "var(--sidebar-muted)" }}
+            title="Refrescar inventario"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4"/>
+              <path d="M12 4l0.5-2.5 2 1.5M4 12l-0.5 2.5-2-1.5"/>
+            </svg>
+            {!sidebarCollapsed && <span>{loading ? "Cargando..." : "Refrescar"}</span>}
+          </button>
+
+          {/* Tree */}
+          {inventoryExpanded && inventoryTree.map((cluster) => {
+            const cOpen = expandedClusters[cluster.key] ?? true;
+            return (
+              <div key={cluster.key}>
                 <button
-                  type="button"
-                  onClick={() => setInventoryExpanded((prev) => !prev)}
-                  className={`flex w-full items-center rounded-xl px-3 py-3 transition hover:bg-white/5 ${
-                    sidebarCollapsed ? "justify-center" : "justify-between text-left"
-                  }`}
+                  onClick={() => setExpandedClusters((p) => ({ ...p, [cluster.key]: !cOpen }))}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors"
+                  style={{ color: "var(--sidebar-text)" }}
+                  title={cluster.label}
                 >
-                  {sidebarCollapsed ? (
-                    <span className="text-lg font-semibold text-white/80">
-                      {inventoryExpanded ? "-" : "+"}
-                    </span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: cOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+                    <path d="M3 2l4 3-4 3V2z"/>
+                  </svg>
+                  {!sidebarCollapsed ? (
+                    <span className="truncate font-medium">{cluster.label}</span>
                   ) : (
-                    <>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                          Inventario
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-white">
-                          Maquinas virtuales
-                        </p>
-                      </div>
-                      <span className="text-xs font-semibold text-white/70">
-                        {inventoryExpanded ? "Ocultar" : "Abrir"}
-                      </span>
-                    </>
+                    <span className="font-bold" style={{ color: "var(--sidebar-muted)" }}>C</span>
+                  )}
+                  {!sidebarCollapsed && (
+                    <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
+                      style={{ background: "rgba(255,255,255,0.08)", color: "var(--sidebar-muted)" }}>
+                      {cluster.up + cluster.down}
+                    </span>
                   )}
                 </button>
 
-                {!sidebarCollapsed && (
-                  <div className="rounded-xl border border-white/6 bg-black/20 px-3 py-2 text-xs text-white/45">
-                    {visibleTotals.total} visibles en {tenantName || "tenant"}
-                  </div>
-                )}
-
-                {inventoryExpanded && (
-                  <div className={`space-y-2 ${sidebarCollapsed ? "mt-2" : "mt-3"}`}>
-                    {!sidebarCollapsed && (
-                      <div className="rounded-xl border border-white/8 bg-slate-900/80">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedVmId("")}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-sky-300">▾</span>
-                            <div>
-                              <p className="text-sm font-semibold text-white">
-                                {tenantName || "Tenant"}
-                              </p>
-                              <p className="text-xs text-white/45">
-                                Nodo raiz del inventario
-                              </p>
-                            </div>
-                          </div>
-                          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/55">
-                            {inventoryTree.length} clusters
-                          </span>
-                        </button>
-                      </div>
-                    )}
-
-                    {!sidebarCollapsed && (
+                {cOpen && cluster.hosts.map((host) => {
+                  const hOpen = expandedHosts[host.key] ?? true;
+                  return (
+                    <div key={host.key}>
                       <button
-                        type="button"
-                        onClick={() => setSelectedVmId("")}
-                        className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                          !selectedVm
-                            ? "border-sky-400/45 bg-sky-400/12"
-                            : "border-white/8 bg-black/20 hover:border-white/10 hover:bg-white/5"
-                        }`}
+                        onClick={() => setExpandedHosts((p) => ({ ...p, [host.key]: !hOpen }))}
+                        className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
+                        style={{ paddingLeft: sidebarCollapsed ? 12 : 24, color: "var(--sidebar-muted)" }}
+                        title={host.label}
                       >
-                        <div className="flex items-start gap-3">
-                          <span className="mt-1 text-sm text-sky-300">⌂</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-white">
-                              Vista general
-                            </p>
-                            <p className="mt-1 truncate text-xs text-white/45">
-                              Dashboard principal del tenant activo
-                            </p>
-                          </div>
-                        </div>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.4, flexShrink: 0, transform: hOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+                          <path d="M3 2l4 3-4 3V2z"/>
+                        </svg>
+                        {!sidebarCollapsed && <span className="truncate">{host.label}</span>}
                       </button>
-                    )}
 
-                    {vms.length === 0 && !loading && !sidebarCollapsed && (
-                      <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-4 text-sm text-white/50">
-                        No hay VMs visibles para este tenant.
-                      </div>
-                    )}
+                      {hOpen && host.vms.map((vm) => (
+                        <button
+                          key={vm.id}
+                          onClick={() => setSelectedVmId(vm.id)}
+                          title={vm.name}
+                          className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
+                          style={{
+                            paddingLeft: sidebarCollapsed ? 16 : 36,
+                            paddingRight: 8,
+                            background: selectedVmId === vm.id ? "var(--sidebar-active)" : "transparent",
+                            color: selectedVmId === vm.id ? "#93c5fd" : "var(--sidebar-text)",
+                          }}
+                        >
+                          <StatusDot status={vm.status} />
+                          {!sidebarCollapsed && <span className="truncate">{vm.name}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
 
-                    {sidebarCollapsed
-                      ? [
-                          <button
-                            key="dashboard-home"
-                            type="button"
-                            onClick={() => setSelectedVmId("")}
-                            title="Vista general"
-                            className={`w-full rounded-xl border px-0 py-3 transition ${
-                              !selectedVm
-                                ? "border-sky-400/45 bg-sky-400/12"
-                                : "border-transparent hover:border-white/10 hover:bg-white/5"
-                            }`}
-                          >
-                            <div className="flex justify-center text-sm font-semibold text-sky-200">
-                              ⌂
-                            </div>
-                          </button>,
-                          ...vms.map((vm) => (
-                            <button
-                              key={vm.id}
-                              type="button"
-                              onClick={() => setSelectedVmId(vm.id)}
-                              title={vm.name}
-                              className={`w-full rounded-xl border px-0 py-3 transition ${
-                                selectedVmId === vm.id
-                                  ? "border-emerald-400/45 bg-emerald-400/12"
-                                  : "border-transparent hover:border-white/10 hover:bg-white/5"
-                              }`}
-                            >
-                              <div className="flex justify-center">
-                                <span
-                                  className={`h-3 w-3 rounded-full ${
-                                    (vm.status?.toLowerCase?.() ?? "") === "up"
-                                      ? "bg-emerald-400"
-                                      : (vm.status?.toLowerCase?.() ?? "") === "down"
-                                        ? "bg-amber-300"
-                                        : "bg-sky-300"
-                                  }`}
-                                />
-                              </div>
-                            </button>
-                          )),
-                        ]
-                      : inventoryTree.map((cluster) => {
-                          const isOpen = expandedClusters[cluster.key] ?? true;
-                          return (
-                            <div
-                              key={cluster.key}
-                              className="rounded-xl border border-white/8 bg-black/20"
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedClusters((prev) => ({
-                                    ...prev,
-                                    [cluster.key]: !isOpen,
-                                  }))
-                                }
-                                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
-                              >
-                                <div className="flex min-w-0 items-center gap-3">
-                                  <span className="text-sm text-white/70">
-                                    {isOpen ? "▾" : "▸"}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold text-white">
-                                      {cluster.label}
-                                    </p>
-                                    <p className="mt-1 text-xs text-white/45">
-                                      {cluster.hosts.reduce((sum, host) => sum + host.vms.length, 0)} VMs · {cluster.up} up · {cluster.down} down
-                                    </p>
-                                  </div>
-                                </div>
-                                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/55">
-                                  cluster
-                                </span>
-                              </button>
+          {vms.length === 0 && !loading && !sidebarCollapsed && (
+            <p className="px-4 py-3 text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
+              No hay VMs visibles para este tenant.
+            </p>
+          )}
+        </div>
 
-                              {isOpen && (
-                                <div className="space-y-1 border-t border-white/6 px-2 py-2">
-                                  {cluster.hosts.map((host) => {
-                                    const hostOpen = expandedHosts[host.key] ?? true;
-                                    return (
-                                      <div key={host.key} className="rounded-xl border border-white/6 bg-white/[0.02]">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setExpandedHosts((prev) => ({
-                                              ...prev,
-                                              [host.key]: !hostOpen,
-                                            }))
-                                          }
-                                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition hover:bg-white/5"
-                                        >
-                                          <div className="flex items-center gap-3">
-                                            <span className="text-xs text-white/65">
-                                              {hostOpen ? "▾" : "▸"}
-                                            </span>
-                                            <div>
-                                              <p className="text-sm font-medium text-white/90">
-                                                {host.label}
-                                              </p>
-                                              <p className="text-xs text-white/45">
-                                                {host.vms.length} VMs
-                                              </p>
-                                            </div>
-                                          </div>
-                                          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/45">
-                                            host
-                                          </span>
-                                        </button>
-
-                                        {hostOpen && (
-                                          <div className="space-y-1 border-t border-white/6 px-2 py-2">
-                                            {host.vms.map((vm) => (
-                                              <button
-                                                key={vm.id}
-                                                type="button"
-                                                onClick={() => setSelectedVmId(vm.id)}
-                                                title={vm.name}
-                                                className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                                                  selectedVmId === vm.id
-                                                    ? "border-emerald-400/45 bg-emerald-400/12"
-                                                    : "border-transparent hover:border-white/10 hover:bg-white/5"
-                                                }`}
-                                              >
-                                                <div className="flex items-start gap-3">
-                                                  <span className="mt-1 text-[11px] text-white/35">
-                                                    └
-                                                  </span>
-                                                  <span
-                                                    className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
-                                                      (vm.status?.toLowerCase?.() ?? "") === "up"
-                                                        ? "bg-emerald-400"
-                                                        : (vm.status?.toLowerCase?.() ?? "") === "down"
-                                                          ? "bg-amber-300"
-                                                          : "bg-sky-300"
-                                                    }`}
-                                                  />
-                                                  <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-semibold text-white">
-                                                      {vm.name}
-                                                    </p>
-                                                    <p className="mt-1 truncate text-xs text-white/45">
-                                                      {vm.template ?? "Template N/D"} · {vm.id}
-                                                    </p>
-                                                  </div>
-                                                </div>
-                                              </button>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                    {loading && !sidebarCollapsed && (
-                      <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-4 text-sm text-white/50">
-                        Cargando datos desde OLVM...
-                      </div>
-                    )}
-                  </div>
-                )}
-              </nav>
-
-              {!sidebarCollapsed && (
-                <div className="grid gap-3">
-                  <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-4">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                      Total
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-white">{totals.total}</p>
-                  </div>
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-100/70">
-                      Up
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-white">{totals.up}</p>
-                  </div>
-                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-amber-100/70">
-                      Down
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-white">{totals.down}</p>
-                  </div>
-                </div>
-              )}
+        {/* Bottom stats */}
+        {!sidebarCollapsed && (
+          <div className="border-t px-3 py-2" style={{ borderColor: "var(--sidebar-border)" }}>
+            <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{totals.up} up</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{totals.down} down</span>
+              <span>{totals.total} total</span>
             </div>
           </div>
-        </aside>
+        )}
+      </aside>
 
-        <main className="min-w-0 flex-1">
-          <div className="mx-auto max-w-[1780px] px-4 py-6 sm:px-6 lg:px-8">
-            <header className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl shadow-emerald-500/5 backdrop-blur">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                <div className="space-y-3">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-white/40">
-                    Portal de virtualizacion
-                  </p>
-                  <h1 className="text-3xl font-bold text-white sm:text-4xl">
-                    Operacion de infraestructura OLVM
-                  </h1>
-                  <p className="max-w-3xl text-sm text-white/70">
-                    Inventario fijo a la izquierda y operacion a la derecha, con
-                    un patron cercano a los portales clasicos de virtualizacion.
-                  </p>
-                </div>
-                <div className="flex flex-col items-start gap-3 xl:items-end">
-                  <span className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-100">
-                    Endpoint: ovirt-engine / REST
-                  </span>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="text-xs text-white/65">
-                      Sesion:{" "}
-                      <span className="font-semibold text-white">
-                        {session?.user?.email ?? "desconocido"}
-                      </span>
-                    </div>
-                    {(session?.user?.role === "admin" ||
-                      session?.user?.role === "superadmin") && (
-                      <Link
-                        href="/admin/users"
-                        className="rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-xs font-semibold text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20"
-                      >
-                        Gestion de usuarios
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleSignOut}
-                      disabled={signingOut}
-                      className="rounded-full border border-white/20 bg-white/8 px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {signingOut ? "Cerrando..." : "Cerrar sesion"}
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-white/60">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(58,212,173,0.18)]" />
-                    Conexion autenticada por Basic Auth
-                  </div>
-                </div>
-              </div>
-            </header>
+      {/* ── Main ──────────────────────────────────────────────────────── */}
+      <div className="flex min-w-0 flex-1 flex-col">
 
-            <div className="mt-6 min-w-0 space-y-6">
+        {/* Top bar */}
+        <header className="flex h-11 shrink-0 items-center justify-between border-b bg-white px-4"
+          style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="font-semibold text-gray-800">OLVM Portal</span>
+            <span>/</span>
+            <span>{tenantName || "—"}</span>
+            {selectedVm && <><span>/</span><span className="text-gray-700">{selectedVm.name}</span></>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-[11px] text-gray-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm" />
+              {session?.user?.email ?? "desconocido"}
+            </span>
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="rounded border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              {signingOut ? "Saliendo..." : "Cerrar sesión"}
+            </button>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+
+          {/* ── Center panel ───────────────────────────────────────────── */}
+          <main className="flex-1 overflow-y-auto p-4">
+
+            {/* Toasts */}
             {error && (
-              <div className="rounded-2xl border border-red-400/40 bg-red-500/15 px-4 py-3 text-sm text-red-50">
-                {error}
+              <div className="mb-3 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <span>{error}</span>
+                <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-600">✕</button>
               </div>
             )}
             {success && (
-              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-50">
-                {success}
-              </div>
-            )}
-            {actionHistory.length > 0 && (
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/80">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60">
-                  Acciones recientes
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {actionHistory.map((entry) => (
-                    <li
-                      key={`${entry.vmId}-${entry.timestamp}`}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <span>
-                        {entry.action} · {entry.vmId}
-                      </span>
-                      <span className="text-white/60">
-                        {new Date(entry.timestamp).toLocaleTimeString()}
-                      </span>
-                      <span
-                        className={
-                          entry.status === "ok"
-                            ? "text-emerald-200"
-                            : entry.status === "pending"
-                              ? "text-amber-200"
-                              : "text-red-200"
-                        }
-                      >
-                        {entry.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="mb-3 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                <span>{success}</span>
+                <button onClick={() => setSuccess(null)} className="ml-3 text-emerald-400 hover:text-emerald-600">✕</button>
               </div>
             )}
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr),420px]">
-              <div className="space-y-6">
-                {!selectedVm && tenantDashboardPanel}
+            {/* Page title row */}
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h1 className="text-sm font-bold text-gray-900">
+                  {selectedVm ? selectedVm.name : "Dashboard del tenant"}
+                </h1>
+                <p className="text-[11px] text-gray-500">
+                  {selectedVm
+                    ? `${tenantName} / ${selectedVm.cluster || "Sin cluster"} / ${selectedVm.host || "Host N/D"}`
+                    : `Resumen consolidado · ${tenantName || "tenant activo"}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
                 {selectedVm && (
-                  <section className="rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-lg shadow-emerald-500/5 backdrop-blur">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <>
+                    <StatusBadge status={selectedVm.status} />
+                    <button
+                      onClick={() => setSelectedVmId("")}
+                      className="rounded border border-gray-200 px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+                    >
+                      ← Volver al dashboard
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={refresh}
+                  className="rounded border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                >
+                  {loading ? "..." : "↻ Actualizar"}
+                </button>
+              </div>
+            </div>
+
+            {/* ── DASHBOARD VIEW ── */}
+            {!selectedVm && (
+              <>
+                {/* KPI row */}
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatCard label="VMs totales" value={totals.total} />
+                  <StatCard label="Encendidas" value={totals.up} sub="estado UP" accent />
+                  <StatCard label="Apagadas" value={totals.down} sub="estado DOWN" warning />
+                  <StatCard label="CPU provisionada" value={`${totals.total > 0 ? formatNumber(tenantResourceSummary.provisionedCpu, {maximumFractionDigits:0}) : "—"} vCPU`} />
+                </div>
+
+                {/* Donut metrics row */}
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {/* CPU */}
+                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">CPU del tenant</p>
+                    <div className="flex items-center gap-3">
+                      <DonutRing value={tenantResourceSummary.cpuPct} color="#3b82f6" />
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">
-                          Contexto activo
+                        <p className="text-lg font-bold text-gray-900">
+                          {formatNumber(tenantResourceSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU
                         </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-3">
-                          <h2 className="text-2xl font-semibold text-white">
-                            {selectedVm.name}
-                          </h2>
-                          <span className={statusBadge(selectedVm.status)}>
-                            {selectedVm.status ?? "desconocido"}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm text-white/60">
-                          {tenantName || "Tenant"} / {selectedVm.cluster || "Sin cluster"} / {selectedVm.host || "Host N/D"}
+                        <p className="text-[11px] text-gray-400">
+                          Uso est.: {formatNumber(tenantResourceSummary.estCpu)} vCPU
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedVmId("")}
-                        className="rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-                      >
-                        Limpiar seleccion
-                      </button>
                     </div>
-                  </section>
-                )}
-              </div>
+                  </div>
+                  {/* RAM */}
+                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">RAM del tenant</p>
+                    <div className="flex items-center gap-3">
+                      <DonutRing value={tenantResourceSummary.memPct} color="#10b981" />
+                      <div>
+                        <p className="text-lg font-bold text-gray-900">{toGB(tenantResourceSummary.provisionedMem)}</p>
+                        <p className="text-[11px] text-gray-400">Uso est.: {toGB(tenantResourceSummary.estMem)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Traffic */}
+                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Tráfico activo</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-gray-500">Disco (R+W)</span>
+                        <span className="text-sm font-semibold text-gray-900">{formatBytes(tenantResourceSummary.disk)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-gray-500">Red</span>
+                        <span className="text-sm font-semibold text-gray-900">{formatBytes(tenantResourceSummary.net)}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
+                        <div className="h-full w-full rounded-full" style={{ background: "linear-gradient(90deg,#10b981,#3b82f6,#f59e0b)", opacity: totals.total === 0 ? 0.3 : 1 }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              {detailPanel}
-            </div>
-          </div>
-          </div>
-        </main>
-      </div>
-      {cloneWizard.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-xl">
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              Clone Wizard
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-white">
-              Clonar VM {cloneWizard.sourceVmName}
-            </h2>
-            <p className="mt-2 text-sm text-white/70">
-              El clon copiará CPU, memoria y discos del servidor origen. Al terminar
-              quedará apagado y con interfaces de red desconectadas.
-            </p>
-            <label className="mt-4 block text-sm text-white/70">
-              Nuevo nombre
-              <input
-                value={cloneWizard.newName}
-                onChange={(e) =>
-                  setCloneWizard((prev) => ({
-                    ...prev,
-                    newName: e.target.value,
-                    error: null,
-                  }))
-                }
-                disabled={cloneWizard.submitting}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none ring-emerald-400/30 focus:ring disabled:opacity-70"
-                placeholder="vm-clone-01"
-              />
-            </label>
-            {cloneWizard.error && (
-              <div className="mt-3 rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-100">
-                {cloneWizard.error}
+                {/* Top VMs */}
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* RAM por VM */}
+                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Top RAM por VM</p>
+                    {topMemVms.length === 0
+                      ? <p className="text-[11px] text-gray-400">Sin datos</p>
+                      : topMemVms.map((vm) => {
+                        const pct = tenantResourceSummary.provisionedMem > 0 ? (vm.value / tenantResourceSummary.provisionedMem) * 100 : 0;
+                        return (
+                          <div key={vm.id} className="mb-1.5">
+                            <div className="mb-0.5 flex items-center justify-between">
+                              <span className="truncate text-[11px] text-gray-700">{vm.name}</span>
+                              <span className="ml-2 shrink-0 text-[11px] text-gray-400">{vm.label}</span>
+                            </div>
+                            <MiniBar value={pct} color="bg-emerald-500" />
+                          </div>
+                        );
+                      })}
+                  </div>
+                  {/* CPU por VM */}
+                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Top CPU por VM</p>
+                    {topCpuVms.length === 0
+                      ? <p className="text-[11px] text-gray-400">Sin datos</p>
+                      : topCpuVms.map((vm) => (
+                        <div key={vm.id} className="mb-1.5">
+                          <div className="mb-0.5 flex items-center justify-between">
+                            <span className="truncate text-[11px] text-gray-700">{vm.name}</span>
+                            <span className="ml-2 shrink-0 text-[11px] text-gray-400">{vm.label}</span>
+                          </div>
+                          <MiniBar value={vm.value} color="bg-blue-500" />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* VM table */}
+                <div className="rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+                  <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                      Máquinas virtuales · {vms.length}
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
+                          {["Estado","Nombre","Cluster","Host","CPU","RAM","vCPU"].map((h) => (
+                            <th key={h} className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vms.length === 0 && (
+                          <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">
+                            {loading ? "Cargando VMs..." : "No hay VMs en este tenant"}
+                          </td></tr>
+                        )}
+                        {vms.map((vm) => (
+                          <tr
+                            key={vm.id}
+                            onClick={() => setSelectedVmId(vm.id)}
+                            className="cursor-pointer border-b transition-colors hover:bg-gray-50"
+                            style={{ borderColor: "var(--border)" }}
+                          >
+                            <td className="px-3 py-2"><StatusBadge status={vm.status} /></td>
+                            <td className="px-3 py-2 font-medium text-gray-900">{vm.name}</td>
+                            <td className="px-3 py-2 text-gray-500">{vm.cluster || "—"}</td>
+                            <td className="px-3 py-2 text-gray-500">{vm.host || "—"}</td>
+                            <td className="px-3 py-2 w-28">
+                              <MiniBar value={vm.metrics?.cpuPercent} color="bg-blue-400" />
+                            </td>
+                            <td className="px-3 py-2 w-28">
+                              <MiniBar value={vm.metrics?.memoryPercent} color="bg-emerald-400" />
+                            </td>
+                            <td className="px-3 py-2 text-gray-500">{vm.cpuCores ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Action history */}
+                {actionHistory.length > 0 && (
+                  <div className="mt-3 rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Acciones recientes</p>
+                    <div className="space-y-1">
+                      {actionHistory.map((entry) => (
+                        <div key={`${entry.vmId}-${entry.timestamp}`}
+                          className="flex items-center justify-between gap-3 text-[11px]">
+                          <span className="text-gray-600">{entry.action} · <span className="text-gray-400">{entry.vmId}</span></span>
+                          <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                          <span className={entry.status === "ok" ? "text-emerald-600" : entry.status === "pending" ? "text-amber-500" : "text-red-500"}>
+                            {entry.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── VM DETAIL VIEW ── */}
+            {selectedVm && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Identity */}
+                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Identidad</p>
+                  <dl className="space-y-1 text-xs">
+                    {[
+                      ["ID", selectedVm.id],
+                      ["Template", selectedVm.template ?? "N/D"],
+                      ["Cluster", selectedVm.cluster ?? "N/D"],
+                      ["Host", selectedVm.host ?? "N/D"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex gap-2">
+                        <dt className="w-16 shrink-0 text-gray-400">{k}</dt>
+                        <dd className="truncate text-gray-800">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                {/* CPU */}
+                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">CPU</p>
+                  <div className="flex items-center gap-3">
+                    <DonutRing value={selectedVm.metrics?.cpuPercent} color="#3b82f6" />
+                    <div>
+                      <p className="text-lg font-bold text-gray-900">{formatNumber(selectedVm.metrics?.cpuPercent)}%</p>
+                      <p className="text-[11px] text-gray-400">{selectedVm.cpuCores ?? "—"} vCPU · {selectedVm.sockets ?? "—"} sockets</p>
+                    </div>
+                  </div>
+                </div>
+                {/* RAM */}
+                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Memoria</p>
+                  <div className="flex items-center gap-3">
+                    <DonutRing value={selectedVm.metrics?.memoryPercent} color="#10b981" />
+                    <div>
+                      <p className="text-lg font-bold text-gray-900">{toGB(selectedVm.memoryMB)}</p>
+                      <p className="text-[11px] text-gray-400">
+                        Uso est.: {toGB(selectedVm.memoryMB && selectedVm.metrics?.memoryPercent
+                          ? selectedVm.memoryMB * (selectedVm.metrics.memoryPercent / 100) : undefined)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {/* Disk/Net */}
+                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">I/O</p>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Disco R</span>
+                      <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskReadBytes)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Disco W</span>
+                      <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskWriteBytes)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Red</span>
+                      <span className="font-semibold">{formatBytes(selectedVm.metrics?.networkBytes)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-            <div className="mt-5 flex items-center justify-end gap-2">
+          </main>
+
+          {/* ── Right panel (detail/actions) ─────────────────────────── */}
+          <aside className="w-64 shrink-0 overflow-y-auto border-l bg-white" style={{ borderColor: "var(--border)" }}>
+            <div className="p-3">
+              {/* Tabs */}
+              <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
+                {(["overview","actions","resources","provisioning"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setDetailTab(tab)}
+                    className="rounded px-2 py-1 text-[11px] font-semibold transition-colors"
+                    style={{
+                      background: detailTab === tab ? "white" : "transparent",
+                      color: detailTab === tab ? "#1d4ed8" : "#6b7280",
+                      boxShadow: detailTab === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                    }}
+                  >
+                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:"Nuevo"}[tab]}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Overview tab ── */}
+              {detailTab === "overview" && (
+                selectedVm ? (
+                  <div className="space-y-2">
+                    <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[10px] text-gray-400 mb-1">Estado</p>
+                      <StatusBadge status={selectedVm.status} />
+                    </div>
+                    <div className="rounded-md border p-2.5 space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                      {[
+                        ["Cluster", selectedVm.cluster ?? "N/D"],
+                        ["Host", selectedVm.host ?? "N/D"],
+                        ["RAM", toGB(selectedVm.memoryMB)],
+                        ["vCPU", `${selectedVm.cpuCores ?? "—"} cores`],
+                      ].map(([k, v]) => (
+                        <div key={k} className="flex justify-between text-[11px]">
+                          <span className="text-gray-400">{k}</span>
+                          <span className="font-medium text-gray-800">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[11px] text-gray-500">Selecciona una VM del inventario o de la tabla para ver su detalle.</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-base font-bold text-gray-900">{totals.total}</p>
+                        <p className="text-[10px] text-gray-400">Total</p>
+                      </div>
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-center">
+                        <p className="text-base font-bold text-emerald-700">{totals.up}</p>
+                        <p className="text-[10px] text-emerald-600">Up</p>
+                      </div>
+                      <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-center">
+                        <p className="text-base font-bold text-amber-700">{totals.down}</p>
+                        <p className="text-[10px] text-amber-600">Down</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+
+              {/* ── Actions tab ── */}
+              {detailTab === "actions" && (
+                selectedVm ? (
+                  <div className="space-y-1.5">
+                    {[
+                      { label: "Start", action: "start" },
+                      { label: "Stop", action: "stop" },
+                      { label: "Shutdown", action: "shutdown" },
+                      { label: "Reboot", action: "reboot" },
+                    ].map(({ label, action }) => (
+                      <ActionButton
+                        key={action} label={label}
+                        onClick={() => runAction(selectedVm.id, action)}
+                        loading={actionLoading === `${selectedVm.id}-${action}`}
+                      />
+                    ))}
+                    <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                    <ActionButton
+                      label="Clonar VM"
+                      onClick={() => openCloneWizard(selectedVm)}
+                      loading={actionLoading === `${selectedVm.id}-clone`}
+                    />
+                    <ActionButton
+                      label="Consola VNC"
+                      onClick={() => downloadConsole(selectedVm.id, "vnc")}
+                      loading={consoleLoading === selectedVm.id}
+                    />
+                    {showExperimentalConsole && (
+                      <ActionButton
+                        label="Consola embebida"
+                        onClick={() => openEmbeddedConsole(selectedVm.id)}
+                        loading={consoleLoading === selectedVm.id}
+                        disabled={(selectedVm.status?.toLowerCase?.() ?? "") !== "up"}
+                      />
+                    )}
+                    <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                    <button
+                      onClick={() => setSelectedVmId("")}
+                      className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50"
+                    >
+                      ← Volver a dashboard
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-400">Selecciona una VM para habilitar acciones.</p>
+                )
+              )}
+
+              {/* ── Resources tab ── */}
+              {detailTab === "resources" && (
+                selectedVm ? (
+                  <div className="space-y-2.5">
+                    <Field label="Memoria (MB)">
+                      <input
+                        type="number" min={512}
+                        value={resourceDrafts[selectedVm.id]?.memoryMB ?? ""}
+                        onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], memoryMB: e.target.value } }))}
+                        className={inputCls} placeholder={String(selectedVm.memoryMB ?? "")}
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="vCPU">
+                        <input
+                          type="number" min={1}
+                          value={resourceDrafts[selectedVm.id]?.cpuCores ?? ""}
+                          onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], cpuCores: e.target.value } }))}
+                          className={inputCls} placeholder={String(selectedVm.cpuCores ?? "")}
+                        />
+                      </Field>
+                      <Field label="Sockets">
+                        <input
+                          type="number" min={1}
+                          value={resourceDrafts[selectedVm.id]?.sockets ?? ""}
+                          onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], sockets: e.target.value } }))}
+                          className={inputCls} placeholder={String(selectedVm.sockets ?? "")}
+                        />
+                      </Field>
+                    </div>
+                    <button
+                      onClick={() => updateResources(selectedVm.id)}
+                      disabled={actionLoading === `${selectedVm.id}-update`}
+                      className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-400">Selecciona una VM para editar recursos.</p>
+                )
+              )}
+
+              {/* ── Provisioning tab ── */}
+              {detailTab === "provisioning" && (
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Nueva VM</p>
+                  <Field label="Nombre *">
+                    <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
+                      className={inputCls} placeholder="vm-app-01" />
+                  </Field>
+                  <Field label="Cluster ID *">
+                    <input value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
+                      className={inputCls} placeholder="uuid..." />
+                  </Field>
+                  <Field label="Template ID">
+                    <input value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
+                      className={inputCls} placeholder="opcional" />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="RAM (MB)">
+                      <input type="number" min={512} value={newVm.memoryMB}
+                        onChange={(e) => setNewVm((v) => ({ ...v, memoryMB: e.target.value }))}
+                        className={inputCls} placeholder="4096" />
+                    </Field>
+                    <Field label="vCPU">
+                      <input type="number" min={1} value={newVm.cpuCores}
+                        onChange={(e) => setNewVm((v) => ({ ...v, cpuCores: e.target.value }))}
+                        className={inputCls} placeholder="2" />
+                    </Field>
+                  </div>
+                  <Field label="Sockets">
+                    <input type="number" min={1} value={newVm.sockets}
+                      onChange={(e) => setNewVm((v) => ({ ...v, sockets: e.target.value }))}
+                      className={inputCls} placeholder="1" />
+                  </Field>
+                  <Field label="Comentario">
+                    <textarea value={newVm.comment}
+                      onChange={(e) => setNewVm((v) => ({ ...v, comment: e.target.value }))}
+                      className={`${inputCls} resize-none`} placeholder="Propósito, ticket..." rows={2} />
+                  </Field>
+                  <button
+                    onClick={handleNewVm}
+                    disabled={actionLoading === "create"}
+                    className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {actionLoading === "create" ? "Creando..." : "Crear VM"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {/* ── Clone wizard modal ─────────────────────────────────────────── */}
+      {cloneWizard.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border bg-white p-5 shadow-xl" style={{ borderColor: "var(--border)" }}>
+            <h2 className="text-sm font-bold text-gray-900">Clonar VM</h2>
+            <p className="mt-0.5 text-[11px] text-gray-500">
+              Origen: <strong>{cloneWizard.sourceVmName}</strong>. El clon quedará apagado con red desconectada.
+            </p>
+            <Field label="Nuevo nombre">
+              <input
+                value={cloneWizard.newName}
+                onChange={(e) => setCloneWizard((p) => ({ ...p, newName: e.target.value, error: null }))}
+                disabled={cloneWizard.submitting}
+                className={`mt-1 ${inputCls}`} placeholder="vm-clone-01"
+              />
+            </Field>
+            {cloneWizard.error && (
+              <p className="mt-2 text-[11px] text-red-600">{cloneWizard.error}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={closeCloneWizard}
                 disabled={cloneWizard.submitting}
-                className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
-              >
-                Cancelar
-              </button>
+                className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >Cancelar</button>
               <button
                 onClick={submitCloneWizard}
                 disabled={cloneWizard.submitting}
-                className="rounded-xl border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-emerald-50 hover:bg-emerald-400/25 disabled:opacity-60"
-              >
-                {cloneWizard.submitting ? "Clonando..." : "Clonar"}
-              </button>
+                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >{cloneWizard.submitting ? "Clonando..." : "Clonar"}</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Embedded console modal ─────────────────────────────────────── */}
       {showExperimentalConsole && embeddedConsole.status !== "idle" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-xl">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex w-full max-w-5xl flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", maxHeight: "90vh" }}>
+            <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
-                <p className="text-sm uppercase tracking-wide text-white/50">
-                  Consola embebida
-                </p>
-                <p className="text-lg font-semibold text-white">
-                  VM {embeddedConsole.vmId}
-                </p>
+                <p className="text-[11px] text-gray-500">Consola embebida</p>
+                <p className="text-sm font-semibold text-gray-900">{embeddedConsole.vmId}</p>
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-white/80">
-                  <input
-                    type="checkbox"
-                    checked={useProxy}
-                    onChange={(e) => setUseProxy(e.target.checked)}
-                    className="h-4 w-4 rounded border-white/30 bg-transparent"
-                  />
-                  Usar proxy WS local
+                <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                  <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)} className="h-3 w-3" />
+                  Proxy WS local
                 </label>
-                <ActionButton label="Cerrar" onClick={closeEmbeddedConsole} loading={false} />
+                <button
+                  onClick={closeEmbeddedConsole}
+                  className="rounded-md border border-gray-200 px-2.5 py-1 text-[11px] font-medium hover:bg-gray-50"
+                >Cerrar</button>
               </div>
             </div>
-            <div
-              className="relative h-[70vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
-            >
-              {embeddedConsole.iframeUrl ? (
-                <iframe
-                  src={embeddedConsole.iframeUrl}
-                  className="h-full w-full border-0"
-                  title={`Consola ${embeddedConsole.vmId}`}
-                />
-              ) : null}
+            <div className="relative flex-1 overflow-hidden rounded-b-xl bg-black" style={{ minHeight: 400 }}>
+              {embeddedConsole.iframeUrl && (
+                <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
+              )}
               {embeddedConsole.status === "connecting" && !embeddedConsole.iframeUrl && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-white/70">
-                  Conectando consola…
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">Conectando...</div>
               )}
               {embeddedConsole.status === "error" && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-red-200">
-                  {embeddedConsole.error ?? "Error de consola"}
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-red-300">{embeddedConsole.error ?? "Error de consola"}</div>
               )}
             </div>
           </div>

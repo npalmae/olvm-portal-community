@@ -99,117 +99,109 @@ function LoginPageContent() {
   };
 
   return (
-    <main className="min-h-screen bg-[#05070c] text-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1321]/80 p-8 shadow-2xl shadow-black/60 backdrop-blur">
-        <div className="mb-6 space-y-2 text-center">
-          <SixmanagerMark
-            align="center"
-            subtitle="OLVM Portal"
-          />
-          <h1 className="text-2xl font-semibold text-white">
-            {step === 1 ? "Ingresa a tu cuenta" : "Verificación en dos pasos"}
+    <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="mb-6 text-center">
+          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
+            <SixmanagerMark subtitle="OLVM Portal" />
+          </div>
+          <h1 className="text-lg font-bold text-gray-900">
+            {step === 1 ? "Ingresar al portal" : "Verificación en dos pasos"}
           </h1>
-          <p className="text-sm text-white/60">
+          <p className="mt-0.5 text-xs text-gray-500">
             {step === 1
-              ? "Accede con tus credenciales asignadas a un tenant."
+              ? "Accede con tus credenciales de tenant."
               : `Ingresa el código de 6 dígitos enviado a ${maskedEmail}.`}
           </p>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-100">
-            {error}
-          </div>
-        )}
-        {info && (
-          <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-            {info}
-          </div>
-        )}
+        <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
+          {error && (
+            <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error}
+            </div>
+          )}
+          {info && (
+            <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {info}
+            </div>
+          )}
 
-        {step === 1 ? (
-          <form onSubmit={requestChallenge} className="space-y-4">
-            <label className="block text-sm text-white/70">
-              Correo electrónico
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1 w-full rounded-xl border border-white/10 bg-[#05070c]/80 px-3 py-3 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                placeholder="admin@empresa.com"
-              />
-            </label>
-            <label className="block text-sm text-white/70">
-              Contraseña
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-1 w-full rounded-xl border border-white/10 bg-[#05070c]/80 px-3 py-3 text-sm text-white outline-none ring-emerald-400/30 focus:ring"
-                placeholder="••••••••"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#3ad4ad]/50 bg-[#3ad4ad]/20 px-4 py-3 text-sm font-semibold text-[#3ad4ad] transition hover:-translate-y-0.5 hover:bg-[#3ad4ad]/30 disabled:opacity-60"
-            >
-              {loading ? "Enviando código…" : "Continuar"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={verifyAndSignIn} className="space-y-4">
-            <label className="block text-sm text-white/70">
-              Código de verificación
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={code}
-                onChange={(e) =>
-                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                required
-                autoFocus
-                className="mt-1 w-full rounded-xl border border-white/10 bg-[#05070c]/80 px-3 py-3 text-center text-lg tracking-[0.5em] text-white outline-none ring-emerald-400/30 focus:ring"
-                placeholder="000000"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={loading || code.length !== 6}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#3ad4ad]/50 bg-[#3ad4ad]/20 px-4 py-3 text-sm font-semibold text-[#3ad4ad] transition hover:-translate-y-0.5 hover:bg-[#3ad4ad]/30 disabled:opacity-60"
-            >
-              {loading ? "Verificando…" : "Verificar e ingresar"}
-            </button>
-            <button
-              type="button"
-              onClick={requestChallenge}
-              disabled={loading}
-              className="w-full text-center text-xs text-white/55 hover:text-white disabled:opacity-50"
-            >
-              Reenviar código
-            </button>
-            <button
-              type="button"
-              onClick={backToCredentials}
-              className="w-full text-center text-xs text-white/45 hover:text-white/70"
-            >
-              ← Volver
-            </button>
-          </form>
-        )}
+          {step === 1 ? (
+            <form onSubmit={requestChallenge} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                  Correo electrónico
+                </label>
+                <input
+                  type="email" value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  placeholder="admin@empresa.com"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                  Contraseña
+                </label>
+                <input
+                  type="password" value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  placeholder="••••••••"
+                />
+              </div>
+              <button
+                type="submit" disabled={loading}
+                className="mt-1 w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              >
+                {loading ? "Enviando código..." : "Continuar"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={verifyAndSignIn} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                  Código de verificación
+                </label>
+                <input
+                  type="text" inputMode="numeric" autoComplete="one-time-code"
+                  maxLength={6} value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required autoFocus
+                  className="w-full rounded-md border border-gray-200 px-3 py-2.5 text-center text-lg tracking-[0.5em] text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  placeholder="000000"
+                />
+              </div>
+              <button
+                type="submit" disabled={loading || code.length !== 6}
+                className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              >
+                {loading ? "Verificando..." : "Verificar e ingresar"}
+              </button>
+              <button
+                type="button" onClick={requestChallenge} disabled={loading}
+                className="w-full text-center text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                Reenviar código
+              </button>
+              <button
+                type="button" onClick={backToCredentials}
+                className="w-full text-center text-xs text-gray-400 hover:text-gray-600"
+              >
+                ← Volver
+              </button>
+            </form>
+          )}
+        </div>
 
         {step === 1 && (
-          <p className="mt-6 text-center text-sm text-white/60">
-            ¿No tienes cuenta?{" "}
-            <Link
-              href="/register"
-              className="font-semibold text-[#3ad4ad] hover:text-[#7ce3ff]"
-            >
+          <p className="mt-3 text-center text-xs text-gray-500">
+            ¿Sin cuenta?{" "}
+            <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700">
               Crear usuario
             </Link>
           </p>
