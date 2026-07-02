@@ -23,16 +23,13 @@ export async function login(
   email: string,
   password: string = PASSWORD,
 ): Promise<void> {
-  const homeHeading = page.getByRole("heading", {
-    name: /operacion de infraestructura OLVM/i,
-  });
+  // Marcador de "login exitoso": botón de salir del home (estable entre rediseños)
+  const homeReady = page.getByRole("button", { name: /^salir$/i });
 
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.goto("/login");
-    await page
-      .getByRole("textbox", { name: /correo electrónico/i })
-      .fill(email);
-    await page.getByRole("textbox", { name: /contraseña/i }).fill(password);
+    await page.locator('input[type="email"]').fill(email);
+    await page.locator('input[type="password"]').fill(password);
     await page.getByRole("button", { name: /continuar/i }).click();
 
     try {
@@ -44,14 +41,12 @@ export async function login(
     }
 
     const code = await fetch2faCode(page, email);
-    await page
-      .getByRole("textbox", { name: /código de verificación/i })
-      .fill(code);
+    await page.locator('input[autocomplete="one-time-code"]').fill(code);
     await page.getByRole("button", { name: /verificar e ingresar/i }).click();
 
-    // Espera a aterrizar en el portal (H1 del home) o reintenta
+    // Espera a aterrizar en el portal o reintenta
     try {
-      await homeHeading.waitFor({ state: "visible", timeout: 20_000 });
+      await homeReady.waitFor({ state: "visible", timeout: 20_000 });
       return;
     } catch {
       // login falló (p.ej. flakiness de dev mode) → reintentar
@@ -61,7 +56,7 @@ export async function login(
 }
 
 export async function logout(page: Page): Promise<void> {
-  const btn = page.getByRole("button", { name: /cerrar sesion/i });
+  const btn = page.getByRole("button", { name: /^salir$/i });
   if (await btn.isVisible().catch(() => false)) {
     await btn.click();
     await page.waitForURL(/\/login/, { timeout: 15_000 });

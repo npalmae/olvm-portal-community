@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 
@@ -791,6 +792,16 @@ export default function Home() {
                 <path d="M9 1v12"/>
               </svg>
             </button>
+            {(session?.user?.role === "admin" ||
+              session?.user?.role === "superadmin") && (
+              <Link
+                href="/admin/users"
+                className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                title="Administración de usuarios"
+              >
+                Usuarios
+              </Link>
+            )}
             <button
               onClick={handleSignOut}
               disabled={signingOut}
