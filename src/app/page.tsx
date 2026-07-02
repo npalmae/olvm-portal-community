@@ -1360,7 +1360,7 @@ export default function Home() {
       {/* ── Embedded console modal ─────────────────────────────────────── */}
       {showExperimentalConsole && embeddedConsole.status !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="flex w-full max-w-5xl flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", maxHeight: "90vh" }}>
+            <div className="flex w-full max-w-5xl flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", height: "90vh", maxHeight: "90vh" }}>
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
                 <p className="text-[11px] text-gray-500">Consola embebida</p>

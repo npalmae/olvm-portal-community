@@ -207,7 +207,13 @@ export async function GET(request: Request) {
     const proxyPath = process.env.CONSOLE_PROXY_PUBLIC_PATH ?? "/console-proxy/";
     const normalizedProxyPath = proxyPath.endsWith("/") ? proxyPath : `${proxyPath}/`;
     const wsProtocol = externalUrl.protocol === "https:" ? "wss:" : "ws:";
-    const proxyUrl = `${wsProtocol}//${externalUrl.host}${normalizedProxyPath}?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
+    // El proxy WS escucha en su propio puerto (3010); se expone ese puerto
+    // al navegador (salvo override vía CONSOLE_PROXY_PUBLIC_HOST_PORT para
+    // despliegues con reverse proxy que mapeen /console-proxy/ al 3010).
+    const proxyAuthority =
+      process.env.CONSOLE_PROXY_PUBLIC_HOST_PORT ??
+      `${externalUrl.hostname}:${port}`;
+    const proxyUrl = `${wsProtocol}//${proxyAuthority}${normalizedProxyPath}?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
 
     return NextResponse.json({
       proxyWsUrl: proxyUrl,

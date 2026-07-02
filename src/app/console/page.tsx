@@ -24,11 +24,11 @@ function ConsolePageContent() {
         const parsed = new URL(wsUrl);
         const currentProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const currentOrigin = `${currentProtocol}//${window.location.host}`;
-        const isSameProxyHost =
-          parsed.host === window.location.host &&
-          parsed.pathname.startsWith('/console-proxy/');
+        // Si la URL ya apunta al proxy WS (path /console-proxy/, incluso en otro
+        // puerto, p.ej. ws://host:3010/console-proxy/), se usa tal cual.
+        const isProxyUrl = parsed.pathname.startsWith('/console-proxy/');
 
-        if (isSameProxyHost) {
+        if (isProxyUrl) {
           return wsUrl;
         }
 
