@@ -802,6 +802,15 @@ export default function Home() {
                 Usuarios
               </Link>
             )}
+            {session?.user?.role === "superadmin" && (
+              <Link
+                href="/admin/clusters"
+                className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                title="Administración de conexiones OLVM"
+              >
+                Clusters
+              </Link>
+            )}
             <button
               onClick={handleSignOut}
               disabled={signingOut}

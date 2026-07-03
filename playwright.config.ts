@@ -29,6 +29,7 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       USER_STORE_PATH: runtimePath,
+      CLUSTER_STORE_PATH: path.join(os.tmpdir(), "olvm-test-clusters.json"),
       E2E_TEST_MODE: "1",
       AUTH_SECRET: "e2e-test-secret-0123456789",
       REQUIRE_2FA: "true",

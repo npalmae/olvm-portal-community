@@ -143,6 +143,14 @@ export default async function globalSetup() {
   const runtime = path.join(os.tmpdir(), "olvm-test-users.json");
   fs.copyFileSync(seed, runtime);
 
+  // Resetear también el store de clusters (se re-seedea desde OLVM_TENANTS).
+  const clustersRuntime = path.join(os.tmpdir(), "olvm-test-clusters.json");
+  try {
+    fs.unlinkSync(clustersRuntime);
+  } catch {
+    // ok si no existe
+  }
+
   await waitForServer();
   await publicWarmup();
   await authenticatedWarmup();

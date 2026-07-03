@@ -106,6 +106,74 @@ const getDispatcher = (tenant: TenantConfig) => {
   return dispatcher;
 };
 
+// Invalida el caché de dispatchers TLS (tras crear/editar/eliminar conexiones).
+export const invalidateDispatcherCache = (tenantId?: string) => {
+  if (tenantId) dispatcherCache.delete(tenantId);
+  else dispatcherCache.clear();
+};
+
+export type ConnectionTestResult = {
+  ok: boolean;
+  status: number;
+  detail: string;
+};
+
+// Prueba una conexión (guardada o no) contra el engine OLVM.
+export const testConnection = async (input: {
+  baseUrl: string;
+  username?: string;
+  password?: string;
+  token?: string;
+  allowInsecure?: boolean;
+  caCert?: Buffer | string;
+}): Promise<ConnectionTestResult> => {
+  const baseUrl = input.baseUrl.trim().replace(/\/$/, "");
+  const auth = input.token
+    ? `Bearer ${input.token}`
+    : input.username && input.password
+      ? `Basic ${Buffer.from(`${input.username}:${input.password}`, "utf-8").toString("base64")}`
+      : null;
+  const ca = input.caCert
+    ? typeof input.caCert === "string"
+      ? input.caCert
+      : input.caCert.toString()
+    : undefined;
+  const dispatcher = new UndiciAgent({
+    connect: input.allowInsecure
+      ? { rejectUnauthorized: false }
+      : ca
+        ? { ca }
+        : undefined,
+  });
+  try {
+    const res = await fetch(`${baseUrl}/vms?max=1`, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        ...(auth ? { Authorization: auth } : {}),
+      },
+      dispatcher,
+    } as any);
+    if (res.status === 200) {
+      return { ok: true, status: 200, detail: "Conexión exitosa" };
+    }
+    if (res.status === 401) {
+      return { ok: false, status: 401, detail: "Credenciales inválidas" };
+    }
+    return {
+      ok: false,
+      status: res.status,
+      detail: `Respuesta inesperada (HTTP ${res.status})`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      detail: `No se pudo conectar: ${(error as Error).message}`,
+    };
+  }
+};
+
 const buildHeaders = (tenant: TenantConfig, headers?: HeadersInit) => {
   let authHeader: string;
   if (tenant.token) {

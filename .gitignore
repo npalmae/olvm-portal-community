@@ -41,6 +41,9 @@ ovm-portal-backup-*.tar.gz
 # env files (can opt-in for committing if needed)
 .env*
 
+# cluster connections store (contiene credenciales OLVM)
+/data/clusters.json
+
 # vercel
 .vercel
 
