@@ -858,8 +858,9 @@ export const sendVmAction = async (
 };
 
 type CloneVmResult = {
-  vmId: string;
+  vmId: string | null;
   name: string;
+  pending?: boolean;
 };
 
 const sleep = (ms: number) =>
@@ -966,16 +967,16 @@ const findClonedVmId = async (
   tenantId: string,
   sourceVmId: string,
   newName: string,
-): Promise<string> => {
+  timeoutMs?: number,
+): Promise<string | null> => {
   const before = await fetchVms(tenantId);
   const existingName = before.find((vm) => vm.name === newName);
   if (existingName) {
     throw new Error(`Ya existe una VM con nombre ${newName}`);
   }
   const knownIds = new Set(before.map((vm) => vm.id));
-  const timeoutMs = 180_000;
-  const pollEveryMs = 3_000;
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + (timeoutMs ?? (Number(process.env.CLONE_TIMEOUT_MS) || 600_000));
+  const pollEveryMs = 5_000;
 
   while (Date.now() < deadline) {
     const current = await fetchVms(tenantId);
@@ -987,9 +988,17 @@ const findClonedVmId = async (
     await sleep(pollEveryMs);
   }
 
-  throw new Error(
-    "No se pudo encontrar la VM clonada dentro del tiempo esperado",
-  );
+  // No apareció a tiempo: la clonación puede seguir en curso en OLVM.
+  return null;
+};
+
+// Post-proceso del clon: tag del tenant + apagar + desconectar NICs + discos.
+const finalizeClonedVm = async (tenant: TenantConfig, vmId: string) => {
+  await applyTenantTag(tenant, vmId);
+  await ensureVmStopped(tenant, vmId);
+  await disconnectVmNics(tenant, vmId);
+  await ensureVmStopped(tenant, vmId);
+  await waitForDisksUnlocked(tenant, vmId);
 };
 
 const ensureVmStopped = async (tenant: TenantConfig, vmId: string) => {
@@ -1064,6 +1073,21 @@ const disconnectVmNics = async (tenant: TenantConfig, vmId: string) => {
   }
 };
 
+// Aplica el tag del tenant a una VM (best-effort). Crea el tag si no existe.
+const applyTenantTag = async (tenant: TenantConfig, vmId: string) => {
+  const tag = tenant.tag?.trim();
+  if (!tag) return;
+  try {
+    await olvmFetch(tenant, `/vms/${vmId}/tags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/xml", Accept: "application/xml" },
+      body: `<tag><name>${tag}</name></tag>`,
+    });
+  } catch {
+    // best-effort: si el tag no existe o ya está asignado, ignorar.
+  }
+};
+
 export const cloneVm = async (
   tenantId: string,
   sourceVmId: string,
@@ -1076,41 +1100,53 @@ export const cloneVm = async (
 
   const tenant = getTenantById(tenantId);
   const clonePayloads = [
-    { action: { vm: { name: normalizedName } } },
-    { vm: { name: normalizedName } },
-    { name: normalizedName },
+    { vm: { name: normalizedName } }, // formato canónico oVirt/OLVM
+    { action: { vm: { name: normalizedName } } }, // fallback
+    { name: normalizedName }, // fallback legacy
   ];
 
-  let lastError: unknown;
+  let firstError: unknown;
+  let started = false;
   for (const payload of clonePayloads) {
     try {
       await olvmFetch(tenant, `/vms/${sourceVmId}/clone`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      lastError = undefined;
+      started = true;
       break;
     } catch (error) {
-      lastError = error;
+      if (firstError === undefined) firstError = error;
     }
   }
 
-  if (lastError) {
+  if (!started) {
     throw new Error(
-      `No se pudo iniciar la clonación: ${(lastError as Error).message}`,
+      `No se pudo iniciar la clonación: ${(firstError as Error).message}`,
     );
   }
 
-  const clonedVmId = await findClonedVmId(tenantId, sourceVmId, normalizedName);
-  await ensureVmStopped(tenant, clonedVmId);
-  await disconnectVmNics(tenant, clonedVmId);
-  await ensureVmStopped(tenant, clonedVmId);
-  await waitForDisksUnlocked(tenant, clonedVmId);
+  // Espera breve en la request; si la VM aparece rápido, se finaliza en caliente.
+  const clonedVmId = await findClonedVmId(tenantId, sourceVmId, normalizedName, 120_000);
 
-  return {
-    vmId: clonedVmId,
-    name: normalizedName,
-  };
+  if (clonedVmId) {
+    await finalizeClonedVm(tenant, clonedVmId);
+    return { vmId: clonedVmId, name: normalizedName };
+  }
+
+  // Clon lento: el post-proceso continúa en background (hasta 30 min) y la VM
+  // queda etiquetada/apagada/desconectada cuando aparezca. No se bloquea al usuario.
+  const bgTimeout = Number(process.env.CLONE_TIMEOUT_MS) || 1_800_000;
+  void (async () => {
+    try {
+      const id = await findClonedVmId(tenantId, sourceVmId, normalizedName, bgTimeout);
+      if (id) await finalizeClonedVm(tenant, id);
+    } catch {
+      // best-effort: si falla, la VM queda creada pero sin post-proceso.
+    }
+  })();
+
+  return { vmId: null, name: normalizedName, pending: true };
 };
 
 type CreateVmInput = {
@@ -1141,10 +1177,14 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
     comment: payload.comment,
   };
 
-  await olvmFetch(tenant, "/vms", {
+  const created = await olvmFetch(tenant, "/vms", {
     method: "POST",
     body: JSON.stringify(body),
   });
+
+  // Auto-tag multitenant (best-effort)
+  const newVmId = (created as { id?: string } | null)?.id;
+  if (newVmId) await applyTenantTag(tenant, newVmId);
 };
 
 type UpdateVmInput = {

@@ -19,6 +19,8 @@ type Vm = {
   memoryMB?: number;
   cpuCores?: number;
   sockets?: number;
+  tenantId?: string;
+  tenantName?: string;
   metrics?: {
     cpuPercent?: number;
     memoryPercent?: number;
@@ -27,6 +29,8 @@ type Vm = {
     networkBytes?: number;
   };
 };
+
+const ALL_TENANTS = "__all__";
 
 type VmDraft = { memoryMB?: string; cpuCores?: string; sockets?: string };
 
@@ -195,6 +199,9 @@ const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-
 
 export default function Home() {
   const { data: session } = useSession();
+  const isSuperadmin =
+    session?.user?.globalRole === "superadmin" ||
+    session?.user?.role === "superadmin";
   const showExperimentalConsole = true;
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -210,6 +217,7 @@ export default function Home() {
   const [inventoryExpanded, setInventoryExpanded] = useState(true);
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
   const [expandedHosts, setExpandedHosts] = useState<Record<string, boolean>>({});
+  const [expandedTenants, setExpandedTenants] = useState<Record<string, boolean>>({});
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
@@ -255,15 +263,21 @@ export default function Home() {
         if (!Array.isArray(data) || !data.length) throw new Error("No hay tenants configurados");
         const s = data.filter((t) => Boolean(t.id));
         setTenants(s);
-        setSelectedTenant(s[0]?.id ?? "");
+        // Superadmin arranca en vista "Todos los tenants"
+        setSelectedTenant(
+          session?.user?.role === "superadmin" && s.length > 1 ? ALL_TENANTS : s[0]?.id ?? "",
+        );
       } catch (err) { setError("No pude cargar los tenants. Revisa las variables OLVM."); }
     })();
-  }, []);
+  }, [session?.user?.role]);
 
   useEffect(() => {
     if (!tenants.length) return;
     const first = tenants[0]?.id;
-    const invalid = !selectedTenant || selectedTenant === "undefined" || !tenants.some((t) => t.id === selectedTenant);
+    const invalid =
+      !selectedTenant ||
+      selectedTenant === "undefined" ||
+      (selectedTenant !== ALL_TENANTS && !tenants.some((t) => t.id === selectedTenant));
     if (invalid && first) setSelectedTenant(first);
   }, [selectedTenant, tenants]);
 
@@ -271,12 +285,47 @@ export default function Home() {
   const loadVms = async (tenantId: string) => {
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`/api/tenants/${tenantId}/vms`);
-      const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error cargando VMs");
-      setVms(data);
+      if (tenantId === ALL_TENANTS) {
+        // Vista "Todos": junta las VMs de cada tenant en paralelo
+        const perTenant = await Promise.all(
+          tenants.map(async (t) => {
+            try {
+              const res = await fetch(`/api/tenants/${t.id}/vms`);
+              const data = await parseJsonSafe(res);
+              if (!res.ok) return [] as Vm[];
+              return (Array.isArray(data) ? (data as Vm[]) : []).map((v) => ({
+                ...v,
+                tenantId: t.id,
+                tenantName: t.name,
+              }));
+            } catch {
+              return [] as Vm[];
+            }
+          }),
+        );
+        setVms(perTenant.flat());
+      } else {
+        const res = await fetch(`/api/tenants/${tenantId}/vms`);
+        const data = await parseJsonSafe(res);
+        if (!res.ok) throw new Error(data?.error ?? "Error cargando VMs");
+        const t = tenants.find((x) => x.id === tenantId);
+        setVms(
+          (Array.isArray(data) ? (data as Vm[]) : []).map((v) => ({
+            ...v,
+            tenantId,
+            tenantName: t?.name,
+          })),
+        );
+      }
     } catch (err) { setError((err as Error).message); }
     finally { setLoading(false); }
+  };
+
+  // Tenant efectivo de una VM (para operar en vista "Todos")
+  const tenantForVm = (vmId: string) => {
+    const vm = vms.find((v) => v.id === vmId);
+    if (vm?.tenantId) return vm.tenantId;
+    return selectedTenant === ALL_TENANTS ? "" : selectedTenant;
   };
 
   useEffect(() => {
@@ -295,18 +344,22 @@ export default function Home() {
   };
 
   const tenantName = useMemo(
-    () => tenants.find((t) => t.id === selectedTenant)?.name ?? "",
+    () =>
+      selectedTenant === ALL_TENANTS
+        ? "Todos los tenants"
+        : (tenants.find((t) => t.id === selectedTenant)?.name ?? ""),
     [selectedTenant, tenants],
   );
 
   /* ── Actions ── */
   const runAction = async (vmId: string, action: string) => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
     setActionLoading(`${vmId}-${action}`); setError(null); setSuccess(null);
     const ts = Date.now();
     setActionHistory((p) => [{ vmId, action, status: "pending", timestamp: ts }, ...p.slice(0, 2)]);
     try {
-      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${vmId}/actions`, {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/actions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
@@ -333,19 +386,25 @@ export default function Home() {
   };
 
   const submitCloneWizard = async () => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
+    const tid = tenantForVm(cloneWizard.sourceVmId);
+    if (!tid) return;
     const cloneName = cloneWizard.newName.trim();
     if (!cloneName) { setCloneWizard((p) => ({ ...p, error: "Ingresa un nombre para la VM clonada." })); return; }
     setCloneWizard((p) => ({ ...p, submitting: true, error: null }));
     setActionLoading(`${cloneWizard.sourceVmId}-clone`);
     try {
-      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${cloneWizard.sourceVmId}/actions`, {
+      const res = await fetch(`/api/tenants/${tid}/vms/${cloneWizard.sourceVmId}/actions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "clone", cloneName }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo clonar la VM");
-      setSuccess(`Clon ${cloneName} creado. Quedó apagado y con red desconectada.`);
+      const pending = data?.cloned?.pending === true;
+      setSuccess(
+        pending
+          ? `Clon ${cloneName} en curso. La VM aparecerá en el inventario cuando termine (refresca en unos minutos).`
+          : `Clon ${cloneName} creado. Quedó apagado y con red desconectada.`,
+      );
       setActionHistory((p) => [{
         vmId: cloneWizard.sourceVmId, action: `clone → ${cloneName}`,
         status: "ok", timestamp: Date.now(), message: `Origen: ${cloneWizard.sourceVmName}`,
@@ -358,10 +417,11 @@ export default function Home() {
   };
 
   const downloadConsole = async (vmId: string, protocol: "spice" | "vnc" = "spice") => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
     setConsoleLoading(vmId); setError(null);
     try {
-      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${vmId}/console?protocol=${protocol}`);
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/console?protocol=${protocol}`);
       if (!res.ok) { const d = await parseJsonSafe(res); throw new Error(d?.error ?? "No se pudo obtener la consola"); }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -375,12 +435,13 @@ export default function Home() {
   };
 
   const updateResources = async (vmId: string) => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
     const draft = resourceDrafts[vmId];
     if (!draft?.memoryMB && !draft?.cpuCores) { setError("Ingresa memoria y/o CPU para actualizar."); return; }
     setActionLoading(`${vmId}-update`); setSuccess(null); setError(null);
     try {
-      const res = await fetch(`/api/tenants/${selectedTenant}/vms/${vmId}`, {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           memoryMB: draft.memoryMB ? Number(draft.memoryMB) : undefined,
@@ -397,7 +458,10 @@ export default function Home() {
   };
 
   const handleNewVm = async () => {
-    if (!selectedTenant || selectedTenant === "undefined") return;
+    if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) {
+      setError("Selecciona un tenant específico para crear VMs.");
+      return;
+    }
     if (!newVm.name || !newVm.clusterId) { setError("Nombre y Cluster ID son obligatorios"); return; }
     setActionLoading("create"); setError(null); setSuccess(null);
     try {
@@ -428,17 +492,20 @@ export default function Home() {
   }, [vms]);
 
   const inventoryTree = useMemo(() => {
+    const isAll = selectedTenant === ALL_TENANTS;
     const clusters = new Map<string, {
-      key: string; label: string;
+      key: string; label: string; tenantId: string; tenantName: string;
       hosts: Map<string, { key: string; label: string; vms: Vm[]; up: number; down: number }>;
       up: number; down: number;
     }>();
     for (const vm of vms) {
+      const tId = vm.tenantId ?? (isAll ? "sin-tenant" : selectedTenant);
+      const tName = vm.tenantName ?? tenants.find((t) => t.id === tId)?.name ?? tId;
       const clLabel = vm.cluster?.trim() || "Sin cluster";
-      const clKey = clLabel.toLowerCase();
+      const clKey = `${tId}::${clLabel.toLowerCase()}`;
       const hLabel = vm.host?.trim() || "Host N/D";
       const hKey = `${clKey}::${hLabel.toLowerCase()}`;
-      const cluster = clusters.get(clKey) ?? { key: clKey, label: clLabel, hosts: new Map(), up: 0, down: 0 };
+      const cluster = clusters.get(clKey) ?? { key: clKey, label: clLabel, tenantId: tId, tenantName: tName, hosts: new Map(), up: 0, down: 0 };
       const host = cluster.hosts.get(hKey) ?? { key: hKey, label: hLabel, vms: [], up: 0, down: 0 };
       host.vms.push(vm);
       if ((vm.status?.toLowerCase() ?? "") === "up") { host.up++; cluster.up++; }
@@ -446,13 +513,99 @@ export default function Home() {
       cluster.hosts.set(hKey, host);
       clusters.set(clKey, cluster);
     }
+    const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label);
     return [...clusters.values()].map((c) => ({
       ...c,
       hosts: [...c.hosts.values()]
         .map((h) => ({ ...h, vms: [...h.vms].sort((a, b) => a.name.localeCompare(b.name)) }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
-    })).sort((a, b) => a.label.localeCompare(b.label));
-  }, [vms]);
+        .sort(byLabel),
+    })).sort(byLabel);
+  }, [vms, selectedTenant, tenants]);
+
+  // Agrupación por tenant (resource pool) para la vista "Todos"
+  const inventoryByTenant = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; clusters: typeof inventoryTree; up: number; down: number }>();
+    for (const c of inventoryTree) {
+      const g = map.get(c.tenantId) ?? { id: c.tenantId, name: c.tenantName, clusters: [], up: 0, down: 0 };
+      g.clusters.push(c);
+      g.up += c.up;
+      g.down += c.down;
+      map.set(c.tenantId, g);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [inventoryTree]);
+
+  type ClusterNode = {
+    key: string; label: string;
+    hosts: { key: string; label: string; vms: Vm[]; up: number; down: number }[];
+    up: number; down: number;
+  };
+
+  const renderClusterNode = (cluster: ClusterNode) => {
+    const cOpen = expandedClusters[cluster.key] ?? true;
+    return (
+      <div key={cluster.key}>
+        <button
+          onClick={() => setExpandedClusters((p) => ({ ...p, [cluster.key]: !cOpen }))}
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors"
+          style={{ color: "var(--sidebar-text)" }}
+          title={cluster.label}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: cOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+            <path d="M3 2l4 3-4 3V2z" />
+          </svg>
+          {!sidebarCollapsed ? (
+            <span className="truncate font-medium">{cluster.label}</span>
+          ) : (
+            <span className="font-bold" style={{ color: "var(--sidebar-muted)" }}>C</span>
+          )}
+          {!sidebarCollapsed && (
+            <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
+              style={{ background: "rgba(255,255,255,0.08)", color: "var(--sidebar-muted)" }}>
+              {cluster.up + cluster.down}
+            </span>
+          )}
+        </button>
+
+        {cOpen && cluster.hosts.map((host) => {
+          const hOpen = expandedHosts[host.key] ?? true;
+          return (
+            <div key={host.key}>
+              <button
+                onClick={() => setExpandedHosts((p) => ({ ...p, [host.key]: !hOpen }))}
+                className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
+                style={{ paddingLeft: sidebarCollapsed ? 12 : 24, color: "var(--sidebar-muted)" }}
+                title={host.label}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.4, flexShrink: 0, transform: hOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+                  <path d="M3 2l4 3-4 3V2z" />
+                </svg>
+                {!sidebarCollapsed && <span className="truncate">{host.label}</span>}
+              </button>
+
+              {hOpen && host.vms.map((vm) => (
+                <button
+                  key={vm.id}
+                  onClick={() => setSelectedVmId(vm.id)}
+                  title={vm.name}
+                  className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
+                  style={{
+                    paddingLeft: sidebarCollapsed ? 16 : 36,
+                    paddingRight: 8,
+                    background: selectedVmId === vm.id ? "var(--sidebar-active)" : "transparent",
+                    color: selectedVmId === vm.id ? "#93c5fd" : "var(--sidebar-text)",
+                  }}
+                >
+                  <StatusDot status={vm.status} />
+                  {!sidebarCollapsed && <span className="truncate">{vm.name}</span>}
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
@@ -514,7 +667,8 @@ export default function Home() {
   };
 
   const openEmbeddedConsole = async (vmId: string) => {
-    if (!selectedTenant || selectedTenant === "undefined" || !consoleRef) return;
+    const tid = tenantForVm(vmId);
+    if (!tid || !consoleRef) return;
     if (consoleLoading === vmId || embeddedConsole.status === "connecting") return;
     const sid = ++embeddedConsoleSession.current;
     closingConsole.current = false;
@@ -522,7 +676,7 @@ export default function Home() {
     setConsoleLoading(vmId);
     try {
       const infoRes = await fetch(
-        `/api/tenants/${selectedTenant}/vms/${vmId}/console/info?protocol=vnc&withTicket=1`,
+        `/api/tenants/${tid}/vms/${vmId}/console/info?protocol=vnc&withTicket=1`,
         { cache: "no-store" },
       );
       const info = await parseJsonSafe(infoRes);
@@ -530,7 +684,7 @@ export default function Home() {
       const ticket = info.ticket as string | undefined;
       if (!ticket) throw new Error("No se recibió el ticket de consola desde OLVM.");
       const proxyRes = await fetch(
-        `/api/console/proxy?tenantId=${selectedTenant}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(ticket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
+        `/api/console/proxy?tenantId=${tid}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(ticket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
         { cache: "no-store" },
       );
       const proxy = await parseJsonSafe(proxyRes);
@@ -616,6 +770,9 @@ export default function Home() {
                 borderColor: "var(--sidebar-border)",
               }}
             >
+              {isSuperadmin && tenants.length > 1 && (
+                <option value={ALL_TENANTS} style={{ background: "#1e2535" }}>Todos los tenants</option>
+              )}
               {tenants.map((t) => (
                 <option key={t.id} value={t.id} style={{ background: "#1e2535" }}>{t.name}</option>
               ))}
@@ -667,71 +824,41 @@ export default function Home() {
           </button>
 
           {/* Tree */}
-          {inventoryExpanded && inventoryTree.map((cluster) => {
-            const cOpen = expandedClusters[cluster.key] ?? true;
-            return (
-              <div key={cluster.key}>
-                <button
-                  onClick={() => setExpandedClusters((p) => ({ ...p, [cluster.key]: !cOpen }))}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors"
-                  style={{ color: "var(--sidebar-text)" }}
-                  title={cluster.label}
-                >
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: cOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
-                    <path d="M3 2l4 3-4 3V2z"/>
-                  </svg>
-                  {!sidebarCollapsed ? (
-                    <span className="truncate font-medium">{cluster.label}</span>
-                  ) : (
-                    <span className="font-bold" style={{ color: "var(--sidebar-muted)" }}>C</span>
-                  )}
-                  {!sidebarCollapsed && (
-                    <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
-                      style={{ background: "rgba(255,255,255,0.08)", color: "var(--sidebar-muted)" }}>
-                      {cluster.up + cluster.down}
-                    </span>
-                  )}
-                </button>
-
-                {cOpen && cluster.hosts.map((host) => {
-                  const hOpen = expandedHosts[host.key] ?? true;
-                  return (
-                    <div key={host.key}>
-                      <button
-                        onClick={() => setExpandedHosts((p) => ({ ...p, [host.key]: !hOpen }))}
-                        className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
-                        style={{ paddingLeft: sidebarCollapsed ? 12 : 24, color: "var(--sidebar-muted)" }}
-                        title={host.label}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.4, flexShrink: 0, transform: hOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
-                          <path d="M3 2l4 3-4 3V2z"/>
-                        </svg>
-                        {!sidebarCollapsed && <span className="truncate">{host.label}</span>}
-                      </button>
-
-                      {hOpen && host.vms.map((vm) => (
-                        <button
-                          key={vm.id}
-                          onClick={() => setSelectedVmId(vm.id)}
-                          title={vm.name}
-                          className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
-                          style={{
-                            paddingLeft: sidebarCollapsed ? 16 : 36,
-                            paddingRight: 8,
-                            background: selectedVmId === vm.id ? "var(--sidebar-active)" : "transparent",
-                            color: selectedVmId === vm.id ? "#93c5fd" : "var(--sidebar-text)",
-                          }}
-                        >
-                          <StatusDot status={vm.status} />
-                          {!sidebarCollapsed && <span className="truncate">{vm.name}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+          {inventoryExpanded && (
+            selectedTenant === ALL_TENANTS ? (
+              inventoryByTenant.map((t) => {
+                const tOpen = expandedTenants[t.id] ?? true;
+                return (
+                  <div key={t.id}>
+                    <button
+                      onClick={() => setExpandedTenants((p) => ({ ...p, [t.id]: !tOpen }))}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold transition-colors"
+                      style={{ color: "var(--sidebar-text)" }}
+                      title={t.name}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.7, flexShrink: 0, transform: tOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+                        <path d="M3 2l4 3-4 3V2z" />
+                      </svg>
+                      {!sidebarCollapsed ? (
+                        <span className="truncate">{t.name}</span>
+                      ) : (
+                        <span style={{ color: "var(--sidebar-muted)" }}>▣</span>
+                      )}
+                      {!sidebarCollapsed && (
+                        <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
+                          style={{ background: "rgba(37,99,235,0.3)", color: "var(--sidebar-text)" }}>
+                          {t.up + t.down}
+                        </span>
+                      )}
+                    </button>
+                    {tOpen && t.clusters.map(renderClusterNode)}
+                  </div>
+                );
+              })
+            ) : (
+              inventoryTree.map(renderClusterNode)
+            )
+          )}
 
           {vms.length === 0 && !loading && !sidebarCollapsed && (
             <p className="px-4 py-3 text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
@@ -849,7 +976,7 @@ export default function Home() {
                 </h1>
                 <p className="truncate text-[11px] text-gray-500">
                   {selectedVm
-                    ? `${tenantName} / ${selectedVm.cluster || "Sin cluster"} / ${selectedVm.host || "Host N/D"}`
+                    ? `${selectedVm.tenantName ?? tenantName} / ${selectedVm.cluster || "Sin cluster"} / ${selectedVm.host || "Host N/D"}`
                     : `Resumen consolidado · ${tenantName || "tenant activo"}`}
                 </p>
               </div>
