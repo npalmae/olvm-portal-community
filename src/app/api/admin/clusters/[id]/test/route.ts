@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isPlatformSuperadmin } from "@/lib/authz";
 import { getClusterById } from "@/lib/clusterStore";
+import { getEngineById } from "@/lib/engineStore";
 import { testConnection } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
@@ -12,52 +13,27 @@ type Params = {
 };
 
 // POST /api/admin/clusters/[id]/test
-// Prueba una conexión guardada. El body opcional permite sobrescribir campos
-// (p.ej. al editar); los ausentes se toman del store (incluye el password).
-export async function POST(request: Request, context: Params) {
+// Resuelve el engine del tenant y prueba la conexion.
+export async function POST(_: Request, context: Params) {
   const { id } = await context.params;
   const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!isPlatformSuperadmin(session.user)) {
-    return NextResponse.json(
-      { error: "Forbidden: solo superadmin" },
-      { status: 403 },
-    );
-  }
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isPlatformSuperadmin(session.user))
+    return NextResponse.json({ error: "Forbidden: solo superadmin" }, { status: 403 });
 
-  const existing = getClusterById(id);
-  if (!existing) {
-    return NextResponse.json({ error: "Conexión no encontrada" }, { status: 404 });
-  }
+  const cluster = getClusterById(id);
+  if (!cluster) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
-  let body: Record<string, unknown> = {};
-  try {
-    const text = await request.text();
-    body = text ? JSON.parse(text) : {};
-  } catch {
-    body = {};
-  }
+  const engine = getEngineById(cluster.engineId);
+  if (!engine) return NextResponse.json({ error: "Engine no encontrado para este tenant" }, { status: 404 });
 
   const result = await testConnection({
-    baseUrl:
-      typeof body.baseUrl === "string" ? body.baseUrl : existing.baseUrl,
-    username:
-      typeof body.username === "string" ? body.username : existing.username,
-    password:
-      typeof body.password === "string" && body.password
-        ? body.password
-        : existing.password,
-    token:
-      typeof body.token === "string" && body.token
-        ? body.token
-        : existing.token,
-    allowInsecure:
-      body.allowInsecure === undefined
-        ? existing.allowInsecure
-        : body.allowInsecure === true,
-    caCert: existing.caCert,
+    baseUrl: engine.baseUrl,
+    username: engine.username,
+    password: engine.password,
+    token: engine.token,
+    allowInsecure: engine.allowInsecure,
+    caCert: engine.caCert,
   });
 
   return NextResponse.json(result);

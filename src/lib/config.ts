@@ -2,6 +2,7 @@ import {
   listClusters,
   type ClusterConnection,
 } from "@/lib/clusterStore";
+import { getEngineById } from "@/lib/engineStore";
 
 export type TenantConfig = {
   id: string;
@@ -14,22 +15,38 @@ export type TenantConfig = {
   caFile?: string;
   caCert?: Buffer;
   tag?: string;
+  engineId: string;
 };
 
-const toTenant = (cluster: ClusterConnection): TenantConfig => ({
-  id: cluster.id,
-  name: cluster.name,
-  baseUrl: cluster.baseUrl,
-  username: cluster.username,
-  password: cluster.password,
-  token: cluster.token,
-  allowInsecure: cluster.allowInsecure,
-  tag: cluster.tag,
-  caCert: cluster.caCert ? Buffer.from(cluster.caCert) : undefined,
-});
+const toTenant = (cluster: ClusterConnection): TenantConfig => {
+  const engine = getEngineById(cluster.engineId);
+  if (!engine) {
+    throw new Error(
+      `Engine "${cluster.engineId}" no encontrado para tenant "${cluster.id}". Configura un engine en /admin/clusters`,
+    );
+  }
+  return {
+    id: cluster.id,
+    name: cluster.name,
+    engineId: engine.id,
+    baseUrl: engine.baseUrl,
+    username: engine.username,
+    password: engine.password,
+    token: engine.token,
+    allowInsecure: engine.allowInsecure,
+    tag: cluster.tag,
+    caCert: engine.caCert ? Buffer.from(engine.caCert) : undefined,
+  };
+};
 
 export const getTenants = (): TenantConfig[] =>
-  listClusters().map(toTenant);
+  listClusters().map((c) => {
+    try {
+      return toTenant(c);
+    } catch {
+      return null;
+    }
+  }).filter((t): t is TenantConfig => t !== null);
 
 export const resolveTenant = (tenantId?: string): TenantConfig => {
   const sanitized =

@@ -1,22 +1,23 @@
 import fs from "fs";
 import path from "path";
+import {
+  loadEngines,
+  seedEngine,
+  findEngineByConnection,
+  type OlvmEngine,
+} from "./engineStore";
 
 export type ClusterConnection = {
   id: string;
   name: string;
-  baseUrl: string;
-  username?: string;
-  password?: string;
-  token?: string;
-  allowInsecure?: boolean;
+  engineId: string;
   tag?: string;
-  caCert?: string; // PEM
   createdAt: string;
 };
 
 export type ClusterInput = Partial<Omit<ClusterConnection, "createdAt">> & {
   name?: string;
-  baseUrl?: string;
+  engineId?: string;
 };
 
 const storePath =
@@ -42,21 +43,79 @@ const readCaFile = (filePath?: string): string | undefined => {
   }
 };
 
-// Seed inicial desde OLVM_TENANTS (o fallback de variables únicas).
+// Migracion automatica: si clusters.json tiene entradas con baseUrl (formato viejo),
+// extrae los engines y convierte a { id, name, engineId, tag }.
+const migrateOldFormat = (
+  raw: unknown,
+): ClusterConnection[] => {
+  if (!Array.isArray(raw)) return [];
+  const oldEntries = raw as Record<string, unknown>[];
+  const hasLegacy = oldEntries.some((e) => typeof e.baseUrl === "string");
+  if (!hasLegacy) return oldEntries as unknown as ClusterConnection[];
+
+  const now = new Date().toISOString();
+  const tenants: ClusterConnection[] = [];
+
+  for (const entry of oldEntries) {
+    const baseUrl = sanitizeBaseUrl(String(entry.baseUrl ?? ""));
+    const username = entry.username ? String(entry.username) : undefined;
+
+    let engine = baseUrl ? findEngineByConnection(baseUrl, username) : null;
+    if (!engine && baseUrl) {
+      const engineId = `engine-${baseUrl.replace(/[^a-zA-Z0-9]/g, "").slice(-12)}`;
+      engine = {
+        id: engineId,
+        name: `Engine ${baseUrl.split("//")[1]?.split("/")[0] ?? engineId}`,
+        baseUrl,
+        username,
+        password: entry.password ? String(entry.password) : undefined,
+        token: entry.token ? String(entry.token) : undefined,
+        allowInsecure: entry.allowInsecure === true,
+        caCert: entry.caCert ? String(entry.caCert) : undefined,
+        createdAt: now,
+      };
+      seedEngine(engine);
+    }
+
+    tenants.push({
+      id: String(entry.id ?? ""),
+      name: String(entry.name ?? entry.id ?? "Default"),
+      engineId: engine?.id ?? "",
+      tag: entry.tag ? String(entry.tag) : undefined,
+      createdAt: String(entry.createdAt ?? now),
+    });
+  }
+
+  return tenants;
+};
+
 const seedFromEnv = (): ClusterConnection[] => {
   const now = new Date().toISOString();
-  const mapEnv = (t: Record<string, unknown>): ClusterConnection => ({
-    id: String(t.id ?? ""),
-    name: String(t.name ?? t.id ?? "Default"),
-    baseUrl: sanitizeBaseUrl(String(t.baseUrl ?? "")),
-    username: t.username ? String(t.username) : undefined,
-    password: t.password ? String(t.password) : undefined,
-    token: t.token ? String(t.token) : undefined,
-    allowInsecure: t.allowInsecure === true,
-    tag: t.tag ? String(t.tag) : undefined,
-    caCert: t.caCert ? String(t.caCert) : readCaFile(t.caFile as string | undefined),
-    createdAt: now,
-  });
+  const loadEnginesData = loadEngines();
+
+  const ensureEngine = (conn: {
+    baseUrl: string; username?: string; password?: string;
+    token?: string; allowInsecure?: boolean; caCert?: string;
+  }): string => {
+    const baseUrl = sanitizeBaseUrl(conn.baseUrl);
+    const existing = findEngineByConnection(baseUrl, conn.username);
+    if (existing) return existing.id;
+
+    const engineId = `engine-${baseUrl.replace(/[^a-zA-Z0-9]/g, "").slice(-12)}`;
+    const engine: OlvmEngine = {
+      id: engineId,
+      name: `Engine ${baseUrl.split("//")[1]?.split("/")[0] ?? engineId}`,
+      baseUrl,
+      username: conn.username,
+      password: conn.password,
+      token: conn.token,
+      allowInsecure: conn.allowInsecure,
+      caCert: conn.caCert,
+      createdAt: now,
+    };
+    seedEngine(engine);
+    return engineId;
+  };
 
   if (process.env.OLVM_TENANTS) {
     let parsed: unknown;
@@ -71,8 +130,26 @@ const seedFromEnv = (): ClusterConnection[] => {
     }
     if (Array.isArray(parsed)) {
       return (parsed as Record<string, unknown>[])
-        .map(mapEnv)
-        .filter((c) => c.id && c.baseUrl);
+        .map((t) => {
+          const baseUrl = sanitizeBaseUrl(String(t.baseUrl ?? ""));
+          if (!t.id || !baseUrl) return null;
+          const engineId = ensureEngine({
+            baseUrl,
+            username: t.username ? String(t.username) : undefined,
+            password: t.password ? String(t.password) : undefined,
+            token: t.token ? String(t.token) : undefined,
+            allowInsecure: t.allowInsecure === true,
+            caCert: t.caCert ? String(t.caCert) : readCaFile(t.caFile as string | undefined),
+          });
+          return {
+            id: String(t.id),
+            name: String(t.name ?? t.id ?? "Default"),
+            engineId,
+            tag: t.tag ? String(t.tag) : undefined,
+            createdAt: now,
+          } as ClusterConnection;
+        })
+        .filter((c): c is ClusterConnection => c !== null);
     }
   }
 
@@ -80,17 +157,21 @@ const seedFromEnv = (): ClusterConnection[] => {
   const username = process.env.OLVM_USERNAME;
   const password = process.env.OLVM_PASSWORD;
   if (baseUrl && username && password) {
+    const engineId = ensureEngine({
+      baseUrl,
+      username,
+      password,
+      token: process.env.OLVM_TOKEN,
+      allowInsecure: process.env.OLVM_ALLOW_INSECURE === "true",
+      caCert: readCaFile(process.env.OLVM_CA_FILE),
+    });
     return [
-      mapEnv({
+      {
         id: "default",
         name: "Default",
-        baseUrl,
-        username,
-        password,
-        allowInsecure: process.env.OLVM_ALLOW_INSECURE === "true",
-        token: process.env.OLVM_TOKEN,
-        caFile: process.env.OLVM_CA_FILE,
-      }),
+        engineId,
+        createdAt: now,
+      },
     ];
   }
 
@@ -105,10 +186,11 @@ const persist = () => {
 const load = (): ClusterConnection[] => {
   if (cache) return cache;
   try {
-    const parsed = JSON.parse(fs.readFileSync(storePath, "utf8"));
-    cache = Array.isArray(parsed) ? (parsed as ClusterConnection[]) : [];
+    const raw = JSON.parse(fs.readFileSync(storePath, "utf8"));
+    const migrated = migrateOldFormat(raw);
+    cache = migrated;
+    if (migrated !== raw) persist();
   } catch {
-    // Archivo inexistente: inicializa desde el env (seed).
     cache = seedFromEnv();
     if (cache.length) persist();
   }
@@ -125,32 +207,21 @@ export const getClusterById = (id: string): ClusterConnection | null => {
 
 const validate = (input: ClusterInput) => {
   if (!input.name?.trim()) throw new Error("El nombre es obligatorio");
-  if (!input.baseUrl?.trim()) throw new Error("La URL del engine es obligatoria");
-  if (!input.username && !input.token) {
-    throw new Error("Debe definir usuario+contraseña o un token");
-  }
-  if (input.username && !input.password) {
-    throw new Error("La contraseña es obligatoria cuando se usa usuario");
-  }
+  if (!input.engineId?.trim()) throw new Error("Debe seleccionar un engine");
 };
 
 export const createCluster = (input: ClusterInput): ClusterConnection => {
   validate(input);
   const list = load();
-  const id = input.id?.trim() || `cluster-${Date.now()}`;
+  const id = input.id?.trim() || `tenant-${Date.now()}`;
   if (list.some((c) => c.id === id)) {
-    throw new Error(`Ya existe una conexión con id "${id}"`);
+    throw new Error(`Ya existe un tenant con id "${id}"`);
   }
   const conn: ClusterConnection = {
     id,
     name: input.name!.trim(),
-    baseUrl: sanitizeBaseUrl(input.baseUrl!),
-    username: input.username?.trim() || undefined,
-    password: input.password || undefined,
-    token: input.token || undefined,
-    allowInsecure: input.allowInsecure === true,
+    engineId: input.engineId!.trim(),
     tag: input.tag?.trim() || undefined,
-    caCert: input.caCert || undefined,
     createdAt: new Date().toISOString(),
   };
   list.push(conn);
@@ -163,23 +234,15 @@ export const updateCluster = (
   id: string,
   input: ClusterInput,
 ): ClusterConnection => {
-  validate(input);
   const list = load();
   const index = list.findIndex((c) => c.id === id);
-  if (index === -1) throw new Error("Conexión no encontrada");
+  if (index === -1) throw new Error("Tenant no encontrado");
   const current = list[index];
   const next: ClusterConnection = {
     ...current,
-    name: input.name!.trim(),
-    baseUrl: sanitizeBaseUrl(input.baseUrl!),
-    username:
-      input.username !== undefined ? input.username.trim() || undefined : current.username,
-    password:
-      input.password !== undefined ? input.password || undefined : current.password,
-    token: input.token !== undefined ? input.token || undefined : current.token,
-    allowInsecure: input.allowInsecure === true,
+    name: input.name !== undefined ? input.name.trim() : current.name,
+    engineId: input.engineId !== undefined ? input.engineId.trim() : current.engineId,
     tag: input.tag !== undefined ? input.tag.trim() || undefined : current.tag,
-    caCert: input.caCert !== undefined ? input.caCert || undefined : current.caCert,
   };
   list[index] = next;
   cache = list;

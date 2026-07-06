@@ -66,6 +66,7 @@ export type VmSummary = {
   host?: string;
   os?: string;
   ip?: string;
+  tags?: string[];
   metrics?: VmMetric;
 };
 
@@ -390,6 +391,7 @@ const normalizeVm = (
     host: vm.host?.name ?? hostMap?.get(vm.host?.id ?? "") ?? vm.host?.id,
     os: humanizeOs(vm.os?.type),
     ip: extractGuestIps(vm.guest_info?.ips),
+    tags: parseTagNames(vm),
     memoryMB: vm.memory ? Math.round(Number(vm.memory) / 1024 / 1024) : undefined,
     cpuCores: vcpuCount || (cores || sockets || threads ? totalCores : undefined),
     sockets,
@@ -1261,6 +1263,71 @@ const applyTenantTag = async (tenant: TenantConfig, vmId: string) => {
     });
   } catch {
     // best-effort: si el tag no existe o ya está asignado, ignorar.
+  }
+};
+
+// Busca el ID de un tag por nombre en OLVM.
+const findTagId = async (
+  tenant: TenantConfig,
+  tagName: string,
+): Promise<string | null> => {
+  try {
+    const data = await olvmFetch(tenant, withJsonFormat("/tags"));
+    const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+    const tags = root && "tag" in root ? (root.tag as { id?: string; name?: string }[]) : [];
+    const found = tags.find((t) => t.name?.toLowerCase() === tagName.toLowerCase());
+    return found?.id ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// Crea un tag en OLVM si no existe (best-effort).
+export const createTagIfNotExists = async (
+  tenantId: string,
+  tagName: string,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const tag = tagName.trim();
+  if (!tag) return;
+  const existing = await findTagId(tenant, tag);
+  if (existing) return;
+  try {
+    await olvmFetch(tenant, "/tags", {
+      method: "POST",
+      headers: { "Content-Type": "application/xml", Accept: "application/xml" },
+      body: `<tag><name>${tag}</name></tag>`,
+    });
+  } catch {
+    // best-effort
+  }
+};
+
+// Asigna el tag del tenant a una VM.
+export const assignTagToVm = async (
+  tenantId: string,
+  vmId: string,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  await applyTenantTag(tenant, vmId);
+};
+
+// Remueve el tag del tenant de una VM.
+export const removeTagFromVm = async (
+  tenantId: string,
+  vmId: string,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const tag = tenant.tag?.trim();
+  if (!tag) return;
+  const tagId = await findTagId(tenant, tag);
+  if (!tagId) return;
+  try {
+    await olvmFetch(tenant, `/vms/${vmId}/tags/${tagId}`, {
+      method: "DELETE",
+    });
+  } catch {
+    // best-effort
   }
 };
 

@@ -23,6 +23,7 @@ type Vm = {
   tenantName?: string;
   os?: string;
   ip?: string;
+  tags?: string[];
   metrics?: {
     cpuPercent?: number;
     memoryPercent?: number;
@@ -388,6 +389,23 @@ export default function Home() {
     open: true, sourceVmId: vm.id, sourceVmName: vm.name,
     newName: `${vm.name}-clone`, submitting: false, error: null,
   });
+
+  const toggleTag = async (vmId: string, assign: boolean) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-tag`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/tag`, { method: assign ? "POST" : "DELETE" });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess(assign ? "Tag asignado" : "Tag removido");
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const closeCloneWizard = () => {
     if (cloneWizard.submitting) return;
@@ -1332,13 +1350,30 @@ export default function Home() {
                       ["Template", selectedVm.template ?? "N/D"],
                       ["Cluster", selectedVm.cluster ?? "N/D"],
                       ["Host", selectedVm.host ?? "N/D"],
-                      ["ID", selectedVm.id],
                     ].map(([k, v]) => (
                       <div key={k} className="flex gap-2">
                         <dt className="w-32 shrink-0 text-gray-400">{k}</dt>
                         <dd className="min-w-0 break-all text-gray-800">{v}</dd>
                       </div>
                     ))}
+                    <div className="flex gap-2">
+                      <dt className="w-32 shrink-0 text-gray-400">Tags</dt>
+                      <dd className="min-w-0">
+                        {selectedVm.tags && selectedVm.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {selectedVm.tags.map((tag) => (
+                              <span key={tag} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">{tag}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">sin tags</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="flex gap-2">
+                      <dt className="w-32 shrink-0 text-gray-400">ID</dt>
+                      <dd className="min-w-0 break-all text-gray-500">{selectedVm.id}</dd>
+                    </div>
                   </dl>
                 </div>
                 {/* CPU */}
@@ -1571,6 +1606,21 @@ export default function Home() {
                         loading={consoleLoading === selectedVm.id}
                         disabled={(selectedVm.status?.toLowerCase?.() ?? "") !== "up"}
                       />
+                    )}
+                    {isSuperadmin && selectedTenant !== ALL_TENANTS && (
+                      <>
+                        <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                        <ActionButton
+                          label="Asignar tag del tenant"
+                          onClick={() => toggleTag(selectedVm.id, true)}
+                          loading={actionLoading === `${selectedVm.id}-tag`}
+                        />
+                        <ActionButton
+                          label="Quitar tag del tenant"
+                          onClick={() => toggleTag(selectedVm.id, false)}
+                          loading={actionLoading === `${selectedVm.id}-tag`}
+                        />
+                      </>
                     )}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                     <button
