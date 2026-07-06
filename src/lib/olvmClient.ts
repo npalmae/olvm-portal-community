@@ -34,6 +34,8 @@ type RawVm = {
   statistics?: { statistic?: RawStatistic[] } | RawStatistic[];
   tag?: RawTag[] | { tag?: RawTag[] };
   tags?: RawTag[] | { tag?: RawTag[] };
+  os?: { type?: string };
+  guest_info?: { fqdn?: string; ips?: unknown };
 };
 
 type RawConsole = {
@@ -62,6 +64,8 @@ export type VmSummary = {
   cpuCores?: number;
   sockets?: number;
   host?: string;
+  os?: string;
+  ip?: string;
   metrics?: VmMetric;
 };
 
@@ -110,6 +114,40 @@ const getDispatcher = (tenant: TenantConfig) => {
 export const invalidateDispatcherCache = (tenantId?: string) => {
   if (tenantId) dispatcherCache.delete(tenantId);
   else dispatcherCache.clear();
+  // Las conexiones cambiaron: limpiar también el caché de nombres de hosts
+  if (tenantId) hostNameCache.delete(tenantId);
+  else hostNameCache.clear();
+};
+
+// Cache de nombres de hosts por tenant (id -> name). oVirt no permite
+// follow=host sobre el listado de VMs (falla con VMs apagadas), se resuelve
+// vía lookup contra /hosts.
+const hostNameCache = new Map<string, Map<string, string>>();
+const getHostNameMap = async (
+  tenant: TenantConfig,
+): Promise<Map<string, string>> => {
+  const cached = hostNameCache.get(tenant.id);
+  if (cached) return cached;
+  const map = new Map<string, string>();
+  try {
+    const data = (await olvmFetch(
+      tenant,
+      withJsonFormat("/hosts"),
+    )) as unknown;
+    const list = Array.isArray(data)
+      ? data
+      : (data && typeof data === "object" && "host" in data
+          ? (data as { host?: unknown[] }).host
+          : []) ?? [];
+    for (const h of list) {
+      const host = h as { id?: string; name?: string };
+      if (host.id && host.name) map.set(host.id, host.name);
+    }
+  } catch {
+    // best-effort
+  }
+  hostNameCache.set(tenant.id, map);
+  return map;
 };
 
 export type ConnectionTestResult = {
@@ -321,7 +359,10 @@ const mapStatistics = (
   };
 };
 
-const normalizeVm = (vm: RawVm): VmSummary => {
+const normalizeVm = (
+  vm: RawVm,
+  hostMap?: Map<string, string>,
+): VmSummary => {
   const cpuTopology = vm.cpu?.topology ?? {};
   const topoAny = cpuTopology as Record<string, unknown>;
   const sockets = Number(topoAny.sockets ?? topoAny["@sockets"]);
@@ -346,7 +387,9 @@ const normalizeVm = (vm: RawVm): VmSummary => {
         : vm.status?.state ?? "unknown",
     cluster: vm.cluster?.name ?? vm.cluster?.id,
     template: vm.template?.name ?? vm.template?.id,
-    host: vm.host?.name ?? vm.host?.id,
+    host: vm.host?.name ?? hostMap?.get(vm.host?.id ?? "") ?? vm.host?.id,
+    os: humanizeOs(vm.os?.type),
+    ip: extractGuestIps(vm.guest_info?.ips),
     memoryMB: vm.memory ? Math.round(Number(vm.memory) / 1024 / 1024) : undefined,
     cpuCores: vcpuCount || (cores || sockets || threads ? totalCores : undefined),
     sockets,
@@ -362,6 +405,53 @@ const withJsonFormat = (path: string) => {
   const hasFormat = /[?&]format=/i.test(path);
   if (hasFormat) return path;
   return `${path}${hasQuery ? "&" : "?"}format=json`;
+};
+
+// Extrae las IPs reportadas por el guest agent (oVirt guest_info.ips).
+const extractGuestIps = (ips: unknown): string | undefined => {
+  let list: { address?: string; type?: string }[] = [];
+  if (Array.isArray(ips)) list = ips;
+  else if (ips && typeof ips === "object") {
+    const ipField = (ips as { ip?: unknown }).ip;
+    if (Array.isArray(ipField)) list = ipField as { address?: string }[];
+    else if (ipField) list = [ipField as { address?: string }];
+  }
+  const addrs = list
+    .map((i) => i?.address)
+    .filter(
+      (a): a is string =>
+        typeof a === "string" &&
+        a.length > 0 &&
+        !a.startsWith("127.") &&
+        a !== "::1",
+    );
+  return addrs.length ? addrs.join(", ") : undefined;
+};
+
+// Convierte el tipo de OS de oVirt (rhel_8x64, ubuntu_22, windows_11...) a nombre legible.
+const humanizeOs = (type?: string): string | undefined => {
+  if (!type) return undefined;
+  const t = type.toLowerCase();
+  const ver = (type.match(/\d+/)?.[0] ?? "").trim();
+  const families: { test: (s: string) => boolean; label: string }[] = [
+    { test: (s) => s.startsWith("rhel"), label: `Red Hat Enterprise Linux${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("centos"), label: `CentOS${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("rocky"), label: `Rocky Linux${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("almalinux"), label: `AlmaLinux${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("oracle"), label: `Oracle Linux${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("ubuntu"), label: `Ubuntu${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("debian"), label: `Debian${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("fedora"), label: `Fedora${ver ? " " + ver : ""}` },
+    { test: (s) => s.startsWith("sles") || s.startsWith("suse"), label: `SUSE Linux${ver ? " " + ver : ""}` },
+  ];
+  for (const f of families) if (f.test(t)) return f.label;
+  if (t.startsWith("windows") || t.startsWith("win")) {
+    if (!ver) return "Windows";
+    return Number(ver) >= 2016 ? `Windows Server ${ver}` : `Windows ${ver}`;
+  }
+  if (t === "other_linux" || t === "linux") return "Linux (otro)";
+  if (t === "other") return "Otro";
+  return type;
 };
 
 const parseGraphicsConsoles = (data: unknown): RawConsole[] => {
@@ -627,22 +717,23 @@ export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   const expectedTag = tenant.tag?.trim();
   const data = (await olvmFetch(
     tenant,
-    withJsonFormat("/vms?all_content=true&follow=statistics,tags"),
+    withJsonFormat("/vms?all_content=true&follow=statistics,tags,cluster,template"),
   )) as unknown;
+  const hostMap = await getHostNameMap(tenant);
   const root =
     data && typeof data === "object" && !Array.isArray(data) ? data : null;
   const filterByTenant = (vms: RawVm[]) =>
     vms.filter((vm) => vmMatchesTenantTag(vm, expectedTag));
   if (root && "vm" in root && Array.isArray((root as { vm?: unknown }).vm)) {
-    return filterByTenant((root as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
+    return filterByTenant((root as { vm?: RawVm[] }).vm ?? []).map((v) => normalizeVm(v, hostMap));
   }
   const vmsField = root && "vms" in root ? (root as { vms?: unknown }).vms : null;
   if (Array.isArray(vmsField)) {
-    return filterByTenant(vmsField as RawVm[]).map(normalizeVm);
+    return filterByTenant(vmsField as RawVm[]).map((v) => normalizeVm(v, hostMap));
   }
   const nested = vmsField && typeof vmsField === "object" ? vmsField : null;
   if (nested && "vm" in nested && Array.isArray((nested as { vm?: unknown }).vm)) {
-    return filterByTenant((nested as { vm?: RawVm[] }).vm ?? []).map(normalizeVm);
+    return filterByTenant((nested as { vm?: RawVm[] }).vm ?? []).map((v) => normalizeVm(v, hostMap));
   }
   return [];
 };
@@ -652,11 +743,87 @@ export const fetchVmById = async (
   vmId: string,
 ): Promise<VmSummary> => {
   const tenant = getTenantById(tenantId);
+  const hostMap = await getHostNameMap(tenant);
   const data = (await olvmFetch(
     tenant,
-    withJsonFormat(`/vms/${vmId}?all_content=true&follow=statistics`),
+    withJsonFormat(`/vms/${vmId}?all_content=true&follow=statistics,cluster,template,tags`),
   )) as RawVm;
-  return normalizeVm(data);
+  return normalizeVm(data, hostMap);
+};
+
+export type VmDiskInfo = {
+  name?: string;
+  sizeGB: number;
+  usedGB?: number;
+  type?: string;
+  interface?: string;
+};
+
+export type VmDiskSummary = {
+  count: number;
+  totalSizeGB: number;
+  usedGB: number;
+  disks: VmDiskInfo[];
+};
+
+const bytesToGB = (value?: number | string): number => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round((n / 1024 / 1024 / 1024) * 100) / 100;
+};
+
+export const fetchVmDisks = async (
+  tenantId: string,
+  vmId: string,
+): Promise<VmDiskSummary> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/diskattachments?follow=disk`),
+  );
+  const attachments = parseDiskAttachments(data);
+  const disks: VmDiskInfo[] = attachments
+    .map((a) => {
+        const d = a.disk ?? {};
+      const sizeBytes = Number(d.provisioned_size ?? d.total_size ?? d.size ?? 0);
+      return {
+        name: d.name ?? d.alias,
+        sizeGB: bytesToGB(sizeBytes),
+        usedGB: d.actual_size ? bytesToGB(Number(d.actual_size)) : undefined,
+        type: d.disk_type,
+        interface: a.interface ?? d.interface,
+      };
+    })
+    .sort((a, b) => b.sizeGB - a.sizeGB);
+  return {
+    count: disks.length,
+    totalSizeGB: disks.reduce((s, d) => s + d.sizeGB, 0),
+    usedGB: disks.reduce((s, d) => s + (d.usedGB ?? 0), 0),
+    disks,
+  };
+};
+
+export const fetchTenantDiskSummary = async (
+  tenantId: string,
+): Promise<VmDiskSummary> => {
+  const vms = await fetchVms(tenantId);
+  const results = await Promise.all(
+    vms.map(async (vm) => {
+      try {
+        return await fetchVmDisks(tenantId, vm.id);
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const valid = results.filter((r): r is VmDiskSummary => r !== null);
+  const allDisks = valid.flatMap((r) => r.disks);
+  return {
+    count: allDisks.length,
+    totalSizeGB: valid.reduce((s, r) => s + r.totalSizeGB, 0),
+    usedGB: valid.reduce((s, r) => s + r.usedGB, 0),
+    disks: allDisks,
+  };
 };
 
 export const fetchVmConsoleFile = async (
@@ -875,10 +1042,19 @@ type RawNic = {
 
 type RawDiskAttachment = {
   id?: string;
+  interface?: string;
   disk?: {
     id?: string;
     name?: string;
+    alias?: string;
     status?: string | { state?: string };
+    size?: number | string;
+    total_size?: number | string;
+    provisioned_size?: number | string;
+    actual_size?: number | string;
+    disk_type?: string;
+    format?: string;
+    interface?: string;
   };
 };
 

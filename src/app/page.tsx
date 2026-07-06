@@ -21,6 +21,8 @@ type Vm = {
   sockets?: number;
   tenantId?: string;
   tenantName?: string;
+  os?: string;
+  ip?: string;
   metrics?: {
     cpuPercent?: number;
     memoryPercent?: number;
@@ -218,6 +220,13 @@ export default function Home() {
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
   const [expandedHosts, setExpandedHosts] = useState<Record<string, boolean>>({});
   const [expandedTenants, setExpandedTenants] = useState<Record<string, boolean>>({});
+  const [vmDisks, setVmDisks] = useState<{
+    count: number;
+    totalSizeGB: number;
+    usedGB: number;
+    disks: { name?: string; sizeGB: number; usedGB?: number }[];
+  } | null>(null);
+  const [tenantDiskMap, setTenantDiskMap] = useState<Record<string, { totalSizeGB: number; usedGB: number; count: number }>>({});
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
@@ -609,6 +618,45 @@ export default function Home() {
 
   const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
+  // Carga los discos de la VM seleccionada
+  useEffect(() => {
+    setVmDisks(null);
+    if (!selectedVmId) return;
+    const tid = tenantForVm(selectedVmId);
+    if (!tid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${tid}/vms/${selectedVmId}/disks`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && data?.count !== undefined) setVmDisks(data);
+      } catch {
+        /* noop */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVmId]);
+
+  // Carga resumen de discos por tenant (vista "Todos los tenants")
+  useEffect(() => {
+    if (selectedTenant !== ALL_TENANTS) return;
+    let cancelled = false;
+    const uniqueTenants = [...new Set(vms.map((v) => v.tenantId).filter(Boolean))] as string[];
+    setTenantDiskMap({});
+    uniqueTenants.forEach(async (tid) => {
+      try {
+        const res = await fetch(`/api/tenants/${tid}/disk-summary`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && data?.totalSizeGB !== undefined) {
+          setTenantDiskMap((prev) => ({ ...prev, [tid]: { totalSizeGB: data.totalSizeGB, usedGB: data.usedGB ?? 0, count: data.count ?? 0 } }));
+        }
+      } catch { /* noop */ }
+    });
+    return () => { cancelled = true; };
+  }, [selectedTenant, vms]);
+
   const tenantResourceSummary = useMemo(() => {
     const provisionedCpu = vms.reduce((s, vm) => s + (vm.cpuCores ?? 0), 0);
     const provisionedMem = vms.reduce((s, vm) => s + (vm.memoryMB ?? 0), 0);
@@ -633,6 +681,27 @@ export default function Home() {
     [...vms].sort((a, b) => (b.metrics?.cpuPercent ?? 0) - (a.metrics?.cpuPercent ?? 0)).slice(0, 5)
     .map((vm) => ({ id: vm.id, name: vm.name, value: vm.metrics?.cpuPercent ?? 0, label: `${formatNumber(vm.metrics?.cpuPercent)}%` })),
   [vms]);
+
+  // Resumen de recursos por tenant (vista "Todos los tenants")
+  const perTenantSummary = useMemo(() => {
+    const map = new Map<string, {
+      id: string; name: string; total: number; up: number; down: number;
+      provisionedCpu: number; estCpu: number; provisionedMem: number; estMem: number;
+    }>();
+    for (const vm of vms) {
+      const tId = vm.tenantId ?? "sin-tenant";
+      const tName = vm.tenantName ?? tenants.find((t) => t.id === tId)?.name ?? tId;
+      const g = map.get(tId) ?? { id: tId, name: tName, total: 0, up: 0, down: 0, provisionedCpu: 0, estCpu: 0, provisionedMem: 0, estMem: 0 };
+      g.total++;
+      if ((vm.status?.toLowerCase() ?? "") === "up") g.up++; else g.down++;
+      g.provisionedCpu += vm.cpuCores ?? 0;
+      g.estCpu += (vm.cpuCores ?? 0) * ((vm.metrics?.cpuPercent ?? 0) / 100);
+      g.provisionedMem += vm.memoryMB ?? 0;
+      g.estMem += (vm.memoryMB ?? 0) * ((vm.metrics?.memoryPercent ?? 0) / 100);
+      map.set(tId, g);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [vms, tenants]);
 
   /* ── Tree expand init ── */
   useEffect(() => {
@@ -898,7 +967,17 @@ export default function Home() {
 
           {/* Breadcrumb — truncates gracefully */}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 overflow-hidden">
-            <span className="shrink-0 font-semibold text-gray-800">OLVM</span>
+            <button
+              onClick={() => { setSelectedVmId(""); setSelectedTenant(ALL_TENANTS); }}
+              className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 hover:text-blue-600"
+              title="Inicio"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+                <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
+                <path d="M6 14.5V9h4v5.5"/>
+              </svg>
+              OLVM
+            </button>
             {tenantName && <><span className="shrink-0">/</span><span className="truncate">{tenantName}</span></>}
             {selectedVm && <><span className="shrink-0">/</span><span className="truncate text-gray-700">{selectedVm.name}</span></>}
           </div>
@@ -1059,6 +1138,78 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Per-tenant summary (only in "Todos los tenants" mode) */}
+                {selectedTenant === ALL_TENANTS && perTenantSummary.length > 1 && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Resumen por tenant</p>
+                    <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {perTenantSummary.map((t) => {
+                        const cpuPct = t.provisionedCpu > 0 ? (t.estCpu / t.provisionedCpu) * 100 : 0;
+                        const memPct = t.provisionedMem > 0 ? (t.estMem / t.provisionedMem) * 100 : 0;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedTenant(t.id)}
+                            className="rounded-lg border bg-white p-3 text-left transition hover:border-blue-300 hover:shadow-sm"
+                            style={{ borderColor: "var(--border)" }}
+                          >
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="truncate text-sm font-bold text-gray-900">{t.name}</span>
+                              <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                                style={{ background: t.down > 0 ? "#fef3c7" : "#d1fae5", color: t.down > 0 ? "#92400e" : "#065f46" }}>
+                                {t.up}/{t.total} UP
+                              </span>
+                            </div>
+                            <div className="space-y-1.5 text-[11px]">
+                              <div>
+                                <div className="mb-0.5 flex justify-between">
+                                  <span className="text-gray-400">CPU</span>
+                                  <span className="text-gray-700">{formatNumber(t.provisionedCpu, { maximumFractionDigits: 0 })} vCPU · {formatNumber(cpuPct)}%</span>
+                                </div>
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(100, cpuPct)}%` }} />
+                                </div>
+                              </div>
+                              <div>
+                                <div className="mb-0.5 flex justify-between">
+                                  <span className="text-gray-400">RAM</span>
+                                  <span className="text-gray-700">{toGB(t.provisionedMem)} · {formatNumber(memPct)}%</span>
+                                </div>
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, memPct)}%` }} />
+                                </div>
+                              </div>
+                              <div>
+                                {(() => {
+                                  const td = tenantDiskMap[t.id];
+                                  if (!td) return (
+                                    <div className="mb-0.5 flex justify-between">
+                                      <span className="text-gray-400">Disco</span>
+                                      <span className="text-gray-300">Cargando…</span>
+                                    </div>
+                                  );
+                                  const diskPct = td.totalSizeGB > 0 ? (td.usedGB / td.totalSizeGB) * 100 : 0;
+                                  return (
+                                    <>
+                                      <div className="mb-0.5 flex justify-between">
+                                        <span className="text-gray-400">Disco</span>
+                                        <span className="text-gray-700">{td.totalSizeGB.toFixed(0)} GB · {formatNumber(diskPct)}%</span>
+                                      </div>
+                                      <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, diskPct)}%` }} />
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Top VMs */}
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
                   {/* RAM por VM */}
@@ -1176,14 +1327,16 @@ export default function Home() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Identidad</p>
                   <dl className="space-y-1 text-xs">
                     {[
-                      ["ID", selectedVm.id],
+                      ["Sistema operativo", selectedVm.os ?? "N/D"],
+                      ["IP", selectedVm.ip ?? "N/D"],
                       ["Template", selectedVm.template ?? "N/D"],
                       ["Cluster", selectedVm.cluster ?? "N/D"],
                       ["Host", selectedVm.host ?? "N/D"],
+                      ["ID", selectedVm.id],
                     ].map(([k, v]) => (
                       <div key={k} className="flex gap-2">
-                        <dt className="w-16 shrink-0 text-gray-400">{k}</dt>
-                        <dd className="truncate text-gray-800">{v}</dd>
+                        <dt className="w-32 shrink-0 text-gray-400">{k}</dt>
+                        <dd className="min-w-0 break-all text-gray-800">{v}</dd>
                       </div>
                     ))}
                   </dl>
@@ -1230,6 +1383,33 @@ export default function Home() {
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.networkBytes)}</span>
                     </div>
                   </div>
+                </div>
+                {/* Storage */}
+                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Disco</p>
+                  {vmDisks ? (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center gap-3">
+                        <DonutRing value={vmDisks.totalSizeGB > 0 ? (vmDisks.usedGB / vmDisks.totalSizeGB) * 100 : undefined} color="#f59e0b" />
+                        <div>
+                          <p className="text-lg font-bold text-gray-900">{vmDisks.totalSizeGB.toFixed(1)} GB</p>
+                          <p className="text-[11px] text-gray-400">{vmDisks.count} disco(s) · {vmDisks.usedGB.toFixed(1)} GB usado</p>
+                        </div>
+                      </div>
+                      {vmDisks.disks.length > 0 && (
+                        <div className="space-y-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+                          {vmDisks.disks.map((d, i) => (
+                            <div key={i} className="flex justify-between">
+                              <span className="truncate text-gray-500" title={d.name}>{d.name ?? `Disco ${i + 1}`}</span>
+                              <span className="shrink-0 font-semibold">{d.sizeGB.toFixed(1)} GB{d.usedGB != null ? ` (${d.usedGB.toFixed(1)})` : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">Cargando…</p>
+                  )}
                 </div>
               </div>
             )}
@@ -1290,6 +1470,48 @@ export default function Home() {
                           <span className="font-medium text-gray-800">{v}</span>
                         </div>
                       ))}
+                    </div>
+                    {/* Disk usage */}
+                    <div className="rounded-md border p-2.5 space-y-2" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Almacenamiento</p>
+                      {vmDisks ? (
+                        vmDisks.count === 0 ? (
+                          <p className="text-[11px] text-gray-400">Sin discos</p>
+                        ) : (
+                          <>
+                            {/* Usage bar */}
+                            <div>
+                              <div className="mb-1 flex justify-between text-[11px]">
+                                <span className="text-gray-400">{vmDisks.usedGB.toFixed(1)} / {vmDisks.totalSizeGB.toFixed(1)} GB</span>
+                                <span className="font-semibold text-gray-700">{vmDisks.totalSizeGB > 0 ? Math.round((vmDisks.usedGB / vmDisks.totalSizeGB) * 100) : 0}%</span>
+                              </div>
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                                <div
+                                  className="h-full rounded-full bg-amber-500"
+                                  style={{ width: `${vmDisks.totalSizeGB > 0 ? Math.min(100, (vmDisks.usedGB / vmDisks.totalSizeGB) * 100) : 0}%` }}
+                                />
+                              </div>
+                            </div>
+                            {/* Per-disk breakdown */}
+                            {vmDisks.disks.map((d, i) => (
+                              <div key={i} className="space-y-0.5">
+                                <div className="flex justify-between text-[11px]">
+                                  <span className="truncate text-gray-500" title={d.name}>{d.name ?? `Disco ${i + 1}`}</span>
+                                  <span className="shrink-0 font-medium text-gray-700">{d.sizeGB.toFixed(0)} GB</span>
+                                </div>
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                  <div
+                                    className="h-full rounded-full bg-blue-500"
+                                    style={{ width: `${d.sizeGB > 0 ? Math.min(100, ((d.usedGB ?? 0) / d.sizeGB) * 100) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )
+                      ) : (
+                        <p className="text-[11px] text-gray-400">Cargando…</p>
+                      )}
                     </div>
                   </div>
                 ) : (
