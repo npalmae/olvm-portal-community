@@ -517,21 +517,27 @@ function EditModal({
   );
 
   const addMembership = () => {
-    const available = tenants.find(
+    const available = tenants.filter(
       (t) => !memberships.some((m) => m.tenantId === t.id),
     );
-    if (available) {
-      setMemberships([...memberships, { tenantId: available.id, role: "user" }]);
+    if (available.length > 0) {
+      setMemberships([...memberships, { tenantId: "", role: "user" }]);
     }
   };
 
-  const removeMembership = (tenantId: string) => {
-    setMemberships(memberships.filter((m) => m.tenantId !== tenantId));
+  const removeMembership = (index: number) => {
+    setMemberships(memberships.filter((_, i) => i !== index));
   };
 
-  const setMembershipRole = (tenantId: string, role: "user" | "admin") => {
+  const setMembershipTenant = (index: number, tenantId: string) => {
     setMemberships(
-      memberships.map((m) => (m.tenantId === tenantId ? { ...m, role } : m)),
+      memberships.map((m, i) => (i === index ? { ...m, tenantId } : m)),
+    );
+  };
+
+  const setMembershipRole = (index: number, role: "user" | "admin") => {
+    setMemberships(
+      memberships.map((m, i) => (i === index ? { ...m, role } : m)),
     );
   };
 
@@ -541,7 +547,7 @@ function EditModal({
 
     if (isSuperadmin) {
       payload.globalRole = globalRole === "superadmin" ? "superadmin" : null;
-      payload.memberships = memberships;
+      payload.memberships = memberships.filter((m) => m.tenantId);
       payload.defaultTenantId = defaultTenantId;
       payload.twoFactorEnabled = twoFactor;
     } else {
@@ -599,7 +605,8 @@ function EditModal({
                   type="button"
                   onClick={addMembership}
                   disabled={
-                    memberships.length >= tenants.length || tenants.length === 0
+                    memberships.filter((m) => m.tenantId).length >= tenants.length ||
+                    tenants.length === 0
                   }
                   className="text-xs px-2 py-1 bg-white/10 hover:bg-white/20 rounded disabled:opacity-40"
                 >
@@ -612,16 +619,31 @@ function EditModal({
                     Sin membresías. El usuario no verá ningún tenant.
                   </p>
                 )}
-                {memberships.map((m) => (
-                  <div key={m.tenantId} className="flex items-center gap-2">
-                    <span className="flex-1 text-sm">
-                      {tenants.find((t) => t.id === m.tenantId)?.name ?? m.tenantId}
-                    </span>
+                {memberships.map((m, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <select
+                      value={m.tenantId}
+                      onChange={(e) => setMembershipTenant(i, e.target.value)}
+                      className="flex-1 px-2 py-1 bg-black/20 border border-white/10 rounded-lg text-sm"
+                    >
+                      <option value="">Selecciona tenant…</option>
+                      {tenants
+                        .filter(
+                          (t) =>
+                            t.id === m.tenantId ||
+                            !memberships.some((mm) => mm.tenantId === t.id),
+                        )
+                        .map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.id})
+                          </option>
+                        ))}
+                    </select>
                     <select
                       value={m.role}
                       onChange={(e) =>
                         setMembershipRole(
-                          m.tenantId,
+                          i,
                           e.target.value === "admin" ? "admin" : "user",
                         )
                       }
@@ -632,7 +654,7 @@ function EditModal({
                     </select>
                     <button
                       type="button"
-                      onClick={() => removeMembership(m.tenantId)}
+                      onClick={() => removeMembership(i)}
                       className="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded"
                     >
                       Quitar

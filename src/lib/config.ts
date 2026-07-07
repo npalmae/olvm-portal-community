@@ -15,6 +15,7 @@ export type TenantConfig = {
   caFile?: string;
   caCert?: Buffer;
   tag?: string;
+  storageDomains?: string[];
   engineId: string;
 };
 
@@ -35,6 +36,7 @@ const toTenant = (cluster: ClusterConnection): TenantConfig => {
     token: engine.token,
     allowInsecure: engine.allowInsecure,
     tag: cluster.tag,
+    storageDomains: cluster.storageDomains,
     caCert: engine.caCert ? Buffer.from(engine.caCert) : undefined,
   };
 };

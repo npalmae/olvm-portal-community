@@ -27,6 +27,7 @@ const toPublic = (c: ClusterConnection) => {
     engineName: engine?.name ?? "N/D",
     engineUrl: engine?.baseUrl ?? "N/D",
     tag: c.tag,
+    storageDomains: c.storageDomains ?? [],
     createdAt: c.createdAt,
   };
 };
@@ -60,6 +61,9 @@ export async function PATCH(request: Request, context: Params) {
       name: typeof body.name === "string" ? body.name : existing.name,
       engineId: typeof body.engineId === "string" ? body.engineId : existing.engineId,
       tag: typeof body.tag === "string" ? body.tag : existing.tag,
+      storageDomains: Array.isArray(body.storageDomains)
+        ? body.storageDomains.filter((s: unknown) => typeof s === "string")
+        : existing.storageDomains,
     });
     invalidateDispatcherCache(id);
     return NextResponse.json(toPublic(updated));

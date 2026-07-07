@@ -12,6 +12,7 @@ export type ClusterConnection = {
   name: string;
   engineId: string;
   tag?: string;
+  storageDomains?: string[];
   createdAt: string;
 };
 
@@ -146,6 +147,9 @@ const seedFromEnv = (): ClusterConnection[] => {
             name: String(t.name ?? t.id ?? "Default"),
             engineId,
             tag: t.tag ? String(t.tag) : undefined,
+            storageDomains: Array.isArray(t.storageDomains)
+              ? t.storageDomains.map(String)
+              : undefined,
             createdAt: now,
           } as ClusterConnection;
         })
@@ -222,6 +226,7 @@ export const createCluster = (input: ClusterInput): ClusterConnection => {
     name: input.name!.trim(),
     engineId: input.engineId!.trim(),
     tag: input.tag?.trim() || undefined,
+    storageDomains: input.storageDomains && input.storageDomains.length > 0 ? input.storageDomains : undefined,
     createdAt: new Date().toISOString(),
   };
   list.push(conn);
@@ -243,6 +248,9 @@ export const updateCluster = (
     name: input.name !== undefined ? input.name.trim() : current.name,
     engineId: input.engineId !== undefined ? input.engineId.trim() : current.engineId,
     tag: input.tag !== undefined ? input.tag.trim() || undefined : current.tag,
+    storageDomains: input.storageDomains !== undefined
+      ? input.storageDomains.length > 0 ? input.storageDomains : undefined
+      : current.storageDomains,
   };
   list[index] = next;
   cache = list;

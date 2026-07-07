@@ -1459,3 +1459,102 @@ export const updateVmResources = async (
     body: JSON.stringify(body),
   });
 };
+
+export type StorageDomainInfo = {
+  id: string;
+  name: string;
+  type: string;
+  status?: string;
+  availableGB: number;
+  usedGB: number;
+  totalGB: number;
+};
+
+export const fetchStorageDomains = async (
+  tenantId: string,
+): Promise<StorageDomainInfo[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/storagedomains"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "storage_domain" in root
+    ? (root.storage_domain as Record<string, unknown>[])
+    : [];
+
+  const all: StorageDomainInfo[] = list
+    .filter((sd) => sd.type !== "image")
+    .map((sd) => {
+      const available = Number(sd.available ?? 0);
+      const used = Number(sd.used ?? 0);
+      const committed = Number(sd.committed ?? 0);
+      return {
+        id: String(sd.id ?? ""),
+        name: String(sd.name ?? ""),
+        type: String(sd.type ?? "data"),
+        status: typeof sd.status === "string" ? sd.status : (sd.status as { state?: string })?.state,
+        availableGB: bytesToGB(available),
+        usedGB: bytesToGB(used + committed),
+        totalGB: bytesToGB(available + used + committed),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Filtrar por storage domains asignados al tenant (si tiene configurados)
+  if (tenant.storageDomains && tenant.storageDomains.length > 0) {
+    return all.filter((sd) => tenant.storageDomains!.includes(sd.name));
+  }
+
+  return all;
+};
+
+export const fetchAllStorageDomains = async (
+  tenantId: string,
+): Promise<StorageDomainInfo[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/storagedomains"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "storage_domain" in root
+    ? (root.storage_domain as Record<string, unknown>[])
+    : [];
+  return list
+    .filter((sd) => sd.type !== "image")
+    .map((sd) => {
+      const available = Number(sd.available ?? 0);
+      const used = Number(sd.used ?? 0);
+      const committed = Number(sd.committed ?? 0);
+      return {
+        id: String(sd.id ?? ""),
+        name: String(sd.name ?? ""),
+        type: String(sd.type ?? "data"),
+        status: typeof sd.status === "string" ? sd.status : (sd.status as { state?: string })?.state,
+        availableGB: bytesToGB(available),
+        usedGB: bytesToGB(used + committed),
+        totalGB: bytesToGB(available + used + committed),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export type OlvmCluster = { id: string; name: string };
+export type OlvmTemplate = { id: string; name: string };
+
+export const fetchClusters = async (tenantId: string): Promise<OlvmCluster[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/clusters"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "cluster" in root ? (root.cluster as Record<string, unknown>[]) : [];
+  return list
+    .map((c) => ({ id: String(c.id ?? ""), name: String(c.name ?? "") }))
+    .filter((c) => c.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/templates"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "template" in root ? (root.template as Record<string, unknown>[]) : [];
+  return list
+    .map((t) => ({ id: String(t.id ?? ""), name: String(t.name ?? "") }))
+    .filter((t) => t.id && t.name !== "Blank")
+    .sort((a, b) => a.name.localeCompare(b.name));
+};

@@ -26,6 +26,7 @@ type Tenant = {
   engineName: string;
   engineUrl: string;
   tag?: string;
+  storageDomains?: string[];
   createdAt: string;
 };
 
@@ -535,12 +536,31 @@ function TenantForm({
   const [name, setName] = useState(tenant?.name ?? "");
   const [engineId, setEngineId] = useState(tenant?.engineId ?? engines[0]?.id ?? "");
   const [tag, setTag] = useState(tenant?.tag ?? "");
+  const [selectedSds, setSelectedSds] = useState<string[]>(tenant?.storageDomains ?? []);
+  const [availableSds, setAvailableSds] = useState<{ name: string; availableGB: number }[]>([]);
+  const [loadingSds, setLoadingSds] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!engineId) { setAvailableSds([]); return; }
+    setLoadingSds(true);
+    fetch(`/api/admin/engines/${engineId}/storage-domains`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setAvailableSds(data.map((sd: { name: string; availableGB: number }) => ({ name: sd.name, availableGB: sd.availableGB }))))
+      .catch(() => setAvailableSds([]))
+      .finally(() => setLoadingSds(false));
+  }, [engineId]);
+
+  const toggleSd = (sdName: string) => {
+    setSelectedSds((prev) =>
+      prev.includes(sdName) ? prev.filter((s) => s !== sdName) : [...prev, sdName],
+    );
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      const payload: Record<string, unknown> = { name, engineId, tag };
+      const payload: Record<string, unknown> = { name, engineId, tag, storageDomains: selectedSds };
       if (!editing) payload.id = id;
       const url = editing ? `/api/admin/clusters/${tenant!.id}` : "/api/admin/clusters";
       const method = editing ? "PATCH" : "POST";
@@ -588,6 +608,31 @@ function TenantForm({
             <span className={labelCls}>Tag (multitenant)</span>
             <input className={`${inputCls} mt-1`} value={tag} onChange={(e) => setTag(e.target.value)} placeholder="tenant-a (opcional)" />
           </label>
+
+          <div>
+            <span className={labelCls}>Storage Domains asignados</span>
+            <p className="mt-0.5 text-[10px] text-gray-400">Si no seleccionas ninguno, el tenant ve todos los storage domains</p>
+            {loadingSds ? (
+              <p className="mt-1 text-[11px] text-gray-400">Cargando storage domains...</p>
+            ) : availableSds.length === 0 ? (
+              <p className="mt-1 text-[11px] text-gray-400">Sin storage domains disponibles</p>
+            ) : (
+              <div className="mt-1 space-y-1">
+                {availableSds.map((sd) => (
+                  <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50" style={{ borderColor: "var(--border)" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSds.includes(sd.name)}
+                      onChange={() => toggleSd(sd.name)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-xs text-gray-700">{sd.name}</span>
+                    <span className="ml-auto text-[10px] text-gray-400">{sd.availableGB.toFixed(0)} GB libres</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
             <button type="button" onClick={onClose} className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">Cancelar</button>

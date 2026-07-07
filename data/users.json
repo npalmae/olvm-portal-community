@@ -46,5 +46,37 @@
       }
     ],
     "createdAt": "2026-04-22T20:20:00.000Z"
+  },
+  {
+    "id": "0371bc68-8e20-4405-8b8c-c4eea364f715",
+    "email": "cfonseca@sixmanager.com",
+    "password": "$2b$10$xIynI5k96yxyUsdbWLU4vO825cMxLUKaVwKPVcxc./I1rIaVH8Nw6",
+    "name": "Claudio Fonseca",
+    "defaultTenantId": "tenant-a",
+    "globalRole": "superadmin",
+    "memberships": [
+      {
+        "tenantId": "tenant-a",
+        "role": "user"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-07T16:27:36.084Z"
+  },
+  {
+    "id": "efd41c0d-0a62-4f09-96fb-3871daaa2e6b",
+    "email": "sistemas@sixmanager.com",
+    "password": "$2b$10$rKXFFrZPcz7CFYNn37ybqelsHYC2/BzgQPkH.YlJqT169o1M10TDC",
+    "name": "Sistemas",
+    "defaultTenantId": "tenant-a",
+    "globalRole": null,
+    "memberships": [
+      {
+        "tenantId": "tenant-a",
+        "role": "user"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-07T16:35:27.181Z"
   }
 ]

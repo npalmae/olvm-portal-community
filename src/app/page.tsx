@@ -228,12 +228,15 @@ export default function Home() {
     disks: { name?: string; sizeGB: number; usedGB?: number }[];
   } | null>(null);
   const [tenantDiskMap, setTenantDiskMap] = useState<Record<string, { totalSizeGB: number; usedGB: number; count: number }>>({});
+  const [storageDomains, setStorageDomains] = useState<{ id: string; name: string; type: string; status?: string; availableGB: number; usedGB: number; totalGB: number }[]>([]);
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
     memoryMB: "", cpuCores: "", sockets: "1", comment: "",
   });
+  const [provClusters, setProvClusters] = useState<{ id: string; name: string }[]>([]);
+  const [provTemplates, setProvTemplates] = useState<{ id: string; name: string }[]>([]);
   const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
   const [embeddedConsole, setEmbeddedConsole] = useState<{
     vmId: string; status: "idle" | "connecting" | "connected" | "error";
@@ -352,6 +355,40 @@ export default function Home() {
     if (!selectedTenant || selectedTenant === "undefined") return;
     loadVms(selectedTenant);
   };
+
+  // Carga storage domains del tenant actual
+  useEffect(() => {
+    setStorageDomains([]);
+    if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/storage-domains`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && Array.isArray(data)) setStorageDomains(data);
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedTenant]);
+
+  // Carga clusters y templates disponibles para el form de nueva VM
+  useEffect(() => {
+    setProvClusters([]);
+    setProvTemplates([]);
+    if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/provisioning-options`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && data) {
+          if (Array.isArray(data.clusters)) setProvClusters(data.clusters);
+          if (Array.isArray(data.templates)) setProvTemplates(data.templates);
+        }
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedTenant]);
 
   const tenantName = useMemo(
     () =>
@@ -1156,6 +1193,36 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Storage Domains */}
+                {selectedTenant !== ALL_TENANTS && storageDomains.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Storage Domains</p>
+                    <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {storageDomains.map((sd) => {
+                        const usedPct = sd.totalGB > 0 ? (sd.usedGB / sd.totalGB) * 100 : 0;
+                        return (
+                          <div key={sd.id} className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-bold text-gray-900">{sd.name}</span>
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${sd.status === "active" || !sd.status ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                                {sd.type.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="mb-1.5 flex items-baseline gap-2">
+                              <span className="text-lg font-bold text-gray-900">{sd.availableGB.toFixed(0)} GB</span>
+                              <span className="text-[11px] text-gray-400">libres de {sd.totalGB.toFixed(0)} GB</span>
+                            </div>
+                            <div className="mb-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                              <div className={`h-full rounded-full ${usedPct > 80 ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${Math.min(100, usedPct)}%` }} />
+                            </div>
+                            <p className="text-[10px] text-gray-400">{sd.usedGB.toFixed(0)} GB en uso ({Math.round(usedPct)}%)</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Per-tenant summary (only in "Todos los tenants" mode) */}
                 {selectedTenant === ALL_TENANTS && perTenantSummary.length > 1 && (
                   <div className="mb-4">
@@ -1686,13 +1753,23 @@ export default function Home() {
                     <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
                       className={inputCls} placeholder="vm-app-01" />
                   </Field>
-                  <Field label="Cluster ID *">
-                    <input value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
-                      className={inputCls} placeholder="uuid..." />
+                  <Field label="Cluster *">
+                    <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
+                      className={inputCls}>
+                      <option value="">Selecciona un cluster…</option>
+                      {provClusters.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </Field>
-                  <Field label="Template ID">
-                    <input value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
-                      className={inputCls} placeholder="opcional" />
+                  <Field label="Template">
+                    <select value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
+                      className={inputCls}>
+                      <option value="">Sin template (blank)</option>
+                      {provTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
                   </Field>
                   <div className="grid grid-cols-2 gap-2">
                     <Field label="RAM (MB)">
