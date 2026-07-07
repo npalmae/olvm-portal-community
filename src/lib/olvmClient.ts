@@ -1485,15 +1485,14 @@ export const fetchStorageDomains = async (
     .map((sd) => {
       const available = Number(sd.available ?? 0);
       const used = Number(sd.used ?? 0);
-      const committed = Number(sd.committed ?? 0);
       return {
         id: String(sd.id ?? ""),
         name: String(sd.name ?? ""),
         type: String(sd.type ?? "data"),
         status: typeof sd.status === "string" ? sd.status : (sd.status as { state?: string })?.state,
         availableGB: bytesToGB(available),
-        usedGB: bytesToGB(used + committed),
-        totalGB: bytesToGB(available + used + committed),
+        usedGB: bytesToGB(used),
+        totalGB: bytesToGB(available + used),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -1526,15 +1525,14 @@ export const fetchAllStorageDomains = async (
     .map((sd) => {
       const available = Number(sd.available ?? 0);
       const used = Number(sd.used ?? 0);
-      const committed = Number(sd.committed ?? 0);
       return {
         id: String(sd.id ?? ""),
         name: String(sd.name ?? ""),
         type: String(sd.type ?? "data"),
         status: typeof sd.status === "string" ? sd.status : (sd.status as { state?: string })?.state,
         availableGB: bytesToGB(available),
-        usedGB: bytesToGB(used + committed),
-        totalGB: bytesToGB(available + used + committed),
+        usedGB: bytesToGB(used),
+        totalGB: bytesToGB(available + used),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
