@@ -16,6 +16,7 @@ export type TenantConfig = {
   caCert?: Buffer;
   tag?: string;
   storageDomains?: string[];
+  sharedStorageDomains?: string[];
   engineId: string;
 };
 
@@ -37,6 +38,7 @@ const toTenant = (cluster: ClusterConnection): TenantConfig => {
     allowInsecure: engine.allowInsecure,
     tag: cluster.tag,
     storageDomains: cluster.storageDomains,
+    sharedStorageDomains: engine.sharedStorageDomains,
     caCert: engine.caCert ? Buffer.from(engine.caCert) : undefined,
   };
 };

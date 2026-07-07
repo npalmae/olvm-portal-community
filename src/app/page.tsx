@@ -229,6 +229,8 @@ export default function Home() {
   } | null>(null);
   const [tenantDiskMap, setTenantDiskMap] = useState<Record<string, { totalSizeGB: number; usedGB: number; count: number }>>({});
   const [storageDomains, setStorageDomains] = useState<{ id: string; name: string; type: string; status?: string; availableGB: number; usedGB: number; totalGB: number }[]>([]);
+  const [isoList, setIsoList] = useState<{ id: string; name: string; storageDomainName: string; sizeGB: number }[]>([]);
+  const [mountedIso, setMountedIso] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
@@ -371,6 +373,36 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [selectedTenant]);
 
+  // Carga ISOs del tenant actual
+  useEffect(() => {
+    setIsoList([]);
+    if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/isos`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && Array.isArray(data)) setIsoList(data);
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedTenant]);
+
+  // Carga ISO montada cuando se selecciona una VM
+  useEffect(() => {
+    setMountedIso(null);
+    if (!selectedVmId || !selectedTenant || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/vms/${selectedVmId}/cdrom`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && data?.isoId) setMountedIso(data.isoId);
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedVmId, selectedTenant]);
+
   // Carga clusters y templates disponibles para el form de nueva VM
   useEffect(() => {
     setProvClusters([]);
@@ -437,6 +469,27 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error ?? "Error");
       setSuccess(assign ? "Tag asignado" : "Tag removido");
       await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleMountIso = async (vmId: string, isoId: string | null) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-iso`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/cdrom`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isoId ? { isoId } : {}),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setMountedIso(isoId);
+      setSuccess(isoId ? "ISO montada" : "ISO desmontada");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -1687,6 +1740,40 @@ export default function Home() {
                           onClick={() => toggleTag(selectedVm.id, false)}
                           loading={actionLoading === `${selectedVm.id}-tag`}
                         />
+                      </>
+                    )}
+                    {selectedTenant !== ALL_TENANTS && isoList.length > 0 && (
+                      <>
+                        <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">ISO / CD-ROM</p>
+                        {mountedIso && (
+                          <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5">
+                            <span className="truncate text-[11px] text-amber-800">
+                              {isoList.find((i) => i.id === mountedIso)?.name ?? "ISO montada"}
+                            </span>
+                            <button
+                              onClick={() => handleMountIso(selectedVm.id, null)}
+                              disabled={actionLoading === `${selectedVm.id}-iso`}
+                              className="ml-2 shrink-0 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              Expulsar
+                            </button>
+                          </div>
+                        )}
+                        <select
+                          value=""
+                          onChange={(e) => e.target.value && handleMountIso(selectedVm.id, e.target.value)}
+                          disabled={actionLoading === `${selectedVm.id}-iso`}
+                          className={`w-full rounded-md border px-2 py-1.5 text-[11px] ${actionLoading === `${selectedVm.id}-iso}` ? "opacity-50" : ""}`}
+                          style={{ borderColor: "var(--border)" }}
+                        >
+                          <option value="">{actionLoading === `${selectedVm.id}-iso` ? "Montando..." : "Montar ISO..."}</option>
+                          {isoList.filter((i) => i.id !== mountedIso).map((iso) => (
+                            <option key={iso.id} value={iso.id}>
+                              {iso.name} ({iso.storageDomainName})
+                            </option>
+                          ))}
+                        </select>
                       </>
                     )}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />

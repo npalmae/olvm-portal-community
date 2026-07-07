@@ -10,6 +10,7 @@ export type OlvmEngine = {
   token?: string;
   allowInsecure?: boolean;
   caCert?: string;
+  sharedStorageDomains?: string[];
   createdAt: string;
 };
 
@@ -168,6 +169,9 @@ export const createEngine = (input: EngineInput): OlvmEngine => {
     token: input.token || undefined,
     allowInsecure: input.allowInsecure === true,
     caCert: input.caCert || undefined,
+    sharedStorageDomains: Array.isArray(input.sharedStorageDomains)
+      ? input.sharedStorageDomains.filter(Boolean)
+      : undefined,
     createdAt: new Date().toISOString(),
   };
   list.push(engine);
@@ -193,6 +197,7 @@ export const updateEngine = (
     token: input.token ?? current.token,
     allowInsecure: input.allowInsecure ?? current.allowInsecure,
     caCert: input.caCert ?? current.caCert,
+    sharedStorageDomains: input.sharedStorageDomains ?? current.sharedStorageDomains,
   };
 
   // Solo validar si hay cambios sustanciales
@@ -209,6 +214,9 @@ export const updateEngine = (
     token: merged.token || undefined,
     allowInsecure: merged.allowInsecure === true,
     caCert: merged.caCert || undefined,
+    sharedStorageDomains: Array.isArray(merged.sharedStorageDomains)
+      ? merged.sharedStorageDomains.filter(Boolean)
+      : undefined,
   };
   list[index] = next;
   cache = list;

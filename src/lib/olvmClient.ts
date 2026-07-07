@@ -1498,9 +1498,15 @@ export const fetchStorageDomains = async (
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // Filtrar por storage domains asignados al tenant (si tiene configurados)
-  if (tenant.storageDomains && tenant.storageDomains.length > 0) {
-    return all.filter((sd) => tenant.storageDomains!.includes(sd.name));
+  // Filtrar por storage domains asignados al tenant + shared del engine
+  const tenantSds = tenant.storageDomains && tenant.storageDomains.length > 0
+    ? tenant.storageDomains
+    : [];
+  const sharedSds = tenant.sharedStorageDomains ?? [];
+  const allowed = [...tenantSds, ...sharedSds];
+
+  if (allowed.length > 0) {
+    return all.filter((sd) => allowed.includes(sd.name));
   }
 
   return all;
@@ -1557,4 +1563,55 @@ export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> 
     .map((t) => ({ id: String(t.id ?? ""), name: String(t.name ?? "") }))
     .filter((t) => t.id && t.name !== "Blank")
     .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export type IsoInfo = { id: string; name: string; storageDomainId: string; storageDomainName: string; sizeGB: number };
+
+export const fetchIsos = async (tenantId: string): Promise<IsoInfo[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/files"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "file" in root ? (root.file as Record<string, unknown>[]) : [];
+  return list
+    .filter((f) => String(f.file_type ?? "") === "1" || String(f.content_type ?? "").toLowerCase() === "iso")
+    .map((f) => {
+      const sd = Array.isArray(f.storage_domains) ? f.storage_domains[0] : undefined;
+      return {
+        id: String(f.id ?? ""),
+        name: String(f.name ?? ""),
+        storageDomainId: sd ? String(sd.id ?? "") : "",
+        storageDomainName: sd ? String(sd.name ?? "") : "",
+        sizeGB: bytesToGB(Number(f.size ?? 0)),
+      };
+    })
+    .filter((iso) => iso.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const mountIso = async (tenantId: string, vmId: string, isoId: string): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const body = JSON.stringify({ cdrom: { file: { id: isoId } } });
+  await olvmFetch(tenant, `/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`, {
+    method: "PUT",
+    body,
+    headers: { "Content-Type": "application/json", Accept: "application/json", current: "false" },
+  });
+};
+
+export const unmountIso = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const body = JSON.stringify({ cdrom: { file: { id: "00000000-0000-0000-0000-000000000000" } } });
+  await olvmFetch(tenant, `/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`, {
+    method: "PUT",
+    body,
+    headers: { "Content-Type": "application/json", Accept: "application/json", current: "false" },
+  });
+};
+
+export const fetchCurrentIso = async (tenantId: string, vmId: string): Promise<string | null> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat(`/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`));
+  const file = (data as Record<string, unknown> | null)?.cdrom as Record<string, unknown> | undefined;
+  const fileId = (file?.file as Record<string, unknown> | undefined)?.id;
+  return fileId && fileId !== "00000000-0000-0000-0000-000000000000" ? String(fileId) : null;
 };

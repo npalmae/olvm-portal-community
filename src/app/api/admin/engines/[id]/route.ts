@@ -27,6 +27,7 @@ const toPublic = (e: OlvmEngine) => ({
   hasToken: Boolean(e.token),
   allowInsecure: e.allowInsecure === true,
   hasCa: Boolean(e.caCert),
+  sharedStorageDomains: e.sharedStorageDomains ?? [],
   createdAt: e.createdAt,
 });
 
@@ -75,6 +76,9 @@ export async function PATCH(request: Request, context: Params) {
         typeof body.caCert === "string" ? body.caCert
         : body.caCert === null ? undefined
         : existing.caCert,
+      sharedStorageDomains: Array.isArray(body.sharedStorageDomains)
+        ? body.sharedStorageDomains.map(String)
+        : existing.sharedStorageDomains,
     });
     invalidateDispatcherCache();
     return NextResponse.json(toPublic(updated));

@@ -21,6 +21,7 @@ const toPublic = (e: OlvmEngine) => ({
   hasToken: Boolean(e.token),
   allowInsecure: e.allowInsecure === true,
   hasCa: Boolean(e.caCert),
+  sharedStorageDomains: e.sharedStorageDomains ?? [],
   createdAt: e.createdAt,
 });
 
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
       token: typeof body.token === "string" ? body.token : undefined,
       allowInsecure: body.allowInsecure === true,
       caCert: typeof body.caCert === "string" ? body.caCert : undefined,
+      sharedStorageDomains: Array.isArray(body.sharedStorageDomains)
+        ? body.sharedStorageDomains.map(String)
+        : undefined,
     });
     invalidateDispatcherCache();
     return NextResponse.json(toPublic(created), { status: 201 });

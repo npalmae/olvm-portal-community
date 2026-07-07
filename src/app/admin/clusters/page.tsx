@@ -16,6 +16,7 @@ type Engine = {
   hasToken: boolean;
   allowInsecure: boolean;
   hasCa: boolean;
+  sharedStorageDomains?: string[];
   createdAt: string;
 };
 
@@ -389,9 +390,28 @@ function EngineForm({
   const [testing, setTesting] = useState(false);
   const [testRes, setTestRes] = useState<TestResult>(null);
   const [saving, setSaving] = useState(false);
+  const [sharedSds, setSharedSds] = useState<string[]>(engine?.sharedStorageDomains ?? []);
+  const [availableSds, setAvailableSds] = useState<{ name: string; availableGB: number }[]>([]);
+  const [loadingSds, setLoadingSds] = useState(false);
+
+  useEffect(() => {
+    if (!engine) return;
+    setLoadingSds(true);
+    fetch(`/api/admin/engines/${engine.id}/storage-domains`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAvailableSds(data.map((d: { name: string; availableGB: number }) => ({ name: d.name, availableGB: d.availableGB })));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSds(false));
+  }, [engine]);
+
+  const toggleSharedSd = (name: string) => {
+    setSharedSds((prev) => prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]);
+  };
 
   const buildPayload = () => {
-    const payload: Record<string, unknown> = { name, baseUrl, allowInsecure };
+    const payload: Record<string, unknown> = { name, baseUrl, allowInsecure, sharedStorageDomains: sharedSds };
     if (authMethod === "basic") {
       payload.username = username;
       if (password) payload.password = password;
@@ -482,6 +502,28 @@ function EngineForm({
               <span className={labelCls}>Token (Bearer)</span>
               <textarea className={`${inputCls} mt-1 font-mono`} rows={2} value={token} onChange={(e) => setToken(e.target.value)} placeholder={editing ? "vacio = mantener actual" : "OAuth2 token"} required={!editing} />
             </label>
+          )}
+
+          {editing && (
+            <div>
+              <span className={labelCls}>Storage Domains compartidos (visibles para todos los tenants)</span>
+              <p className="mt-0.5 text-[10px] text-gray-400">Ej: ISOs, repositorios compartidos</p>
+              {loadingSds ? (
+                <p className="mt-1 text-[11px] text-gray-400">Cargando storage domains...</p>
+              ) : availableSds.length === 0 ? (
+                <p className="mt-1 text-[11px] text-gray-400">Sin storage domains disponibles</p>
+              ) : (
+                <div className="mt-1 space-y-1">
+                  {availableSds.map((sd) => (
+                    <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50" style={{ borderColor: "var(--border)" }}>
+                      <input type="checkbox" checked={sharedSds.includes(sd.name)} onChange={() => toggleSharedSd(sd.name)} className="h-4 w-4" />
+                      <span className="text-xs text-gray-700">{sd.name}</span>
+                      <span className="ml-auto text-[10px] text-gray-400">{sd.availableGB.toFixed(0)} GB libres</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           <div>
