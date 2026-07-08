@@ -1567,19 +1567,20 @@ export type IsoInfo = { id: string; name: string; storageDomainId: string; stora
 
 export const fetchIsos = async (tenantId: string): Promise<IsoInfo[]> => {
   const tenant = getTenantById(tenantId);
-  const data = await olvmFetch(tenant, withJsonFormat("/files"));
+  const data = await olvmFetch(tenant, withJsonFormat("/disks"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-  const list = root && "file" in root ? (root.file as Record<string, unknown>[]) : [];
-  return list
-    .filter((f) => String(f.file_type ?? "") === "1" || String(f.content_type ?? "").toLowerCase() === "iso")
-    .map((f) => {
-      const sd = Array.isArray(f.storage_domains) ? f.storage_domains[0] : undefined;
+  const list = root && "disk" in root ? (root.disk as Record<string, unknown>[]) : [];
+  return (list as Record<string, unknown>[])
+    .filter((d) => String(d.content_type ?? "") === "iso")
+    .map((d) => {
+      const sds = Array.isArray(d.storage_domains) ? d.storage_domains : [];
+      const sd = sds[0] as Record<string, unknown> | undefined;
       return {
-        id: String(f.id ?? ""),
-        name: String(f.name ?? ""),
+        id: String(d.id ?? ""),
+        name: String(d.alias ?? d.name ?? ""),
         storageDomainId: sd ? String(sd.id ?? "") : "",
         storageDomainName: sd ? String(sd.name ?? "") : "",
-        sizeGB: bytesToGB(Number(f.size ?? 0)),
+        sizeGB: bytesToGB(Number(d.actual_size ?? d.provisioned_size ?? 0)),
       };
     })
     .filter((iso) => iso.id)
