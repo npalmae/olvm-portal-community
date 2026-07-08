@@ -1416,7 +1416,7 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
           },
         }
       : undefined,
-    template: payload.templateId ? { id: payload.templateId } : undefined,
+    template: { id: payload.templateId || "00000000-0000-0000-0000-000000000000" },
     comment: payload.comment,
   };
 
