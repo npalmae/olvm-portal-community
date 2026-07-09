@@ -40,6 +40,7 @@ type VmDraft = { memoryMB?: string; cpuCores?: string; sockets?: string };
 type NewVmDraft = {
   name: string; clusterId: string; templateId: string;
   memoryMB: string; cpuCores: string; sockets: string; comment: string;
+  os: string;
 };
 
 type ActionLog = {
@@ -233,11 +234,14 @@ export default function Home() {
   const [mountedIso, setMountedIso] = useState<string | null>(null);
   const [newDiskSize, setNewDiskSize] = useState("50");
   const [newDiskSd, setNewDiskSd] = useState("");
+  const [newDiskIface, setNewDiskIface] = useState("virtio_scsi");
+  const [vmDiskList, setVmDiskList] = useState<{ attachmentId: string; diskId: string; name: string; sizeGB: number; interface: string; bootable: boolean; status: string }[]>([]);
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
     memoryMB: "", cpuCores: "", sockets: "1", comment: "",
+    os: "linux",
   });
   const [provClusters, setProvClusters] = useState<{ id: string; name: string }[]>([]);
   const [provTemplates, setProvTemplates] = useState<{ id: string; name: string }[]>([]);
@@ -424,6 +428,26 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [selectedTenant]);
 
+  // Carga discos de la VM seleccionada
+  useEffect(() => {
+    setVmDiskList([]);
+    if (!selectedVmId || !selectedTenant || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/vms/${selectedVmId}/disk`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && Array.isArray(data)) setVmDiskList(data);
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedVmId, selectedTenant]);
+
+  // Default interface based on OS
+  useEffect(() => {
+    setNewDiskIface(newVm.os === "windows" ? "sata" : "virtio_scsi");
+  }, [newVm.os]);
+
   const tenantName = useMemo(
     () =>
       selectedTenant === ALL_TENANTS
@@ -509,11 +533,33 @@ export default function Home() {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sizeGB: Number(newDiskSize) || 50, storageDomainId: sdId }),
+        body: JSON.stringify({ sizeGB: Number(newDiskSize) || 50, storageDomainId: sdId, interface: newDiskIface }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess(`Disco de ${newDiskSize} GB creado`);
+      setSuccess(`Disco de ${newDiskSize} GB creado (${newDiskIface})`);
+      const res2 = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk`);
+      const d2 = await parseJsonSafe(res2);
+      if (Array.isArray(d2)) setVmDiskList(d2);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteDisk = async (vmId: string, attachmentId: string, diskId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-del-disk`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk?attachmentId=${attachmentId}&diskId=${diskId}`, {
+        method: "DELETE",
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess("Disco eliminado");
+      setVmDiskList(vmDiskList.filter((d) => d.attachmentId !== attachmentId));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -641,7 +687,7 @@ export default function Home() {
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo crear la VM");
       setSuccess("VM creada (el aprovisionamiento puede tardar)");
-      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "" });
+      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux" });
       refresh();
     } catch (err) { setError((err as Error).message); }
     finally { setActionLoading(null); }
@@ -1831,7 +1877,26 @@ export default function Home() {
                     {selectedTenant !== ALL_TENANTS && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Disco</p>
+                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Discos</p>
+                        {vmDiskList.length > 0 && (
+                          <div className="space-y-1">
+                            {vmDiskList.map((d) => (
+                              <div key={d.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1" style={{ borderColor: "var(--border)" }}>
+                                <span className="flex-1 truncate text-[10px] text-gray-600">{d.name}</span>
+                                <span className="shrink-0 text-[10px] text-gray-400">{d.sizeGB.toFixed(0)}GB</span>
+                                <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{d.interface || "?"}</span>
+                                {d.bootable && <span className="shrink-0 rounded bg-blue-50 px-1 py-0.5 text-[9px] text-blue-600">boot</span>}
+                                <button
+                                  onClick={() => handleDeleteDisk(selectedVm.id, d.attachmentId, d.diskId)}
+                                  disabled={actionLoading === `${selectedVm.id}-del-disk`}
+                                  className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  Del
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 gap-1.5">
                           <input
                             type="number" min={1}
@@ -1853,6 +1918,16 @@ export default function Home() {
                             ))}
                           </select>
                         </div>
+                        <select
+                          value={newDiskIface}
+                          onChange={(e) => setNewDiskIface(e.target.value)}
+                          className="w-full rounded-md border px-2 py-1.5 text-[11px]"
+                          style={{ borderColor: "var(--border)" }}
+                        >
+                          <option value="virtio_scsi">VirtIO SCSI (Linux)</option>
+                          <option value="sata">SATA (Windows)</option>
+                          <option value="ide">IDE (compatibilidad)</option>
+                        </select>
                         <ActionButton
                           label="Agregar disco"
                           onClick={() => handleAddDisk(selectedVm.id)}
@@ -1928,6 +2003,13 @@ export default function Home() {
                   <Field label="Nombre *">
                     <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
                       className={inputCls} placeholder="vm-app-01" />
+                  </Field>
+                  <Field label="OS a instalar">
+                    <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
+                      className={inputCls}>
+                      <option value="linux">Linux (virtio)</option>
+                      <option value="windows">Windows (SATA + virtio drivers)</option>
+                    </select>
                   </Field>
                   <Field label="Cluster *">
                     <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}

@@ -1045,6 +1045,7 @@ type RawNic = {
 type RawDiskAttachment = {
   id?: string;
   interface?: string;
+  bootable?: boolean;
   disk?: {
     id?: string;
     name?: string;
@@ -1626,10 +1627,9 @@ export const addDiskToVm = async (
     name: params.name || `disk-${vmId.slice(0, 8)}`,
     provisioned_size: provisionedSize,
     format: "cow",
-    storage_domains: [{ id: params.storageDomainId }],
-    interface: params.interface || "virtio_scsi",
-    bootable: true,
-    active: true,
+    storage_domains: {
+      storage_domain: [{ id: params.storageDomainId }],
+    },
   };
   const created = await olvmFetch(tenant, "/disks", {
     method: "POST",
@@ -1644,9 +1644,72 @@ export const addDiskToVm = async (
     bootable: true,
     interface: params.interface || "virtio_scsi",
   };
-  await olvmFetch(tenant, `/vms/${vmId}/diskattachments`, {
-    method: "POST",
-    body: JSON.stringify(attachPayload),
+
+  let attached = false;
+  let lastErr = "";
+  for (let attempt = 0; attempt < 12; attempt++) {
+    try {
+      await olvmFetch(tenant, `/vms/${vmId}/diskattachments`, {
+        method: "POST",
+        body: JSON.stringify(attachPayload),
+      });
+      attached = true;
+      break;
+    } catch (err) {
+      lastErr = (err as Error).message;
+      if (!lastErr.toLowerCase().includes("locked")) throw err;
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+  if (!attached) throw new Error(`Disco creado pero no se pudo conectar: ${lastErr}`);
+};
+
+export type VmDiskDetail = {
+  attachmentId: string;
+  diskId: string;
+  name: string;
+  sizeGB: number;
+  interface: string;
+  bootable: boolean;
+  status: string;
+};
+
+export const fetchVmDiskDetails = async (
+  tenantId: string,
+  vmId: string,
+): Promise<VmDiskDetail[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/diskattachments?follow=disk`),
+  );
+  const attachments = parseDiskAttachments(data);
+  return attachments.map((a) => {
+    const d = a.disk ?? {};
+    return {
+      attachmentId: String(a.id ?? ""),
+      diskId: String(d.id ?? ""),
+      name: String(d.name ?? d.alias ?? "sin nombre"),
+      sizeGB: bytesToGB(Number(d.provisioned_size ?? d.total_size ?? 0)),
+      interface: String(a.interface ?? d.interface ?? ""),
+      bootable: Boolean(a.bootable),
+      status: String(d.status ?? ""),
+    };
+  });
+};
+
+export const deleteVmDisk = async (
+  tenantId: string,
+  vmId: string,
+  attachmentId: string,
+  diskId: string,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  await olvmFetch(tenant, `/vms/${vmId}/diskattachments/${attachmentId}`, {
+    method: "DELETE",
+  });
+  await olvmFetch(tenant, `/disks/${diskId}`, {
+    method: "DELETE",
   });
 };
 
@@ -1656,9 +1719,11 @@ export const runOnceFromCd = async (
 ): Promise<void> => {
   const tenant = getTenantById(tenantId);
   const payload = {
-    os: {
-      boot: {
-        devices: { device: ["cdrom", "hd"] },
+    vm: {
+      os: {
+        boot: {
+          devices: { device: ["cdrom", "hd"] },
+        },
       },
     },
   };

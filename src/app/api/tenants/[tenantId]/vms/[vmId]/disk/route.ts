@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
-import { addDiskToVm } from "@/lib/olvmClient";
+import { addDiskToVm, fetchVmDiskDetails, deleteVmDisk } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
 type Params = {
   params: Promise<{ tenantId: string; vmId: string }>;
 };
+
+export async function GET(_req: NextRequest, context: Params) {
+  const { tenantId, vmId } = await context.params;
+  try {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    assertTenantAccess(session.user, tenantId);
+    const disks = await fetchVmDiskDetails(tenantId, vmId);
+    return NextResponse.json(disks);
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+  }
+}
 
 export async function POST(req: NextRequest, context: Params) {
   const { tenantId, vmId } = await context.params;
@@ -33,6 +46,28 @@ export async function POST(req: NextRequest, context: Params) {
       name: body.name ? String(body.name) : undefined,
       interface: body.interface ? String(body.interface) : undefined,
     });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+  }
+}
+
+export async function DELETE(req: NextRequest, context: Params) {
+  const { tenantId, vmId } = await context.params;
+  try {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    assertTenantAccess(session.user, tenantId, "admin");
+
+    const { searchParams } = new URL(req.url);
+    const attachmentId = searchParams.get("attachmentId");
+    const diskId = searchParams.get("diskId");
+
+    if (!attachmentId || !diskId) {
+      return NextResponse.json({ error: "attachmentId y diskId son requeridos" }, { status: 400 });
+    }
+
+    await deleteVmDisk(tenantId, vmId, attachmentId, diskId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 502 });
