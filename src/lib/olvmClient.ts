@@ -1589,7 +1589,7 @@ export const fetchIsos = async (tenantId: string): Promise<IsoInfo[]> => {
 
 export const mountIso = async (tenantId: string, vmId: string, isoId: string): Promise<void> => {
   const tenant = getTenantById(tenantId);
-  const body = JSON.stringify({ cdrom: { file: { id: isoId } } });
+  const body = JSON.stringify({ file: { id: isoId } });
   await olvmFetch(tenant, `/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`, {
     method: "PUT",
     body,
@@ -1599,7 +1599,7 @@ export const mountIso = async (tenantId: string, vmId: string, isoId: string): P
 
 export const unmountIso = async (tenantId: string, vmId: string): Promise<void> => {
   const tenant = getTenantById(tenantId);
-  const body = JSON.stringify({ cdrom: { file: { id: "00000000-0000-0000-0000-000000000000" } } });
+  const body = JSON.stringify({ file: { id: "00000000-0000-0000-0000-000000000000" } });
   await olvmFetch(tenant, `/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`, {
     method: "PUT",
     body,
