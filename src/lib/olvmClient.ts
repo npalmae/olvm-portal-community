@@ -1614,3 +1614,57 @@ export const fetchCurrentIso = async (tenantId: string, vmId: string): Promise<s
   const fileId = (file?.file as Record<string, unknown> | undefined)?.id;
   return fileId && fileId !== "00000000-0000-0000-0000-000000000000" ? String(fileId) : null;
 };
+
+export const addDiskToVm = async (
+  tenantId: string,
+  vmId: string,
+  params: { sizeGB: number; storageDomainId: string; name?: string; interface?: string },
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const provisionedSize = params.sizeGB * 1024 * 1024 * 1024;
+  const diskPayload: Record<string, unknown> = {
+    name: params.name || `disk-${vmId.slice(0, 8)}`,
+    provisioned_size: provisionedSize,
+    format: "cow",
+    storage_domains: [{ id: params.storageDomainId }],
+    interface: params.interface || "virtio_scsi",
+    bootable: true,
+    active: true,
+  };
+  const created = await olvmFetch(tenant, "/disks", {
+    method: "POST",
+    body: JSON.stringify(diskPayload),
+  });
+  const diskId = (created as { id?: string } | null)?.id;
+  if (!diskId) throw new Error("No se pudo crear el disco");
+
+  const attachPayload = {
+    disk: { id: diskId },
+    active: true,
+    bootable: true,
+    interface: params.interface || "virtio_scsi",
+  };
+  await olvmFetch(tenant, `/vms/${vmId}/diskattachments`, {
+    method: "POST",
+    body: JSON.stringify(attachPayload),
+  });
+};
+
+export const runOnceFromCd = async (
+  tenantId: string,
+  vmId: string,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const payload = {
+    os: {
+      boot: {
+        devices: { device: ["cdrom", "hd"] },
+      },
+    },
+  };
+  await olvmFetch(tenant, `/vms/${vmId}/start`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+  });
+};

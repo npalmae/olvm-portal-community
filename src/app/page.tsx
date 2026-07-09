@@ -231,6 +231,8 @@ export default function Home() {
   const [storageDomains, setStorageDomains] = useState<{ id: string; name: string; type: string; status?: string; availableGB: number; usedGB: number; totalGB: number }[]>([]);
   const [isoList, setIsoList] = useState<{ id: string; name: string; storageDomainName: string; sizeGB: number }[]>([]);
   const [mountedIso, setMountedIso] = useState<string | null>(null);
+  const [newDiskSize, setNewDiskSize] = useState("50");
+  const [newDiskSd, setNewDiskSd] = useState("");
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
@@ -490,6 +492,49 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error ?? "Error");
       setMountedIso(isoId);
       setSuccess(isoId ? "ISO montada" : "ISO desmontada");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAddDisk = async (vmId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-disk`);
+    try {
+      const sdId = newDiskSd || storageDomains[0]?.id;
+      if (!sdId) throw new Error("No hay storage domains disponibles");
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sizeGB: Number(newDiskSize) || 50, storageDomainId: sdId }),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess(`Disco de ${newDiskSize} GB creado`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRunOnceCd = async (vmId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-run_once`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run_once_cd" }),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess("VM encendida desde CD");
+      await refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -1781,6 +1826,43 @@ export default function Home() {
                             </option>
                           ))}
                         </select>
+                      </>
+                    )}
+                    {selectedTenant !== ALL_TENANTS && (
+                      <>
+                        <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Disco</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input
+                            type="number" min={1}
+                            value={newDiskSize}
+                            onChange={(e) => setNewDiskSize(e.target.value)}
+                            className="rounded-md border px-2 py-1.5 text-[11px]"
+                            style={{ borderColor: "var(--border)" }}
+                            placeholder="GB"
+                          />
+                          <select
+                            value={newDiskSd}
+                            onChange={(e) => setNewDiskSd(e.target.value)}
+                            className="rounded-md border px-2 py-1.5 text-[11px]"
+                            style={{ borderColor: "var(--border)" }}
+                          >
+                            <option value="">SD automático</option>
+                            {storageDomains.map((sd) => (
+                              <option key={sd.id} value={sd.id}>{sd.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <ActionButton
+                          label="Agregar disco"
+                          onClick={() => handleAddDisk(selectedVm.id)}
+                          loading={actionLoading === `${selectedVm.id}-disk`}
+                        />
+                        <ActionButton
+                          label="Encender desde CD"
+                          onClick={() => handleRunOnceCd(selectedVm.id)}
+                          loading={actionLoading === `${selectedVm.id}-run_once`}
+                        />
                       </>
                     )}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />

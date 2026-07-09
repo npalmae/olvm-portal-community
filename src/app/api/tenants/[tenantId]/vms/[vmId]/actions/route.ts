@@ -5,6 +5,7 @@ import {
   cloneVm,
   enforceVmTagPolicy,
   isSupportedAction,
+  runOnceFromCd,
   sendVmAction,
 } from "@/lib/olvmClient";
 
@@ -46,6 +47,11 @@ export async function POST(request: Request, context: Params) {
       }
       const cloned = await cloneVm(tenantId, vmId, cloneName);
       return NextResponse.json({ ok: true, cloned });
+    }
+
+    if (action === "run_once_cd") {
+      await runOnceFromCd(tenantId, vmId);
+      return NextResponse.json({ ok: true });
     }
 
     if (!isSupportedAction(action)) {
