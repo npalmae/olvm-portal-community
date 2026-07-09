@@ -1752,3 +1752,73 @@ export const deleteVm = async (tenantId: string, vmId: string): Promise<void> =>
   await new Promise((r) => setTimeout(r, 3000));
   await olvmFetch(tenant, `/vms/${vmId}`, { method: "DELETE" });
 };
+
+export const uploadIso = async (
+  tenantId: string,
+  fileName: string,
+  fileSize: number,
+  storageDomainId: string,
+  fileBuffer: Buffer,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+
+  // 1. Crear disco ISO
+  const diskRes = await olvmFetch(tenant, "/disks", {
+    method: "POST",
+    body: JSON.stringify({
+      name: fileName,
+      alias: fileName,
+      content_type: "iso",
+      format: "raw",
+      provisioned_size: fileSize,
+      storage_domains: { storage_domain: [{ id: storageDomainId }] },
+    }),
+  }) as Record<string, unknown> | null;
+  const diskId = String(diskRes?.id ?? "");
+  if (!diskId) throw new Error("No se pudo crear el disco ISO");
+
+  // 2. Crear image transfer (upload)
+  const transferRes = await olvmFetch(tenant, "/imagetransfers", {
+    method: "POST",
+    body: JSON.stringify({
+      disk: { id: diskId },
+      direction: "upload",
+    }),
+  }) as Record<string, unknown> | null;
+  const transferId = String(transferRes?.id ?? "");
+  const proxyUrl = String(transferRes?.proxy_url ?? transferRes?.transfer_url ?? "");
+  if (!transferId || !proxyUrl) throw new Error("No se pudo iniciar la transferencia de imagen");
+
+  // 3. Esperar a que el transfer esté listo (phase = transferring)
+  let ready = false;
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`)) as Record<string, unknown> | null;
+    const phase = String(t?.phase ?? "");
+    if (phase === "transferring") { ready = true; break; }
+    if (phase.includes("failure") || phase.includes("error")) break;
+  }
+  if (!ready) throw new Error("La transferencia no se pudo inicializar");
+
+  // 4. Subir el archivo al proxy_url
+  const uploadDispatcher = new UndiciAgent({
+    connect: tenant.allowInsecure ? { rejectUnauthorized: false } : undefined,
+  });
+  const uploadRes = await fetch(proxyUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "application/octet-stream", "Content-Length": String(fileSize) },
+    body: fileBuffer,
+    dispatcher: uploadDispatcher as any,
+    duplex: "half",
+  } as any);
+  if (!uploadRes.ok) {
+    const detail = await uploadRes.text().catch(() => "");
+    throw new Error(`Upload fallido (${uploadRes.status}): ${detail}`);
+  }
+
+  // 5. Finalizar transfer
+  await olvmFetch(tenant, `/imagetransfers/${transferId}/finalize`, {
+    method: "POST",
+    body: "{}",
+  });
+};

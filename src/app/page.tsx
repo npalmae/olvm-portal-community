@@ -236,6 +236,7 @@ export default function Home() {
   const [newDiskSd, setNewDiskSd] = useState("");
   const [newDiskIface, setNewDiskIface] = useState("virtio_scsi");
   const [vmDiskList, setVmDiskList] = useState<{ attachmentId: string; diskId: string; name: string; sizeGB: number; interface: string; bootable: boolean; status: string }[]>([]);
+  const [uploadingIso, setUploadingIso] = useState(false);
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
@@ -603,6 +604,27 @@ export default function Home() {
       setError((err as Error).message);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleUploadIso = async (file: File) => {
+    const tid = selectedTenant;
+    if (!tid || tid === ALL_TENANTS) return;
+    const sd = storageDomains[0];
+    if (!sd) { setError("No hay storage domains disponibles para subir ISO"); return; }
+    setUploadingIso(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("storageDomainId", sd.id);
+      const res = await fetch(`/api/tenants/${tid}/isos/upload`, { method: "POST", body: form });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess(`ISO "${file.name}" subida correctamente`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploadingIso(false);
     }
   };
 
@@ -1895,6 +1917,22 @@ export default function Home() {
                             </option>
                           ))}
                         </select>
+                        {isSuperadmin && (
+                          <label className={`flex w-full cursor-pointer items-center justify-center rounded-md border border-dashed border-gray-300 py-1.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 ${uploadingIso ? "opacity-50 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
+                            {uploadingIso ? "Subiendo ISO..." : "↑ Subir ISO al storage domain"}
+                            <input
+                              type="file"
+                              accept=".iso"
+                              className="hidden"
+                              disabled={uploadingIso}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleUploadIso(f);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                        )}
                       </>
                     )}
                     {selectedTenant !== ALL_TENANTS && (
