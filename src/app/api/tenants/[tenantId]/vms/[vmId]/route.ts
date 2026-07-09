@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import {
+  deleteVm,
   enforceVmTagPolicy,
   fetchVmById,
   updateVmResources,
@@ -78,6 +79,28 @@ export async function PATCH(request: Request, context: Params) {
     return NextResponse.json(
       { error: message },
       { status },
+    );
+  }
+}
+
+export async function DELETE(_: Request, context: Params) {
+  const { tenantId, vmId } = await context.params;
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) {
+      await enforceVmTagPolicy(tenantId, vmId);
+    }
+
+    await deleteVm(tenantId, vmId);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 502 },
     );
   }
 }

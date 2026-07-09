@@ -588,6 +588,24 @@ export default function Home() {
     }
   };
 
+  const handleDeleteVm = async (vmId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-delete`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}`, { method: "DELETE" });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess("VM eliminada");
+      setSelectedVmId("");
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const closeCloneWizard = () => {
     if (cloneWizard.submitting) return;
     setCloneWizard({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
@@ -682,6 +700,7 @@ export default function Home() {
           cpuCores: newVm.cpuCores ? Number(newVm.cpuCores) : undefined,
           sockets: newVm.sockets ? Number(newVm.sockets) : undefined,
           comment: newVm.comment || undefined,
+          os: newVm.os,
         }),
       });
       const data = await parseJsonSafe(res);
@@ -1843,7 +1862,11 @@ export default function Home() {
                               {isoList.find((i) => i.id === mountedIso)?.name ?? "ISO montada"}
                             </span>
                             <button
-                              onClick={() => handleMountIso(selectedVm.id, null)}
+                              onClick={() => {
+                                if (window.confirm("¿Expulsar la ISO montada?")) {
+                                  handleMountIso(selectedVm.id, null);
+                                }
+                              }}
                               disabled={actionLoading === `${selectedVm.id}-iso`}
                               className="ml-2 shrink-0 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                             >
@@ -1887,7 +1910,11 @@ export default function Home() {
                                 <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{d.interface || "?"}</span>
                                 {d.bootable && <span className="shrink-0 rounded bg-blue-50 px-1 py-0.5 text-[9px] text-blue-600">boot</span>}
                                 <button
-                                  onClick={() => handleDeleteDisk(selectedVm.id, d.attachmentId, d.diskId)}
+                                  onClick={() => {
+                                    if (window.confirm(`¿Eliminar el disco "${d.name}" (${d.sizeGB.toFixed(0)}GB)? Esta acción no se puede deshacer.`)) {
+                                      handleDeleteDisk(selectedVm.id, d.attachmentId, d.diskId);
+                                    }
+                                  }}
                                   disabled={actionLoading === `${selectedVm.id}-del-disk`}
                                   className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
                                 >
@@ -1941,6 +1968,15 @@ export default function Home() {
                       </>
                     )}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                    <ActionButton
+                      label="Eliminar VM"
+                      onClick={() => {
+                        if (window.confirm(`¿Eliminar la VM "${selectedVm.name}"?\nLos discos asociados también se eliminarán.\nEsta acción no se puede deshacer.`)) {
+                          handleDeleteVm(selectedVm.id);
+                        }
+                      }}
+                      loading={actionLoading === `${selectedVm.id}-delete`}
+                    />
                     <button
                       onClick={() => setSelectedVmId("")}
                       className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50"

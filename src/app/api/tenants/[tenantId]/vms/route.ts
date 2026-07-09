@@ -54,6 +54,7 @@ export async function POST(request: Request, context: Params) {
     const cpuCores = asPositiveNumber(body?.cpuCores);
     const sockets = asPositiveNumber(body?.sockets);
     const comment = asString(body?.comment);
+    const os = asString(body?.os);
 
     if (!name || !clusterId) {
       return NextResponse.json(
@@ -70,6 +71,7 @@ export async function POST(request: Request, context: Params) {
       cpuCores,
       sockets,
       comment: comment || undefined,
+      os: os || undefined,
     });
 
     return NextResponse.json({ ok: true });

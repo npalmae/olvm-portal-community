@@ -1401,10 +1401,16 @@ type CreateVmInput = {
   cpuCores?: number;
   sockets?: number;
   comment?: string;
+  os?: string;
 };
 
 export const createVm = async (tenantId: string, payload: CreateVmInput) => {
   const tenant = getTenantById(tenantId);
+  const osType = payload.os === "windows"
+    ? "windows_2022"
+    : payload.os === "linux"
+    ? "rhel_9x64"
+    : "other";
   const body: Record<string, unknown> = {
     name: payload.name,
     cluster: { id: payload.clusterId },
@@ -1418,6 +1424,7 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
         }
       : undefined,
     template: { id: payload.templateId || "00000000-0000-0000-0000-000000000000" },
+    os: { type: osType },
     comment: payload.comment,
   };
 
@@ -1732,4 +1739,16 @@ export const runOnceFromCd = async (
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json", Accept: "application/json" },
   });
+};
+
+export const deleteVm = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  try {
+    await olvmFetch(tenant, `/vms/${vmId}/stop`, { method: "POST", body: "{}" });
+  } catch (err) {
+    const msg = (err as Error).message.toLowerCase();
+    if (!msg.includes("already") && !msg.includes("down") && !msg.includes("not")) throw err;
+  }
+  await new Promise((r) => setTimeout(r, 3000));
+  await olvmFetch(tenant, `/vms/${vmId}`, { method: "DELETE" });
 };
