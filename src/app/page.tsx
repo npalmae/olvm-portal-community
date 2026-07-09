@@ -613,6 +613,8 @@ export default function Home() {
     const sd = storageDomains[0];
     if (!sd) { setError("No hay storage domains disponibles para subir ISO"); return; }
     setUploadingIso(true);
+    setError(null);
+    setSuccess(null);
     try {
       const form = new FormData();
       form.append("file", file);

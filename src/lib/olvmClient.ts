@@ -1791,18 +1791,21 @@ export const uploadIso = async (
 
   // 3. Esperar a que el transfer esté listo (phase = transferring)
   let ready = false;
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 2000));
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
     const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`)) as Record<string, unknown> | null;
     const phase = String(t?.phase ?? "");
     if (phase === "transferring") { ready = true; break; }
     if (phase.includes("failure") || phase.includes("error")) break;
   }
-  if (!ready) throw new Error("La transferencia no se pudo inicializar");
+  if (!ready) throw new Error("La transferencia no se pudo inicializar (timeout esperando phase=transferring)");
 
   // 4. Subir el archivo al proxy_url
   const uploadDispatcher = new UndiciAgent({
     connect: tenant.allowInsecure ? { rejectUnauthorized: false } : undefined,
+    bodyTimeout: 0,
+    headersTimeout: 0,
+    keepAliveTimeout: 30000,
   });
   const uploadRes = await fetch(proxyUrl, {
     method: "PUT",

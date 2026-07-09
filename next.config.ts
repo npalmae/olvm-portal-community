@@ -2,12 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   eslint: {
-    // Linting fails in offline environments; skip during builds so the app can compile.
     ignoreDuringBuilds: true,
   },
   devIndicators: {
     appIsrStatus: false,
     buildActivity: false,
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10gb",
+    },
   },
   webpack: (config) => {
     config.experiments = {

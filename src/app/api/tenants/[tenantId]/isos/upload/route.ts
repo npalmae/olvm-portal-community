@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
+import { assertTenantAccess } from "@/lib/authz";
 import { uploadIso } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 600;
+export const fetchCache = "force-no-store";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await ctx.params;
