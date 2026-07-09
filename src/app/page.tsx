@@ -1742,7 +1742,7 @@ export default function Home() {
                         />
                       </>
                     )}
-                    {selectedTenant !== ALL_TENANTS && isoList.length > 0 && (
+                    {selectedTenant !== ALL_TENANTS && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">ISO / CD-ROM</p>
@@ -1762,6 +1762,13 @@ export default function Home() {
                         )}
                         <select
                           value=""
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/tenants/${selectedTenant}/isos`);
+                              const data = await parseJsonSafe(res);
+                              if (res.ok && Array.isArray(data)) setIsoList(data);
+                            } catch { /* noop */ }
+                          }}
                           onChange={(e) => e.target.value && handleMountIso(selectedVm.id, e.target.value)}
                           disabled={actionLoading === `${selectedVm.id}-iso`}
                           className={`w-full rounded-md border px-2 py-1.5 text-[11px] ${actionLoading === `${selectedVm.id}-iso}` ? "opacity-50" : ""}`}
