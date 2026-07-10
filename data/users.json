@@ -78,5 +78,37 @@
     ],
     "twoFactorEnabled": true,
     "createdAt": "2026-07-07T16:35:27.181Z"
+  },
+  {
+    "id": "8c41e83c-6e41-470f-b506-d8b7be9b0426",
+    "email": "proyectos@sixmanager.com",
+    "password": "$2b$10$aMhw4uxcb54NtsuLeLg9i.EaKgdro1CjS7TnuzxzsMh1xKooE7n0G",
+    "name": "Proyectos",
+    "defaultTenantId": "cliente1",
+    "globalRole": null,
+    "memberships": [
+      {
+        "tenantId": "cliente1",
+        "role": "admin"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-10T19:33:55.784Z"
+  },
+  {
+    "id": "c85529a0-ad32-4afa-8b60-72946d8417fe",
+    "email": "spalma@sixmanager.com",
+    "password": "$2b$10$2Lp42uznpvXdI5BH2HAvw.Ga/m2sK8cpcdOi5.OdxDwSdjdy7V08y",
+    "name": "Simon Palma",
+    "defaultTenantId": "cliente1",
+    "globalRole": null,
+    "memberships": [
+      {
+        "tenantId": "cliente1",
+        "role": "user"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-10T19:35:27.089Z"
   }
 ]

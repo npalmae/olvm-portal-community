@@ -1762,7 +1762,7 @@ export const uploadIso = async (
 ): Promise<void> => {
   const tenant = getTenantById(tenantId);
 
-  // 1. Crear disco ISO
+  // 1. Crear disco ISO (sparse:false requerido por OLVM)
   const diskRes = await olvmFetch(tenant, "/disks", {
     method: "POST",
     body: JSON.stringify({
@@ -1770,12 +1770,21 @@ export const uploadIso = async (
       alias: fileName,
       content_type: "iso",
       format: "raw",
+      sparse: false,
       provisioned_size: fileSize,
       storage_domains: { storage_domain: [{ id: storageDomainId }] },
     }),
   }) as Record<string, unknown> | null;
   const diskId = String(diskRes?.id ?? "");
   if (!diskId) throw new Error("No se pudo crear el disco ISO");
+
+  // Esperar a que el disco esté ok (puede tardar un poco)
+  for (let i = 0; i < 30; i++) {
+    const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`)) as Record<string, unknown> | null;
+    const status = String(d?.status ?? "");
+    if (status === "ok") break;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
 
   // 2. Crear image transfer (upload)
   const transferRes = await olvmFetch(tenant, "/imagetransfers", {
@@ -1784,30 +1793,59 @@ export const uploadIso = async (
       disk: { id: diskId },
       direction: "upload",
     }),
-  }) as Record<string, unknown> | null;
-  const transferId = String(transferRes?.id ?? "");
-  const proxyUrl = String(transferRes?.proxy_url ?? transferRes?.transfer_url ?? "");
+  });
+  // olvmFetch puede devolver string XML o objeto JSON
+  let transferId = "";
+  let proxyUrl = "";
+  if (typeof transferRes === "string") {
+    const idMatch = transferRes.match(/<image_transfer[^>]*id="([^"]+)"/);
+    transferId = idMatch?.[1] ?? "";
+    const proxyMatch = transferRes.match(/<proxy_url>([^<]+)<\/proxy_url>/);
+    const transferUrlMatch = transferRes.match(/<transfer_url>([^<]+)<\/transfer_url>/);
+    proxyUrl = proxyMatch?.[1] ?? transferUrlMatch?.[1] ?? "";
+  } else {
+    const t = transferRes as Record<string, unknown> | null;
+    transferId = String(t?.id ?? "");
+    proxyUrl = String(t?.proxy_url ?? t?.transfer_url ?? "");
+  }
   if (!transferId || !proxyUrl) throw new Error("No se pudo iniciar la transferencia de imagen");
 
-  // 3. Esperar a que el transfer esté listo (phase = transferring)
+  // 3. Esperar a que el transfer esté listo
   let ready = false;
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 1000));
-    const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`)) as Record<string, unknown> | null;
-    const phase = String(t?.phase ?? "");
+    const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`));
+    let phase = "";
+    if (typeof t === "string") {
+      const pm = t.match(/<phase>([^<]+)<\/phase>/);
+      phase = pm?.[1] ?? "";
+    } else {
+      phase = String((t as Record<string, unknown>)?.phase ?? "");
+    }
     if (phase === "transferring") { ready = true; break; }
     if (phase.includes("failure") || phase.includes("error")) break;
   }
-  if (!ready) throw new Error("La transferencia no se pudo inicializar (timeout esperando phase=transferring)");
+  if (!ready) throw new Error("La transferencia no se pudo inicializar");
 
-  // 4. Subir el archivo al proxy_url
+  // 4. Subir el archivo
+  // Reemplazar hostname del proxy_url por la IP del engine si no resuelve
+  const engineHost = new URL(tenant.baseUrl).hostname;
+  let uploadUrl = proxyUrl;
+  try {
+    const proxyHost = new URL(proxyUrl).hostname;
+    if (proxyHost !== engineHost && proxyHost !== "localhost") {
+      // Intentar con la IP del engine en el mismo puerto
+      uploadUrl = proxyUrl.replace(proxyHost, engineHost);
+    }
+  } catch { /* usar URL original */ }
+
   const uploadDispatcher = new UndiciAgent({
-    connect: tenant.allowInsecure ? { rejectUnauthorized: false } : undefined,
+    connect: { rejectUnauthorized: false },
     bodyTimeout: 0,
     headersTimeout: 0,
     keepAliveTimeout: 30000,
   });
-  const uploadRes = await fetch(proxyUrl, {
+  const uploadRes = await fetch(uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": "application/octet-stream", "Content-Length": String(fileSize) },
     body: fileBuffer,
