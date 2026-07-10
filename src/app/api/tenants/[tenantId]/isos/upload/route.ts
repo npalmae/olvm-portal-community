@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
-import { uploadIso } from "@/lib/olvmClient";
+import {
+  initIsoUploadSession,
+  uploadIsoChunk,
+  finalizeIsoUpload,
+  type UploadSession,
+} from "@/lib/isoUploadStore";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
+
+const sessions = new Map<string, UploadSession>();
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await ctx.params;
@@ -15,34 +22,39 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId, "admin");
 
-    const contentType = req.headers.get("content-type") ?? "";
-    let fileName = "";
-    let fileSize = 0;
-    let fileBuffer: Buffer;
-    let storageDomainId = "";
+    const chunkIndex = req.headers.get("x-chunk-index");
+    const totalChunks = req.headers.get("x-total-chunks");
+    const fileName = req.headers.get("x-file-name");
+    const fileSize = req.headers.get("x-file-size");
+    const storageDomainId = req.headers.get("x-storage-domain-id");
+    const sessionId = req.headers.get("x-session-id") || "default";
 
-    if (contentType.includes("multipart/form-data")) {
-      const formData = await req.formData();
-      const file = formData.get("file") as File | null;
-      storageDomainId = formData.get("storageDomainId") as string;
-      if (!file) return NextResponse.json({ error: "Archivo no encontrado" }, { status: 400 });
-      fileName = file.name;
-      fileSize = file.size;
-      fileBuffer = Buffer.from(await file.arrayBuffer());
-    } else {
-      // Binary upload: headers carry metadata
-      fileName = req.headers.get("x-file-name") ?? "upload.iso";
-      storageDomainId = req.headers.get("x-storage-domain-id") ?? "";
-      fileSize = Number(req.headers.get("content-length") ?? 0);
-      fileBuffer = Buffer.from(await req.arrayBuffer());
+    // Sin chunk headers = iniciar sesión
+    if (chunkIndex === null) {
+      if (!fileName || !fileSize || !storageDomainId) {
+        return NextResponse.json({ error: "Faltan headers x-file-name, x-file-size, x-storage-domain-id" }, { status: 400 });
+      }
+      const sid = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const uploadSession = await initIsoUploadSession(tenantId, decodeURIComponent(fileName), Number(fileSize), storageDomainId, sessions, sid);
+      return NextResponse.json({ sessionId: sid, transferId: uploadSession.transferId });
     }
 
-    if (!storageDomainId) return NextResponse.json({ error: "storageDomainId requerido" }, { status: 400 });
-    if (fileSize === 0) return NextResponse.json({ error: "Archivo vacio" }, { status: 400 });
+    // Recibir chunk
+    const idx = Number(chunkIndex);
+    const total = Number(totalChunks);
+    if (!sessions.has(sessionId)) {
+      return NextResponse.json({ error: "Sesión no encontrada" }, { status: 404 });
+    }
 
-    await uploadIso(tenantId, fileName, fileSize, storageDomainId, fileBuffer);
+    const chunkBuffer = Buffer.from(await req.arrayBuffer());
+    const result = await uploadIsoChunk(sessionId, idx, total, chunkBuffer, sessions);
 
-    return NextResponse.json({ ok: true, name: fileName });
+    if (result.done) {
+      await finalizeIsoUpload(sessionId, sessions);
+      sessions.delete(sessionId);
+    }
+
+    return NextResponse.json({ ok: true, chunk: idx, total, done: result.done });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 502 });
   }

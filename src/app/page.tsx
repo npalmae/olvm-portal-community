@@ -620,28 +620,66 @@ export default function Home() {
     setUploadFileName(file.name);
     setUploadProgress(0);
     try {
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
-        });
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else {
-            try {
-              const d = JSON.parse(xhr.responseText);
-              reject(new Error(d?.error ?? `Error ${xhr.status}`));
-            } catch { reject(new Error(`Error ${xhr.status}`)); }
-          }
-        });
-        xhr.addEventListener("error", () => reject(new Error("Error de red al subir")));
-        xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
-        xhr.open("POST", `/api/tenants/${tid}/isos/upload`);
-        xhr.setRequestHeader("Content-Type", "application/octet-stream");
-        xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
-        xhr.setRequestHeader("x-storage-domain-id", sd.id);
-        xhr.send(file);
+      const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+      // 1. Iniciar sesión de upload
+      const initRes = await fetch(`/api/tenants/${tid}/isos/upload`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "x-file-name": encodeURIComponent(file.name),
+          "x-file-size": String(file.size),
+          "x-storage-domain-id": sd.id,
+        },
+        body: new Uint8Array(0),
       });
+      const initData = await parseJsonSafe(initRes);
+      if (!initRes.ok) throw new Error(initData?.error ?? "No se pudo iniciar la subida");
+      const sessionId = initData.sessionId;
+
+      // 2. Subir chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        const chunkRes = await new Promise<Response>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              const chunkProgress = e.loaded / e.total;
+              const overall = ((i + chunkProgress) / totalChunks) * 100;
+              setUploadProgress(Math.round(overall));
+            }
+          });
+          xhr.addEventListener("load", () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(new Response(xhr.responseText, { status: xhr.status }));
+            } else {
+              try {
+                const d = JSON.parse(xhr.responseText);
+                reject(new Error(d?.error ?? `Error ${xhr.status} en chunk ${i + 1}`));
+              } catch { reject(new Error(`Error ${xhr.status} en chunk ${i + 1}`)); }
+            }
+          });
+          xhr.addEventListener("error", () => reject(new Error(`Error de red en chunk ${i + 1}/${totalChunks}`)));
+          xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
+          xhr.open("POST", `/api/tenants/${tid}/isos/upload`);
+          xhr.setRequestHeader("Content-Type", "application/octet-stream");
+          xhr.setRequestHeader("x-chunk-index", String(i));
+          xhr.setRequestHeader("x-total-chunks", String(totalChunks));
+          xhr.setRequestHeader("x-session-id", sessionId);
+          xhr.send(chunk);
+        });
+
+        const chunkData = await parseJsonSafe(chunkRes);
+        if (chunkData?.done) {
+          setUploadProgress(100);
+          break;
+        }
+      }
+
       setSuccess(`ISO "${file.name}" subida correctamente`);
     } catch (err) {
       setError((err as Error).message);
