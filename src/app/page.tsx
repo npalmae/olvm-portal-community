@@ -620,9 +620,6 @@ export default function Home() {
     setUploadFileName(file.name);
     setUploadProgress(0);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("storageDomainId", sd.id);
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener("progress", (e) => {
@@ -640,7 +637,10 @@ export default function Home() {
         xhr.addEventListener("error", () => reject(new Error("Error de red al subir")));
         xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
         xhr.open("POST", `/api/tenants/${tid}/isos/upload`);
-        xhr.send(form);
+        xhr.setRequestHeader("Content-Type", "application/octet-stream");
+        xhr.setRequestHeader("x-file-name", encodeURIComponent(file.name));
+        xhr.setRequestHeader("x-storage-domain-id", sd.id);
+        xhr.send(file);
       });
       setSuccess(`ISO "${file.name}" subida correctamente`);
     } catch (err) {
