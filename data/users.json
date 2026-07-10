@@ -22,11 +22,11 @@
     "email": "user-a@sixmanager.com",
     "password": "$2b$10$YXFBQ0DCcIG1V6wB4sahxu8g6Tdp3NcTF3TPrjMCY5l3me.9QvGG6",
     "name": "User A",
-    "defaultTenantId": "tenant-a",
+    "defaultTenantId": "produccion",
     "globalRole": null,
     "memberships": [
       {
-        "tenantId": "tenant-a",
+        "tenantId": "produccion",
         "role": "user"
       }
     ],
@@ -37,11 +37,11 @@
     "email": "user-b@sixmanager.com",
     "password": "$2b$10$Bhme4o/Oa3lbc0XNESk/Bu1ykPSoOcgUuuv3LEf1Uhx2aYBMIkyCO",
     "name": "User B",
-    "defaultTenantId": "tenant-b",
+    "defaultTenantId": "desarrollo",
     "globalRole": null,
     "memberships": [
       {
-        "tenantId": "tenant-b",
+        "tenantId": "desarrollo",
         "role": "user"
       }
     ],
@@ -52,11 +52,11 @@
     "email": "cfonseca@sixmanager.com",
     "password": "$2b$10$xIynI5k96yxyUsdbWLU4vO825cMxLUKaVwKPVcxc./I1rIaVH8Nw6",
     "name": "Claudio Fonseca",
-    "defaultTenantId": "tenant-a",
+    "defaultTenantId": "produccion",
     "globalRole": "superadmin",
     "memberships": [
       {
-        "tenantId": "tenant-a",
+        "tenantId": "produccion",
         "role": "user"
       }
     ],
@@ -68,11 +68,11 @@
     "email": "sistemas@sixmanager.com",
     "password": "$2b$10$rKXFFrZPcz7CFYNn37ybqelsHYC2/BzgQPkH.YlJqT169o1M10TDC",
     "name": "Sistemas",
-    "defaultTenantId": "tenant-a",
+    "defaultTenantId": "produccion",
     "globalRole": null,
     "memberships": [
       {
-        "tenantId": "tenant-a",
+        "tenantId": "produccion",
         "role": "user"
       }
     ],
