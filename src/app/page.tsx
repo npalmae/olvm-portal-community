@@ -1301,10 +1301,10 @@ export default function Home() {
             {uploadProgress !== null && (
               <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                 <div className="mb-1 flex items-center justify-between">
-                  <span>Subiendo "{uploadFileName}"... {uploadProgress}%</span>
+                  <span>{uploadProgress < 100 ? `Subiendo "${uploadFileName}"... ${uploadProgress}%` : `Procesando "${uploadFileName}" en OLVM...`}</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
-                  <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                  <div className={`h-full rounded-full ${uploadProgress < 100 ? "bg-blue-500" : "bg-blue-400 animate-pulse"} transition-all duration-300`} style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
             )}

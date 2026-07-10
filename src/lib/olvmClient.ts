@@ -1774,14 +1774,27 @@ export const uploadIso = async (
       provisioned_size: fileSize,
       storage_domains: { storage_domain: [{ id: storageDomainId }] },
     }),
-  }) as Record<string, unknown> | null;
-  const diskId = String(diskRes?.id ?? "");
+  });
+  // OLVM puede devolver XML o JSON
+  let diskId = "";
+  if (typeof diskRes === "string") {
+    const m = diskRes.match(/<disk[^>]*id="([^"]+)"/);
+    diskId = m?.[1] ?? "";
+  } else {
+    diskId = String((diskRes as Record<string, unknown>)?.id ?? "");
+  }
   if (!diskId) throw new Error("No se pudo crear el disco ISO");
 
   // Esperar a que el disco esté ok (puede tardar un poco)
   for (let i = 0; i < 30; i++) {
-    const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`)) as Record<string, unknown> | null;
-    const status = String(d?.status ?? "");
+    const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`));
+    let status = "";
+    if (typeof d === "string") {
+      const m = d.match(/<status[^>]*>([^<]+)<\/status>/);
+      status = m?.[1]?.trim() ?? "";
+    } else {
+      status = String((d as Record<string, unknown>)?.status ?? "");
+    }
     if (status === "ok") break;
     await new Promise((r) => setTimeout(r, 2000));
   }
@@ -1794,11 +1807,10 @@ export const uploadIso = async (
       direction: "upload",
     }),
   });
-  // olvmFetch puede devolver string XML o objeto JSON
   let transferId = "";
   let proxyUrl = "";
   if (typeof transferRes === "string") {
-    const idMatch = transferRes.match(/<image_transfer[^>]*id="([^"]+)"/);
+    const idMatch = transferRes.match(/<(?:image_transfer|image-transfer)[^>]*id="([^"]+)"/) ?? transferRes.match(/id="([^"]+)"/);
     transferId = idMatch?.[1] ?? "";
     const proxyMatch = transferRes.match(/<proxy_url>([^<]+)<\/proxy_url>/);
     const transferUrlMatch = transferRes.match(/<transfer_url>([^<]+)<\/transfer_url>/);
@@ -1818,7 +1830,7 @@ export const uploadIso = async (
     let phase = "";
     if (typeof t === "string") {
       const pm = t.match(/<phase>([^<]+)<\/phase>/);
-      phase = pm?.[1] ?? "";
+      phase = pm?.[1]?.trim() ?? "";
     } else {
       phase = String((t as Record<string, unknown>)?.phase ?? "");
     }
@@ -1827,14 +1839,12 @@ export const uploadIso = async (
   }
   if (!ready) throw new Error("La transferencia no se pudo inicializar");
 
-  // 4. Subir el archivo
-  // Reemplazar hostname del proxy_url por la IP del engine si no resuelve
+  // 4. Subir el archivo - reemplazar hostname por IP del engine
   const engineHost = new URL(tenant.baseUrl).hostname;
   let uploadUrl = proxyUrl;
   try {
     const proxyHost = new URL(proxyUrl).hostname;
     if (proxyHost !== engineHost && proxyHost !== "localhost") {
-      // Intentar con la IP del engine en el mismo puerto
       uploadUrl = proxyUrl.replace(proxyHost, engineHost);
     }
   } catch { /* usar URL original */ }
