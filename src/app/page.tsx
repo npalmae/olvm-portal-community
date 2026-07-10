@@ -217,6 +217,8 @@ export default function Home() {
   const [consoleLoading, setConsoleLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadFileName, setUploadFileName] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inventoryExpanded, setInventoryExpanded] = useState(true);
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
@@ -615,18 +617,38 @@ export default function Home() {
     setUploadingIso(true);
     setError(null);
     setSuccess(null);
+    setUploadFileName(file.name);
+    setUploadProgress(0);
     try {
       const form = new FormData();
       form.append("file", file);
       form.append("storageDomainId", sd.id);
-      const res = await fetch(`/api/tenants/${tid}/isos/upload`, { method: "POST", body: form });
-      const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else {
+            try {
+              const d = JSON.parse(xhr.responseText);
+              reject(new Error(d?.error ?? `Error ${xhr.status}`));
+            } catch { reject(new Error(`Error ${xhr.status}`)); }
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Error de red al subir")));
+        xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
+        xhr.open("POST", `/api/tenants/${tid}/isos/upload`);
+        xhr.send(form);
+      });
       setSuccess(`ISO "${file.name}" subida correctamente`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setUploadingIso(false);
+      setUploadProgress(null);
+      setUploadFileName("");
     }
   };
 
@@ -1276,6 +1298,16 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto p-4">
 
             {/* Toasts */}
+            {uploadProgress !== null && (
+              <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                <div className="mb-1 flex items-center justify-between">
+                  <span>Subiendo "{uploadFileName}"... {uploadProgress}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+                  <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              </div>
+            )}
             {error && (
               <div className="mb-3 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 <span>{error}</span>
