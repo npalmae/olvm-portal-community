@@ -131,6 +131,28 @@ export const loadEngines = (): OlvmEngine[] => {
     cache = seedEnginesFromEnv();
     if (cache.length) persist();
   }
+
+  // Aplicar shared SDs desde env var (siempre, para persistir config runtime)
+  const envSharedSds = process.env.OLVM_SHARED_SDS;
+  if (envSharedSds && cache.length) {
+    try {
+      const sharedSds = JSON.parse(envSharedSds) as string[];
+      if (Array.isArray(sharedSds) && sharedSds.length) {
+        let changed = false;
+        cache = cache.map((e) => {
+          const current = e.sharedStorageDomains ?? [];
+          const merged = [...new Set([...current, ...sharedSds])];
+          if (merged.length !== current.length) {
+            changed = true;
+            return { ...e, sharedStorageDomains: merged };
+          }
+          return e;
+        });
+        if (changed) persist();
+      }
+    } catch { /* noop */ }
+  }
+
   return cache;
 };
 
