@@ -60,6 +60,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       const name = decodeURIComponent(fileName);
       const size = Number(fileSize);
 
+      // 0. Verificar si ya existe una ISO con ese nombre
+      const existing = await olvmRaw(tenant, "/disks?search=name%3D" + encodeURIComponent(name));
+      let existingId = "";
+      try {
+        const ej = JSON.parse(existing);
+        const disks = ej.disk ?? [];
+        const match = disks.find((d: { content_type?: string }) => d.content_type === "iso");
+        existingId = match?.id ?? "";
+      } catch { /* ignore */ }
+      if (existingId) throw new Error(`Ya existe una ISO llamada "${name}"`);
+
       // 1. Crear disco
       const diskRes = await olvmRaw(tenant, "/disks", {
         method: "POST",
