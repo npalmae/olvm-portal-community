@@ -1108,24 +1108,18 @@ export default function Home() {
           style={{ borderColor: "var(--sidebar-border)" }}>
           {!sidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                {(() => {
-                  const t = tenants.find((t) => t.id === selectedTenant) ?? tenants[0];
-                  const logo = t?.brandLogoUrl;
-                  const brand = t?.brandName || "OLVM-PORTAL";
-                  if (logo) {
-                    return (
-                      <>
-                        <img src={logo} alt={brand} className="h-6 w-auto max-w-[80px] object-contain" />
-                        <span className="text-[13px] font-bold text-white leading-tight">{brand}</span>
-                      </>
-                    );
-                  }
-                  return <span className="text-[13px] font-bold text-white leading-tight">{brand}</span>;
-                })()}
-              </div>
-              <div className="text-[10px] font-medium uppercase tracking-widest"
-                style={{ color: "var(--sidebar-muted)" }}>OLVM-PORTAL</div>
+              {(() => {
+                const t = tenants.find((t) => t.id === selectedTenant) ?? tenants[0];
+                const logo = t?.brandLogoUrl;
+                const brand = t?.brandName || "OLVM-PORTAL";
+                return (
+                  <div className="leading-tight">
+                    {logo && <img src={logo} alt={brand} className="mb-1 h-8 w-auto max-w-[120px] object-contain" />}
+                    <div className="text-[13px] font-bold text-white">{brand}</div>
+                    <div className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "var(--sidebar-muted)" }}>OLVM-PORTAL</div>
+                  </div>
+                );
+              })()}
             </div>
           )}
           <button
