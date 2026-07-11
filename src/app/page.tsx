@@ -1110,11 +1110,16 @@ export default function Home() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 {(() => {
-                  const t = tenants.find((t) => t.id === selectedTenant);
+                  const t = tenants.find((t) => t.id === selectedTenant) ?? tenants[0];
                   const logo = t?.brandLogoUrl;
                   const brand = t?.brandName || "OLVM-PORTAL";
                   if (logo) {
-                    return <img src={logo} alt={brand} className="h-5 w-auto max-w-[24px] object-contain" />;
+                    return (
+                      <>
+                        <img src={logo} alt={brand} className="h-6 w-auto max-w-[80px] object-contain" />
+                        <span className="text-[13px] font-bold text-white leading-tight">{brand}</span>
+                      </>
+                    );
                   }
                   return <span className="text-[13px] font-bold text-white leading-tight">{brand}</span>;
                 })()}
