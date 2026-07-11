@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/olvm-logo.svg" alt="OLVM Portal" width="300">
+</p>
+
 # 🖥️ OLVM Portal
 
 **Plataforma de administración multitenant para OLVM / oVirt**
