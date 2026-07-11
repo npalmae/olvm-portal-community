@@ -1985,7 +1985,7 @@ export default function Home() {
                           <option value="">{actionLoading === `${selectedVm.id}-iso` ? "Montando..." : "Montar ISO..."}</option>
                           {isoList.filter((i) => i.id !== mountedIso).map((iso) => (
                             <option key={iso.id} value={iso.id}>
-                              {iso.name} ({iso.storageDomainName})
+                              {iso.name}{iso.storageDomainName ? ` (${iso.storageDomainName})` : ""}
                             </option>
                           ))}
                         </select>
