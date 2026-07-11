@@ -6,6 +6,16 @@ Portal web self-service que permite gestionar máquinas virtuales, storage domai
 
 ---
 
+## 📸 Capturas
+
+| Vista | Imagen |
+|-------|--------|
+| Login + 2FA | ![Login](docs/portal-login.png) |
+| Dashboard | ![Dashboard](docs/portal-dashboard.png) |
+| Gestión de VMs | ![VMs](docs/portal-vm-panel.png) |
+| Admin Tenants | ![Admin](docs/portal-admin.png) |
+| Admin Usuarios | ![Users](docs/portal-users.png) |
+
 ## ✨ Características
 
 ### 📊 Dashboard Inteligente
