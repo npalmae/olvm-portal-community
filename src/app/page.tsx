@@ -7,7 +7,7 @@ import { SixmanagerMark } from "@/components/SixmanagerMark";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
-type Tenant = { id: string; name: string; baseUrl: string };
+type Tenant = { id: string; name: string; baseUrl: string; brandName?: string; brandLogoUrl?: string };
 
 type Vm = {
   id: string;
@@ -1108,9 +1108,19 @@ export default function Home() {
           style={{ borderColor: "var(--sidebar-border)" }}>
           {!sidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-bold text-white leading-tight">SIXMANAGER</div>
+              <div className="flex items-center gap-1.5">
+                {(() => {
+                  const t = tenants.find((t) => t.id === selectedTenant);
+                  const logo = t?.brandLogoUrl;
+                  const brand = t?.brandName || "OLVM-PORTAL";
+                  if (logo) {
+                    return <img src={logo} alt={brand} className="h-5 w-auto max-w-[24px] object-contain" />;
+                  }
+                  return <span className="text-[13px] font-bold text-white leading-tight">{brand}</span>;
+                })()}
+              </div>
               <div className="text-[10px] font-medium uppercase tracking-widest"
-                style={{ color: "var(--sidebar-muted)" }}>OLVM Multitenant</div>
+                style={{ color: "var(--sidebar-muted)" }}>OLVM-PORTAL</div>
             </div>
           )}
           <button
@@ -1278,7 +1288,7 @@ export default function Home() {
                 <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
                 <path d="M6 14.5V9h4v5.5"/>
               </svg>
-              OLVM
+              OLVM-PORTAL
             </button>
             {tenantName && <><span className="shrink-0">/</span><span className="truncate">{tenantName}</span></>}
             {selectedVm && <><span className="shrink-0">/</span><span className="truncate text-gray-700">{selectedVm.name}</span></>}

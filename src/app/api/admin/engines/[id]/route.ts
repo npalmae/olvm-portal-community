@@ -28,6 +28,8 @@ const toPublic = (e: OlvmEngine) => ({
   allowInsecure: e.allowInsecure === true,
   hasCa: Boolean(e.caCert),
   sharedStorageDomains: e.sharedStorageDomains ?? [],
+  brandName: e.brandName ?? "",
+  brandLogoUrl: e.brandLogoUrl ?? "",
   createdAt: e.createdAt,
 });
 
@@ -79,6 +81,8 @@ export async function PATCH(request: Request, context: Params) {
       sharedStorageDomains: Array.isArray(body.sharedStorageDomains)
         ? body.sharedStorageDomains.map(String)
         : existing.sharedStorageDomains,
+      brandName: typeof body.brandName === "string" ? body.brandName : existing.brandName,
+      brandLogoUrl: typeof body.brandLogoUrl === "string" ? body.brandLogoUrl : existing.brandLogoUrl,
     });
     invalidateDispatcherCache();
     return NextResponse.json(toPublic(updated));

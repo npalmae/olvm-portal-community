@@ -11,6 +11,8 @@ export type OlvmEngine = {
   allowInsecure?: boolean;
   caCert?: string;
   sharedStorageDomains?: string[];
+  brandName?: string;
+  brandLogoUrl?: string;
   createdAt: string;
 };
 
@@ -194,6 +196,8 @@ export const createEngine = (input: EngineInput): OlvmEngine => {
     sharedStorageDomains: Array.isArray(input.sharedStorageDomains)
       ? input.sharedStorageDomains.filter(Boolean)
       : undefined,
+    brandName: input.brandName?.trim() || undefined,
+    brandLogoUrl: input.brandLogoUrl?.trim() || undefined,
     createdAt: new Date().toISOString(),
   };
   list.push(engine);
@@ -220,6 +224,8 @@ export const updateEngine = (
     allowInsecure: input.allowInsecure ?? current.allowInsecure,
     caCert: input.caCert ?? current.caCert,
     sharedStorageDomains: input.sharedStorageDomains ?? current.sharedStorageDomains,
+    brandName: input.brandName ?? current.brandName,
+    brandLogoUrl: input.brandLogoUrl ?? current.brandLogoUrl,
   };
 
   // Solo validar si hay cambios sustanciales
@@ -239,6 +245,8 @@ export const updateEngine = (
     sharedStorageDomains: Array.isArray(merged.sharedStorageDomains)
       ? merged.sharedStorageDomains.filter(Boolean)
       : undefined,
+    brandName: merged.brandName?.trim() || undefined,
+    brandLogoUrl: merged.brandLogoUrl?.trim() || undefined,
   };
   list[index] = next;
   cache = list;

@@ -17,6 +17,8 @@ export type TenantConfig = {
   tag?: string;
   storageDomains?: string[];
   sharedStorageDomains?: string[];
+  brandName?: string;
+  brandLogoUrl?: string;
   engineId: string;
 };
 
@@ -39,6 +41,8 @@ const toTenant = (cluster: ClusterConnection): TenantConfig => {
     tag: cluster.tag,
     storageDomains: cluster.storageDomains,
     sharedStorageDomains: engine.sharedStorageDomains,
+    brandName: engine.brandName,
+    brandLogoUrl: engine.brandLogoUrl,
     caCert: engine.caCert ? Buffer.from(engine.caCert) : undefined,
   };
 };
