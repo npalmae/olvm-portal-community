@@ -1060,7 +1060,7 @@ export default function Home() {
       );
       const proxy = await parseJsonSafe(proxyRes);
       if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? "No hay websocket disponible");
-      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}`;
+      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&show_fb=0&show_toolbar=0`;
       setEmbeddedConsole({ vmId, status: "connected", error: null, rfb: null, iframeUrl });
     } catch (err) {
       if (embeddedConsoleSession.current !== sid) return;
@@ -1107,14 +1107,14 @@ export default function Home() {
         <div className="flex items-center justify-between border-b px-3 py-3"
           style={{ borderColor: "var(--sidebar-border)" }}>
           {!sidebarCollapsed && (
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 flex items-center justify-center">
               {(() => {
                 const t = tenants.find((t) => t.id === selectedTenant) ?? tenants[0];
                 const logo = t?.brandLogoUrl;
                 const brand = t?.brandName || "OLVM-PORTAL";
                 return (
-                  <div className="leading-tight">
-                    {logo && <img src={logo} alt={brand} className="mb-1 h-8 w-auto max-w-[120px] object-contain" />}
+                  <div className="leading-tight text-center">
+                    {logo && <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />}
                     <div className="text-[13px] font-bold text-white">{brand}</div>
                     <div className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "var(--sidebar-muted)" }}>OLVM-PORTAL</div>
                   </div>
@@ -2262,7 +2262,7 @@ export default function Home() {
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
                 <p className="text-[11px] text-gray-500">Consola embebida</p>
-                <p className="text-sm font-semibold text-gray-900">{embeddedConsole.vmId}</p>
+                <p className="text-sm font-semibold text-gray-900">{selectedVm?.name ?? embeddedConsole.vmId}</p>
               </div>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
@@ -2277,7 +2277,18 @@ export default function Home() {
             </div>
             <div className="relative flex-1 overflow-hidden rounded-b-xl bg-black" style={{ minHeight: 400 }}>
               {embeddedConsole.iframeUrl && (
-                <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
+                <>
+                  <div className="flex items-center justify-between border-b px-2 py-1.5 bg-gray-900" style={{ borderColor: "var(--border)" }}>
+                    <span className="text-xs text-white/70 truncate max-w-[300px]">{selectedVm?.name ?? embeddedConsole.vmId}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => embeddedConsole.rfb?.sendCtrlAltDel()} className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700">Ctrl+Alt+Del</button>
+                      <button onClick={() => embeddedConsole.rfb?.sendKey('F1', { ctrl: true, alt: true })} className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700">Ctrl+Alt+F1</button>
+                      <button onClick={() => { const iframe = document.querySelector('iframe'); iframe?.requestFullscreen(); }} className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700">Fullscreen</button>
+                      <button className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="On-screen keyboard (no implementado)">⌨</button>
+                    </div>
+                  </div>
+                  <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
+                </>
               )}
               {embeddedConsole.status === "connecting" && !embeddedConsole.iframeUrl && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">Conectando...</div>
