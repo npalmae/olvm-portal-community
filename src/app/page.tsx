@@ -1060,7 +1060,7 @@ export default function Home() {
       );
       const proxy = await parseJsonSafe(proxyRes);
       if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? "No hay websocket disponible");
-      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&show_fb=0&show_toolbar=0`;
+      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=0`;
       setEmbeddedConsole({ vmId, status: "connected", error: null, rfb: null, iframeUrl });
     } catch (err) {
       if (embeddedConsoleSession.current !== sid) return;

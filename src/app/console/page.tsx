@@ -287,29 +287,6 @@ function ConsolePageContent() {
       }
     };
 
-    const handleAction = async (action: string) => {
-      const tid = searchParams.get('tenantId') || '';
-      const vmId = searchParams.get('vmId') || '';
-      if (!tid || !vmId) return;
-      setErrorMsg('');
-      try {
-        const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/actions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error ?? 'Error en la acción');
-      } catch (err) {
-        setErrorMsg((err as Error).message);
-      }
-    };
-
-    const handleShutdown = () => handleAction('shutdown');
-    const handleStop = () => handleAction('stop');
-    const handleReboot = () => handleAction('reboot');
-    const handleEject = () => handleAction('eject');
-
     connect();
 
     return () => {
@@ -326,6 +303,24 @@ function ConsolePageContent() {
       }
     };
   }, [wsUrl, ticket]);
+
+  const handleAction = async (action: string) => {
+    const tid = searchParams.get('tenantId') || '';
+    const id = searchParams.get('vmId') || '';
+    if (!tid || !id) return;
+    setErrorMsg('');
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? 'Error en la acción');
+    } catch (err) {
+      setErrorMsg((err as Error).message);
+    }
+  };
 
   return (
     <div className="h-screen overflow-hidden bg-black text-white flex flex-col">
@@ -344,10 +339,10 @@ function ConsolePageContent() {
           {status === 'error' && (
             <span className="text-xs text-red-400">Error: {errorMsg}</span>
           )}
-          <button onClick={handleShutdown} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado ordenado">Apagar</button>
-          <button onClick={handleStop} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado forzado">Stop</button>
-          <button onClick={handleReboot} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Reiniciar">Reiniciar</button>
-          <button onClick={handleEject} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Expulsar CD/ISO">Expulsar</button>
+          <button onClick={() => handleAction('shutdown')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado ordenado">Apagar</button>
+          <button onClick={() => handleAction('stop')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado forzado">Stop</button>
+          <button onClick={() => handleAction('reboot')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Reiniciar">Reiniciar</button>
+          <button onClick={() => handleAction('eject')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Expulsar CD/ISO">Expulsar</button>
         </div>
       </div>
       <div
