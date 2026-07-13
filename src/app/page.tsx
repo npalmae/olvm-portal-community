@@ -1460,7 +1460,7 @@ export default function Home() {
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-3">
                   {/* CPU */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">CPU del tenant</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">CPU Total</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.cpuPct} color="#3b82f6" />
                       <div>
@@ -1475,7 +1475,7 @@ export default function Home() {
                   </div>
                   {/* RAM */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">RAM del tenant</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">RAM Total</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.memPct} color="#10b981" />
                       <div>

@@ -110,5 +110,21 @@
     ],
     "twoFactorEnabled": true,
     "createdAt": "2026-07-10T19:35:27.089Z"
+  },
+  {
+    "id": "336f6f0f-2e29-4040-8f19-fbe951a5bf41",
+    "email": "jfarias@sixmanager.com",
+    "password": "$2b$10$h382MWoTi3s2laK3esMCDesIYbIPCYzFPCbzcw8k66W.ynBryBXae",
+    "name": "Jonathan Farias",
+    "defaultTenantId": "produccion",
+    "globalRole": "superadmin",
+    "memberships": [
+      {
+        "tenantId": "produccion",
+        "role": "user"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-13T14:57:05.905Z"
   }
 ]

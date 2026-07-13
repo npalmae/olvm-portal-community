@@ -346,10 +346,13 @@ const mapStatistics = (
     }
     memoryPercent = Math.min(100, Math.max(0, percent));
   }
-  const diskReadBytes = lookup("disk.read.bytes");
+  const diskReadBytes = lookup("disk.read.bytes") ?? lookup("disks.usage");
   const diskWriteBytes = lookup("disk.write.bytes");
   const networkBytes =
-    (lookup("net.received.bytes") ?? 0) + (lookup("net.transmitted.bytes") ?? 0);
+    (lookup("net.received.bytes") ?? 0) +
+    (lookup("net.transmitted.bytes") ?? 0) ||
+    lookup("network.current.total") ||
+    undefined;
 
   return {
     cpuPercent,
