@@ -208,6 +208,43 @@ export default function Home() {
     session?.user?.role === "superadmin";
   const showExperimentalConsole = true;
 
+  // Detección de inactividad: logout automático tras 30 min sin actividad
+  const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutos
+  const WARNING_AT = 25 * 60 * 1000; // avisar a los 25 min
+  const lastActivityRef = useRef(Date.now());
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+
+  useEffect(() => {
+    const resetActivity = () => {
+      lastActivityRef.current = Date.now();
+      setShowInactivityWarning(false);
+    };
+    const events = ["mousedown", "keydown", "mousemove", "click", "scroll", "touchstart"];
+    events.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }));
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      if (elapsed >= INACTIVITY_LIMIT) {
+        signOut({ callbackUrl: "/login?reason=inactivity" });
+      } else if (elapsed >= WARNING_AT) {
+        setShowInactivityWarning(true);
+      }
+    }, 10000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetActivity));
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Verificar si la sesión expiró
+  useEffect(() => {
+    if (session?.expires) {
+      const expiresAt = new Date(session.expires).getTime();
+      if (Date.now() >= expiresAt) {
+        signOut({ callbackUrl: "/login?reason=expired" });
+      }
+    }
+  }, [session?.expires]);
+
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [vms, setVms] = useState<Vm[]>([]);
@@ -1345,6 +1382,13 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto p-4">
 
             {/* Toasts */}
+            {/* Aviso de inactividad */}
+            {showInactivityWarning && (
+              <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <span>Tu sesión expirará en 5 minutos por inactividad. Mueve el mouse para mantenerla activa.</span>
+                <button onClick={() => setShowInactivityWarning(false)} className="ml-3 text-amber-500 hover:text-amber-700">✕</button>
+              </div>
+            )}
             {uploadProgress !== null && (
               <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                 <div className="mb-1 flex items-center justify-between">
