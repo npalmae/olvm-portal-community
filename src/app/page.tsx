@@ -40,7 +40,7 @@ type VmDraft = { memoryMB?: string; cpuCores?: string; sockets?: string };
 type NewVmDraft = {
   name: string; clusterId: string; templateId: string;
   memoryMB: string; cpuCores: string; sockets: string; comment: string;
-  os: string;
+  os: string; vnicProfileId: string;
 };
 
 type ActionLog = {
@@ -281,10 +281,13 @@ export default function Home() {
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
     memoryMB: "", cpuCores: "", sockets: "1", comment: "",
-    os: "linux",
+    os: "linux", vnicProfileId: "",
   });
+  const [vmNics, setVmNics] = useState<{ id: string; name: string; mac: string; linked: boolean; interface: string; networkName: string; vnicProfileId: string }[]>([]);
   const [provClusters, setProvClusters] = useState<{ id: string; name: string }[]>([]);
   const [provTemplates, setProvTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [provNetworks, setProvNetworks] = useState<{ id: string; name: string }[]>([]);
+  const [provVnicProfiles, setProvVnicProfiles] = useState<{ id: string; name: string; networkId: string; networkName: string }[]>([]);
   const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
   const [embeddedConsole, setEmbeddedConsole] = useState<{
     vmId: string; status: "idle" | "connecting" | "connected" | "error";
@@ -453,6 +456,8 @@ export default function Home() {
   useEffect(() => {
     setProvClusters([]);
     setProvTemplates([]);
+    setProvNetworks([]);
+    setProvVnicProfiles([]);
     if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) return;
     let cancelled = false;
     (async () => {
@@ -462,6 +467,8 @@ export default function Home() {
         if (!cancelled && res.ok && data) {
           if (Array.isArray(data.clusters)) setProvClusters(data.clusters);
           if (Array.isArray(data.templates)) setProvTemplates(data.templates);
+          if (Array.isArray(data.networks)) setProvNetworks(data.networks);
+          if (Array.isArray(data.vnicProfiles)) setProvVnicProfiles(data.vnicProfiles);
         }
       } catch { /* noop */ }
     })();
@@ -478,6 +485,21 @@ export default function Home() {
         const res = await fetch(`/api/tenants/${selectedTenant}/vms/${selectedVmId}/disk`);
         const data = await parseJsonSafe(res);
         if (!cancelled && res.ok && Array.isArray(data)) setVmDiskList(data);
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedVmId, selectedTenant]);
+
+  // Carga NICs de la VM seleccionada
+  useEffect(() => {
+    setVmNics([]);
+    if (!selectedVmId || !selectedTenant || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/vms/${selectedVmId}/nics`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && Array.isArray(data)) setVmNics(data);
       } catch { /* noop */ }
     })();
     return () => { cancelled = true; };
@@ -600,6 +622,69 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error ?? "Error");
       setSuccess("Disco eliminado");
       setVmDiskList(vmDiskList.filter((d) => d.attachmentId !== attachmentId));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAddNic = async (vmId: string, vnicProfileId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-nic`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/nics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vnicProfileId }),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess("NIC agregada");
+      const res2 = await fetch(`/api/tenants/${tid}/vms/${vmId}/nics`);
+      const d2 = await parseJsonSafe(res2);
+      if (Array.isArray(d2)) setVmNics(d2);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleToggleNic = async (vmId: string, nicId: string, linked: boolean) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-nic`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/nics`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nicId, linked }),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess(linked ? "NIC conectada" : "NIC desconectada");
+      setVmNics(vmNics.map((n) => n.id === nicId ? { ...n, linked } : n));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteNic = async (vmId: string, nicId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-nic`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/nics?nicId=${nicId}`, {
+        method: "DELETE",
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setSuccess("NIC eliminada");
+      setVmNics(vmNics.filter((n) => n.id !== nicId));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -822,12 +907,13 @@ export default function Home() {
           sockets: newVm.sockets ? Number(newVm.sockets) : undefined,
           comment: newVm.comment || undefined,
           os: newVm.os,
+          vnicProfileId: newVm.vnicProfileId || undefined,
         }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo crear la VM");
       setSuccess("VM creada (el aprovisionamiento puede tardar)");
-      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux" });
+      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "" });
       refresh();
     } catch (err) { setError((err as Error).message); }
     finally { setActionLoading(null); }
@@ -2189,6 +2275,58 @@ export default function Home() {
                     >
                       {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
                     </button>
+
+                    {/* Redes */}
+                    <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                    <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Redes</p>
+                    {vmNics.length > 0 && (
+                      <div className="space-y-1">
+                        {vmNics.map((n) => (
+                          <div key={n.id} className="flex items-center gap-1.5 rounded-md border px-2 py-1" style={{ borderColor: "var(--border)" }}>
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${n.linked ? "bg-emerald-500" : "bg-gray-300"}`} />
+                            <span className="flex-1 truncate text-[10px] text-gray-600">{n.name}</span>
+                            <span className="shrink-0 text-[10px] text-gray-400">{n.networkName || "?"}</span>
+                            <span className="shrink-0 text-[9px] text-gray-300">{n.mac?.slice(0, 8)}</span>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`¿${n.linked ? "Desconectar" : "Conectar"} la NIC "${n.name}"?`)) {
+                                  handleToggleNic(selectedVm.id, n.id, !n.linked);
+                                }
+                              }}
+                              disabled={actionLoading === `${selectedVm.id}-nic`}
+                              className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${n.linked ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}
+                            >
+                              {n.linked ? "Off" : "On"}
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`¿Eliminar la NIC "${n.name}" (${n.networkName})?`)) {
+                                  handleDeleteNic(selectedVm.id, n.id);
+                                }
+                              }}
+                              disabled={actionLoading === `${selectedVm.id}-nic`}
+                              className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              Del
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-1.5">
+                      <select
+                        value=""
+                        onChange={(e) => e.target.value && handleAddNic(selectedVm.id, e.target.value)}
+                        disabled={actionLoading === `${selectedVm.id}-nic`}
+                        className="flex-1 rounded-md border px-2 py-1.5 text-[11px] disabled:opacity-50"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        <option value="">{actionLoading === `${selectedVm.id}-nic` ? "Agregando..." : "Agregar NIC..."}</option>
+                        {provVnicProfiles.map((p) => (
+                          <option key={p.id} value={p.id}>{p.networkName} ({p.name})</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-[11px] text-gray-400">Selecciona una VM para editar recursos.</p>
@@ -2225,6 +2363,15 @@ export default function Home() {
                       <option value="">Sin template (blank)</option>
                       {provTemplates.map((t) => (
                         <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Red *">
+                    <select value={newVm.vnicProfileId} onChange={(e) => setNewVm((v) => ({ ...v, vnicProfileId: e.target.value }))}
+                      className={inputCls}>
+                      <option value="">Selecciona red…</option>
+                      {provVnicProfiles.map((p) => (
+                        <option key={p.id} value={p.id}>{p.networkName} ({p.name})</option>
                       ))}
                     </select>
                   </Field>

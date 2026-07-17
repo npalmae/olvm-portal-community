@@ -1405,6 +1405,7 @@ type CreateVmInput = {
   sockets?: number;
   comment?: string;
   os?: string;
+  vnicProfileId?: string;
 };
 
 export const createVm = async (tenantId: string, payload: CreateVmInput) => {
@@ -1430,6 +1431,16 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
     os: { type: osType },
     comment: payload.comment,
   };
+
+  // Agregar NIC automática si hay vnic_profile
+  if (payload.vnicProfileId) {
+    body.nics = [{
+      name: "nic1",
+      interface: "virtio",
+      vnic_profile: { id: payload.vnicProfileId },
+      linked: true,
+    }];
+  }
 
   const created = await olvmFetch(tenant, "/vms", {
     method: "POST",
@@ -1875,4 +1886,124 @@ export const uploadIso = async (
     method: "POST",
     body: "{}",
   });
+};
+
+// ── NICs ────────────────────────────────────────────────────────────────────
+
+export type VmNic = {
+  id: string;
+  name: string;
+  mac: string;
+  linked: boolean;
+  interface: string;
+  networkId: string;
+  networkName: string;
+  vnicProfileId: string;
+};
+
+export const fetchVmNics = async (
+  tenantId: string,
+  vmId: string,
+): Promise<VmNic[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms/${vmId}/nics`),
+  );
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "nic" in root ? (root.nic as Record<string, unknown>[]) : [];
+  return list.map((n) => {
+    const vp = (n.vnic_profile ?? n.vnicprofile ?? {}) as Record<string, unknown>;
+    const network = (vp.network ?? n.network ?? {}) as Record<string, unknown>;
+    return {
+      id: String(n.id ?? ""),
+      name: String(n.name ?? ""),
+      mac: String(n.mac ?? ""),
+      linked: Boolean(n.linked),
+      interface: String(n.interface ?? ""),
+      networkId: String(network.id ?? ""),
+      networkName: String(network.name ?? ""),
+      vnicProfileId: String(vp.id ?? ""),
+    };
+  });
+};
+
+export const addNicToVm = async (
+  tenantId: string,
+  vmId: string,
+  params: { name?: string; interface?: string; vnicProfileId: string },
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  const body = JSON.stringify({
+    name: params.name || `nic-${Date.now().toString(36)}`,
+    interface: params.interface || "virtio",
+    vnic_profile: { id: params.vnicProfileId },
+    linked: true,
+  });
+  await olvmFetch(tenant, `/vms/${vmId}/nics`, {
+    method: "POST",
+    body,
+  });
+};
+
+export const updateNicLink = async (
+  tenantId: string,
+  vmId: string,
+  nicId: string,
+  linked: boolean,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  await olvmFetch(tenant, `/vms/${vmId}/nics/${nicId}`, {
+    method: "PUT",
+    body: JSON.stringify({ linked }),
+  });
+};
+
+export const deleteNicFromVm = async (
+  tenantId: string,
+  vmId: string,
+  nicId: string,
+): Promise<void> => {
+  const tenant = getTenantById(tenantId);
+  await olvmFetch(tenant, `/vms/${vmId}/nics/${nicId}`, {
+    method: "DELETE",
+  });
+};
+
+// ── Networks & vNIC Profiles ────────────────────────────────────────────────
+
+export type OlvmNetwork = { id: string; name: string; datacenterId: string };
+export type OlvmVnicProfile = { id: string; name: string; networkId: string; networkName: string };
+
+export const fetchNetworks = async (tenantId: string): Promise<OlvmNetwork[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/networks"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "network" in root ? (root.network as Record<string, unknown>[]) : [];
+  return list
+    .map((n) => ({
+      id: String(n.id ?? ""),
+      name: String(n.name ?? ""),
+      datacenterId: String(((n.data_center ?? {}) as Record<string, unknown>).id ?? ""),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const fetchVnicProfiles = async (tenantId: string): Promise<OlvmVnicProfile[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/vnicprofiles"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && "vnic_profile" in root ? (root.vnic_profile as Record<string, unknown>[]) : [];
+  return list
+    .map((p) => {
+      const network = (p.network ?? {}) as Record<string, unknown>;
+      return {
+        id: String(p.id ?? ""),
+        name: String(p.name ?? ""),
+        networkId: String(network.id ?? ""),
+        networkName: String(network.name ?? ""),
+      };
+    })
+    .filter((p) => p.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
 };
