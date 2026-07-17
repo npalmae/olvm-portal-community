@@ -2272,13 +2272,26 @@ export default function Home() {
                         />
                       </Field>
                     </div>
-                    <button
-                      onClick={() => updateResources(selectedVm.id)}
-                      disabled={actionLoading === `${selectedVm.id}-update`}
-                      className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                    >
-                      {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
-                    </button>
+                    {selectedVm.status?.toLowerCase?.() === "up" ? (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                        La VM debe estar apagada para cambiar recursos (RAM/CPU).
+                        <button
+                          onClick={() => runAction(selectedVm.id, "shutdown")}
+                          disabled={actionLoading === `${selectedVm.id}-shutdown`}
+                          className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          Apagar ahora
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => updateResources(selectedVm.id)}
+                        disabled={actionLoading === `${selectedVm.id}-update`}
+                        className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
+                      </button>
+                    )}
 
                     {/* Redes */}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
