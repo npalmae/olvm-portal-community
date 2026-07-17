@@ -224,7 +224,9 @@ export default function Home() {
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastActivityRef.current;
       if (elapsed >= INACTIVITY_LIMIT) {
-        signOut({ callbackUrl: "/login?reason=inactivity" });
+        signOut({ redirect: false }).finally(() => {
+          window.location.href = "/login?reason=inactivity";
+        });
       } else if (elapsed >= WARNING_AT) {
         setShowInactivityWarning(true);
       }
@@ -240,7 +242,9 @@ export default function Home() {
     if (session?.expires) {
       const expiresAt = new Date(session.expires).getTime();
       if (Date.now() >= expiresAt) {
-        signOut({ callbackUrl: "/login?reason=expired" });
+        signOut({ redirect: false }).finally(() => {
+          window.location.href = "/login?reason=expired";
+        });
       }
     }
   }, [session?.expires]);
