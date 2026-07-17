@@ -209,8 +209,8 @@ export default function Home() {
   const showExperimentalConsole = true;
 
   // Detección de inactividad: logout automático tras 30 min sin actividad
-  const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutos
-  const WARNING_AT = 25 * 60 * 1000; // avisar a los 25 min
+  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutos
+  const WARNING_AT = 12 * 60 * 1000; // avisar a los 12 min
   const lastActivityRef = useRef(Date.now());
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
 
@@ -1475,7 +1475,7 @@ export default function Home() {
             {/* Aviso de inactividad */}
             {showInactivityWarning && (
               <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                <span>Tu sesión expirará en 5 minutos por inactividad. Mueve el mouse para mantenerla activa.</span>
+                <span>Tu sesión expirará en 3 minutos por inactividad. Mueve el mouse para mantenerla activa.</span>
                 <button onClick={() => setShowInactivityWarning(false)} className="ml-3 text-amber-500 hover:text-amber-700">✕</button>
               </div>
             )}

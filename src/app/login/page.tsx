@@ -23,7 +23,7 @@ function LoginPageContent() {
 
   const reason = searchParams.get("reason");
   useEffect(() => {
-    if (reason === "inactivity") setInfo("Tu sesión se cerró por inactividad (30 min sin actividad).");
+    if (reason === "inactivity") setInfo("Tu sesión se cerró por inactividad (15 min sin actividad).");
     else if (reason === "expired") setInfo("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
   }, [reason]);
 
