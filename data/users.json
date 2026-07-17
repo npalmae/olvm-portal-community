@@ -112,9 +112,9 @@
     "createdAt": "2026-07-10T19:35:27.089Z"
   },
   {
-    "id": "336f6f0f-2e29-4040-8f19-fbe951a5bf41",
+    "id": "38a3b227-1933-4602-8111-2bbfe121f0d9",
     "email": "jfarias@sixmanager.com",
-    "password": "$2b$10$h382MWoTi3s2laK3esMCDesIYbIPCYzFPCbzcw8k66W.ynBryBXae",
+    "password": "$2b$10$1SovvPHcLxJT3TmNOcDsCuxdfFxhqA82q/mB18D8iMwiX27GVq.K.",
     "name": "Jonathan Farias",
     "defaultTenantId": "produccion",
     "globalRole": "superadmin",
@@ -125,6 +125,38 @@
       }
     ],
     "twoFactorEnabled": true,
-    "createdAt": "2026-07-13T14:57:05.905Z"
+    "createdAt": "2026-07-14T16:30:13.548Z"
+  },
+  {
+    "id": "521d9758-3d3b-4f1e-9599-4349aabb9b35",
+    "email": "emunoz@sixmanager.com",
+    "password": "$2b$10$t456shVNaIVPfADmLvfJauoQVcugZ.ODsPdTteIFMrHFWUS2XFjpm",
+    "name": "Elizabeth Muñoz",
+    "defaultTenantId": "produccion",
+    "globalRole": "superadmin",
+    "memberships": [
+      {
+        "tenantId": "produccion",
+        "role": "user"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-14T16:34:47.807Z"
+  },
+  {
+    "id": "c6d5b46f-9d28-42b6-bece-8142e33fd2d2",
+    "email": "fespinoza@sixmanager.com",
+    "password": "$2b$10$UWjjKzPbgUrKhdQPwGM2heN7ragS9w0hp7dze.raQwHr5Yjvwc09S",
+    "name": "Francisco Espinoza",
+    "defaultTenantId": "produccion",
+    "globalRole": "superadmin",
+    "memberships": [
+      {
+        "tenantId": "produccion",
+        "role": "user"
+      }
+    ],
+    "twoFactorEnabled": true,
+    "createdAt": "2026-07-14T18:17:26.407Z"
   }
 ]

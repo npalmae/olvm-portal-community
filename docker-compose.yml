@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: olvm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: olvm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-olvm-secret-2026}
+      POSTGRES_DB: olvm_portal
+    volumes:
+      - olvm-pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  portal:
+    build: .
+    container_name: olvm-portal
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://olvm:${DB_PASSWORD:-olvm-secret-2026}@127.0.0.1:5432/olvm_portal?schema=public
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      REQUIRE_2FA: ${REQUIRE_2FA:-true}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM: ${RESEND_FROM}
+      OLVM_TENANTS: ${OLVM_TENANTS}
+      OLVM_SHARED_SDS: ${OLVM_SHARED_SDS:-[]}
+
+volumes:
+  olvm-pgdata:

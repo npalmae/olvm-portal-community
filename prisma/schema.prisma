@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Engine {
+  id                  String   @id
+  name                String
+  baseUrl             String
+  username            String?
+  password            String?
+  token               String?
+  allowInsecure       Boolean  @default(false)
+  caCert              String?
+  sharedStorageDomains String[]
+  brandName           String?
+  brandLogoUrl        String?
+  createdAt           DateTime @default(now())
+  tenants             Tenant[]
+}
+
+model Tenant {
+  id            String   @id
+  name          String
+  engineId      String
+  engine        Engine   @relation(fields: [engineId], references: [id])
+  tag           String?
+  storageDomains String[]
+  createdAt     DateTime @default(now())
+  memberships   Membership[]
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  name             String
+  globalRole       String?
+  defaultTenantId  String?
+  twoFactorEnabled Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  memberships      Membership[]
+}
+
+model Membership {
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role     String   @default("user")
+
+  @@unique([userId, tenantId])
+}

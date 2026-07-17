@@ -1,11 +1,8 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import {
-  getUserByEmail,
-  verifyUserCredentials,
-  type UserRole,
-} from "@/lib/userStore";
+import { getUserByEmail, verifyUserCredentials } from "@/lib/userStore";
 import { verifyChallenge } from "@/lib/twoFactor";
+import { sharedAuthConfig } from "@/auth-shared";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -54,33 +51,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8 horas máximo
-  pages: { signIn: "/login" },
+  ...sharedAuthConfig,
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = (user as any).id;
-        token.tenantId = (user as any).tenantId;
-        token.defaultTenantId = (user as any).defaultTenantId;
-        token.role = (user as any).role;
-        token.globalRole = (user as any).globalRole;
-        token.memberships = (user as any).memberships ?? [];
-        token.name = user.name;
-        token.email = user.email;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session?.user) {
-        session.user.id = token.id as string;
-        session.user.tenantId = token.tenantId as string;
-        session.user.defaultTenantId = token.defaultTenantId as string;
-        session.user.role = token.role as UserRole;
-        session.user.globalRole = (token.globalRole as "superadmin" | null) ?? null;
-        session.user.memberships = (token.memberships as any[]) ?? [];
-      }
-      return session;
-    },
+    ...sharedAuthConfig.callbacks,
+    // signIn vive solo aquí: usa userStore (Node), no disponible en Edge.
     async signIn({ user }) {
       if (!user?.email) return false;
       const existing = await getUserByEmail(user.email);
