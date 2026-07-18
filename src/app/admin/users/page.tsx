@@ -48,7 +48,7 @@ const roleBadge = (role: string) => {
     return "bg-amber-500/20 text-amber-200 border-amber-500/40";
   if (role === "admin")
     return "bg-blue-500/20 text-blue-200 border-blue-500/40";
-  return "bg-white/10 text-white/70 border-white/15";
+  return "bg-gray-100 text-gray-600 border-gray-200";
 };
 
 export default function AdminUsersPage() {
@@ -218,30 +218,56 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#05070c] text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      <div className="mx-auto max-w-6xl p-6">
+        <div className="mb-5 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Administración de Usuarios</h1>
-            <p className="text-white/60">Gestiona usuarios del portal</p>
+            <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+              <button
+                onClick={() => router.push("/")}
+                className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+                title="Inicio"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+                  <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
+                  <path d="M6 14.5V9h4v5.5"/>
+                </svg>
+                OLVM-PORTAL
+              </button>
+              <span className="shrink-0 text-gray-400">/</span>
+              <button
+                onClick={() => router.push("/admin/clusters")}
+                className="shrink-0 text-gray-600 hover:text-blue-600"
+              >
+                Configuración
+              </button>
+              <span className="shrink-0 text-gray-400">/</span>
+              <span className="truncate text-gray-700">Usuarios</span>
+            </div>
+            <h1 className="text-lg font-semibold text-gray-900">Administración de Usuarios</h1>
+            <p className="text-xs text-gray-500">Gestiona usuarios del portal</p>
           </div>
-          <button
-            onClick={() => router.push("/")}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg"
-          >
-            Volver al Portal
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push("/admin/email")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Config Email
+            </button>
+            <button
+              onClick={() => router.push("/admin/clusters")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Clusters
+            </button>
+          </div>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-500/20 border border-red-500/40 rounded-lg text-red-200">
-            {error}
-          </div>
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
         )}
         {success && (
-          <div className="mb-4 p-4 bg-emerald-500/20 border border-emerald-500/40 rounded-lg text-emerald-200">
-            {success}
-          </div>
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</div>
         )}
 
         <div className="mb-6">
@@ -256,47 +282,47 @@ export default function AdminUsersPage() {
         {showForm && (
           <form
             onSubmit={handleCreate}
-            className="mb-8 p-6 bg-white/5 rounded-xl border border-white/10"
+            className="mb-8 p-6 bg-white rounded-lg border" style={{ borderColor: "var(--border)" }}
           >
-            <h2 className="text-xl font-semibold mb-4">Nuevo Usuario</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900">Nuevo Usuario</h2>
             <div className="grid grid-cols-2 gap-4">
-              <label className="block text-sm text-white/60">
+              <label className="block text-sm text-gray-500">
                 Nombre
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 />
               </label>
-              <label className="block text-sm text-white/60">
+              <label className="block text-sm text-gray-500">
                 Email
                 <input
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
-                  className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 />
               </label>
-              <label className="block text-sm text-white/60">
+              <label className="block text-sm text-gray-500">
                 Contraseña
                 <input
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   required
-                  className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 />
               </label>
-              <label className="block text-sm text-white/60">
+              <label className="block text-sm text-gray-500">
                 Tenant
                 <select
                   value={form.tenantId}
                   onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
                   required
-                  className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 >
                   {tenants.length === 0 && <option value="">Sin tenants</option>}
                   {tenants.map((t) => (
@@ -306,63 +332,63 @@ export default function AdminUsersPage() {
                   ))}
                 </select>
               </label>
-              <label className="block text-sm text-white/60 col-span-2">
+              <label className="block text-sm text-gray-500 col-span-2">
                 Rol
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  {isSuperadmin && <option value="superadmin">Superadmin</option>}
+                  <option value="user">user</option>
+                  <option value="admin">admin</option>
+                  {isSuperadmin && <option value="superadmin">superadmin</option>}
                 </select>
               </label>
             </div>
             <button
               type="submit"
-              disabled={submitting}
-              className="mt-4 px-6 py-3 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg disabled:opacity-50"
+              disabled={busy}
+              className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-60"
             >
-              {submitting ? "Creando..." : "Crear Usuario"}
+              {busy ? "Creando..." : "Crear"}
             </button>
           </form>
         )}
 
-        <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-white/10">
+        <div className="bg-white rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+          <table className="w-full text-left">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Nombre</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Tenants</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Rol</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">2FA</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Creado</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold">Acciones</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tenants</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rol</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">2FA</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-white/50">
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                     No hay usuarios para mostrar.
                   </td>
                 </tr>
               )}
               {users.map((user) => (
-                <tr key={user.id} className="border-t border-white/10">
+                <tr key={user.id} className="border-t" style={{ borderColor: "var(--border)" }}>
                   <td className="px-6 py-4">
                     {user.name}
                     {user.id === selfId && (
-                      <span className="ml-2 text-xs text-white/40">(tú)</span>
+                      <span className="ml-2 text-xs text-gray-400">(tú)</span>
                     )}
                   </td>
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {user.memberships.length === 0 && (
-                        <span className="text-xs text-white/40">Sin tenant</span>
+                        <span className="text-xs text-gray-400">Sin tenant</span>
                       )}
                       {user.memberships.map((m) => (
                         <span
@@ -392,27 +418,27 @@ export default function AdminUsersPage() {
                     <span
                       className={`px-2 py-1 rounded text-xs border ${
                         user.twoFactorEnabled
-                          ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/30"
-                          : "bg-white/5 text-white/50 border-white/10"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
                       }`}
                     >
                       {user.twoFactorEnabled ? "Activo" : "Desactivado"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-white/60">
+                  <td className="px-6 py-4 text-sm text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setModal({ type: "edit", user })}
-                        className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg"
+                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => setModal({ type: "password", user })}
-                        className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg"
+                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
                       >
                         Clave
                       </button>
@@ -424,7 +450,7 @@ export default function AdminUsersPage() {
                             ? "No puedes eliminar tu propia cuenta"
                             : "Eliminar usuario"
                         }
-                        className="px-3 py-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Eliminar
                       </button>
