@@ -155,7 +155,7 @@ export default function AdminClustersPage() {
                 OLVM-PORTAL
               </button>
               <span className="shrink-0 text-gray-400">/</span>
-              <span className="truncate text-gray-700">Setup</span>
+              <span className="truncate text-gray-700">Configuración</span>
             </div>
             <h1 className="text-lg font-semibold text-gray-900">Conexiones OLVM</h1>
             <p className="text-xs text-gray-500">Administra engines y tenants del portal</p>

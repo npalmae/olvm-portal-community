@@ -123,7 +123,7 @@ export default function EmailConfigPage() {
               onClick={() => router.push("/admin/clusters")}
               className="shrink-0 text-gray-600 hover:text-blue-600"
             >
-              Setup
+              Configuración
             </button>
             <span className="shrink-0 text-gray-400">/</span>
             <span className="truncate text-gray-700">Config Email</span>
