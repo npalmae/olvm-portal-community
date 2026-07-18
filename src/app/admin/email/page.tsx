@@ -106,7 +106,7 @@ export default function EmailConfigPage() {
     <div className="min-h-screen p-8" style={{ background: "var(--bg)" }}>
       <div className="mx-auto max-w-2xl">
         <div className="mb-6">
-          <div className="mb-2 flex items-center gap-1.5 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+          <div className="mb-2 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
             <button
               onClick={() => router.push("/")}
               className="flex shrink-0 items-center gap-1 hover:text-blue-600"
@@ -126,7 +126,7 @@ export default function EmailConfigPage() {
               Configuración
             </button>
             <span className="shrink-0 text-gray-400">/</span>
-            <span className="truncate text-gray-700">Config Email</span>
+            <span className="truncate text-gray-700">Email</span>
           </div>
           <h1 className="mt-3 text-lg font-bold text-gray-900">Configuración de Email</h1>
           <p className="text-xs text-gray-500">Notificaciones, códigos 2FA y alertas del sistema</p>

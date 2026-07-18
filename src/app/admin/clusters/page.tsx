@@ -142,7 +142,7 @@ export default function AdminClustersPage() {
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <div className="mb-1 flex items-center gap-1.5 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+            <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
               <button
                 onClick={() => router.push("/")}
                 className="flex shrink-0 items-center gap-1 hover:text-blue-600"
