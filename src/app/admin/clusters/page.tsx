@@ -142,6 +142,21 @@ export default function AdminClustersPage() {
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
+            <div className="mb-1 flex items-center gap-1.5 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+              <button
+                onClick={() => router.push("/")}
+                className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+                title="Inicio"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+                  <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
+                  <path d="M6 14.5V9h4v5.5"/>
+                </svg>
+                OLVM-PORTAL
+              </button>
+              <span className="shrink-0 text-gray-400">/</span>
+              <span className="truncate text-gray-700">Setup</span>
+            </div>
             <h1 className="text-lg font-semibold text-gray-900">Conexiones OLVM</h1>
             <p className="text-xs text-gray-500">Administra engines y tenants del portal</p>
           </div>
@@ -157,12 +172,6 @@ export default function AdminClustersPage() {
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
             >
               Usuarios
-            </button>
-            <button
-              onClick={() => router.push("/")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
-            >
-              Volver al portal
             </button>
           </div>
         </div>

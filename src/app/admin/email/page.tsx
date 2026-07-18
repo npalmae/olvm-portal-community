@@ -106,21 +106,29 @@ export default function EmailConfigPage() {
     <div className="min-h-screen p-8" style={{ background: "var(--bg)" }}>
       <div className="mx-auto max-w-2xl">
         <div className="mb-6">
-          <div className="mb-2 flex gap-2">
-            <button
-              onClick={() => router.push("/admin/clusters")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
-            >
-              ← Setup Cluster
-            </button>
+          <div className="mb-2 flex items-center gap-1.5 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
             <button
               onClick={() => router.push("/")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+              title="Inicio"
             >
-              ← Home
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+                <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
+                <path d="M6 14.5V9h4v5.5"/>
+              </svg>
+              OLVM-PORTAL
             </button>
+            <span className="shrink-0 text-gray-400">/</span>
+            <button
+              onClick={() => router.push("/admin/clusters")}
+              className="shrink-0 text-gray-600 hover:text-blue-600"
+            >
+              Setup
+            </button>
+            <span className="shrink-0 text-gray-400">/</span>
+            <span className="truncate text-gray-700">Config Email</span>
           </div>
-          <h1 className="mt-2 text-lg font-bold text-gray-900">Configuración de Email</h1>
+          <h1 className="mt-3 text-lg font-bold text-gray-900">Configuración de Email</h1>
           <p className="text-xs text-gray-500">Notificaciones, códigos 2FA y alertas del sistema</p>
         </div>
 
