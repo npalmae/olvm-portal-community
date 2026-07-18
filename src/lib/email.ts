@@ -1,11 +1,54 @@
 import { Resend } from "resend";
 
-const apiKey = process.env.RESEND_API_KEY;
-const fromAddress = process.env.RESEND_FROM || "onboarding@resend.dev";
+type EmailConfigRow = {
+  apiKey: string | null;
+  fromAddress: string | null;
+  enabled: boolean;
+};
 
-const resend = apiKey ? new Resend(apiKey) : null;
+let cachedConfig: EmailConfigRow | null = null;
+let cacheExpiry = 0;
 
-export const isEmailConfigured = () => Boolean(resend);
+const getConfigFromDb = async (): Promise<EmailConfigRow | null> => {
+  try {
+    const { prisma } = await import("./prisma");
+    const row = await prisma.emailConfig.findUnique({ where: { id: 1 } });
+    if (!row) return null;
+    return {
+      apiKey: row.apiKey,
+      fromAddress: row.fromAddress,
+      enabled: row.enabled,
+    };
+  } catch {
+    return null;
+  }
+};
+
+export const getEmailConfig = async (): Promise<EmailConfigRow> => {
+  const now = Date.now();
+  if (cachedConfig && now < cacheExpiry) return cachedConfig;
+
+  const dbConfig = await getConfigFromDb();
+  cachedConfig = dbConfig ?? {
+    apiKey: process.env.RESEND_API_KEY ?? null,
+    fromAddress: process.env.RESEND_FROM ?? null,
+    enabled: true,
+  };
+  cacheExpiry = now + 30_000;
+  return cachedConfig;
+};
+
+export const invalidateEmailConfigCache = () => {
+  cachedConfig = null;
+  cacheExpiry = 0;
+};
+
+export const isEmailConfigured = async () => {
+  const config = await getEmailConfig();
+  return Boolean(config.apiKey && config.enabled);
+};
+
+const createClient = (apiKey: string): Resend => new Resend(apiKey);
 
 export const sendVerificationCode = async (
   email: string,
@@ -14,34 +57,52 @@ export const sendVerificationCode = async (
   const subject = "Tu código de verificación - OLVM Portal";
   const text = `Tu código de verificación es: ${code}\n\nExpira en 5 minutos. Si no solicitaste este código, ignora este correo.`;
 
-  // Sin API key: modo dev, loguea el código a consola.
-  if (!resend) {
+  const config = await getEmailConfig();
+  const apiKey = config.apiKey ?? process.env.RESEND_API_KEY;
+  const fromAddress = config.fromAddress ?? process.env.RESEND_FROM ?? "onboarding@resend.dev";
+
+  if (!apiKey || !config.enabled) {
     console.log(`[2FA dev] Código para ${email}: ${code}`);
     return { delivered: true, fallback: true };
   }
 
   try {
+    const resend = createClient(apiKey);
     const { error } = await resend.emails.send({
       from: fromAddress,
       to: email,
       subject,
       text,
     });
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
     return { delivered: true, fallback: false };
   } catch (error) {
-    // El envío real falló (dominio no verificado, recipiente inválido, etc.).
-    // Fallback a consola para no bloquear el login durante pruebas.
-    console.warn(
-      `[2FA fallback] No se pudo enviar email a ${email}: ${(error as Error).message}`,
-    );
+    console.warn(`[2FA fallback] No se pudo enviar email a ${email}: ${(error as Error).message}`);
     console.log(`[2FA fallback] Código para ${email}: ${code}`);
-    return {
-      delivered: true,
-      fallback: true,
-      error: (error as Error).message,
-    };
+    return { delivered: true, fallback: true, error: (error as Error).message };
+  }
+};
+
+export const sendTestEmail = async (
+  to: string,
+): Promise<{ ok: boolean; error?: string }> => {
+  const config = await getEmailConfig();
+  const apiKey = config.apiKey ?? process.env.RESEND_API_KEY;
+  const fromAddress = config.fromAddress ?? process.env.RESEND_FROM ?? "onboarding@resend.dev";
+
+  if (!apiKey) return { ok: false, error: "No hay API key configurada" };
+
+  try {
+    const resend = createClient(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      to,
+      subject: "Prueba de configuración - OLVM Portal",
+      text: "Este es un email de prueba desde OLVM Portal. Si lo recibiste, la configuración funciona correctamente.",
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
   }
 };

@@ -56,3 +56,12 @@ model Membership {
 
   @@unique([userId, tenantId])
 }
+
+model EmailConfig {
+  id          Int      @id @default(1)
+  provider    String   @default("resend")
+  apiKey      String?
+  fromAddress String?
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
