@@ -145,12 +145,26 @@ export default function AdminClustersPage() {
             <h1 className="text-lg font-semibold text-gray-900">Conexiones OLVM</h1>
             <p className="text-xs text-gray-500">Administra engines y tenants del portal</p>
           </div>
-          <button
-            onClick={() => router.push("/")}
-            className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
-          >
-            Volver al portal
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push("/admin/email")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Config Email
+            </button>
+            <button
+              onClick={() => router.push("/admin/users")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Usuarios
+            </button>
+            <button
+              onClick={() => router.push("/")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Volver al portal
+            </button>
+          </div>
         </div>
 
         {error && (
