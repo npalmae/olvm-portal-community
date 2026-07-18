@@ -8,11 +8,8 @@ import {
 import { verifyChallenge } from "@/lib/twoFactor";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-
-// 2FA obligatorio a menos que se desactive explícitamente con REQUIRE_2FA=false
 const isTwoFactorRequired = () => process.env.REQUIRE_2FA !== "false";
 
-// Configuración completa CON userStore - solo para API routes (Node.js runtime)
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -26,13 +23,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorize: async (credentials) => {
         if (!credentials?.email || !credentials?.password) return null;
         const email = credentials.email as string;
-        const user = await verifyUserCredentials(
-          email,
-          credentials.password as string,
-        );
+        const user = await verifyUserCredentials(email, credentials.password as string);
         if (!user) return null;
 
-        // Segundo factor: código por email (global ON y activado por usuario)
         const userTwoFactorEnabled = user.twoFactorEnabled !== false;
         if (isTwoFactorRequired() && userTwoFactorEnabled) {
           const code = credentials.code;
@@ -56,6 +49,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  secret: authSecret,
+  cookies: {
+    sessionToken: {
+      name: "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+    callbackUrl: {
+      name: "authjs.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+    csrfToken: {
+      name: "authjs.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -65,8 +87,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as any).role;
         token.globalRole = (user as any).globalRole;
         token.memberships = (user as any).memberships ?? [];
-        token.name = user.name;
-        token.email = user.email;
       }
       return token;
     },
@@ -81,11 +101,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    async signIn({ user }) {
-      if (!user?.email) return false;
-      const existing = await getUserByEmail(user.email);
-      return Boolean(existing);
-    },
   },
-  secret: authSecret,
 });

@@ -23,36 +23,18 @@ function LoginPageContent() {
 
   const reason = searchParams.get("reason");
   useEffect(() => {
-    if (reason === "inactivity") setInfo("Tu sesión se cerró por inactividad (15 min sin actividad).");
+    if (reason === "inactivity") setInfo("Tu sesión se cerró por inactividad (30 min sin actividad).");
     else if (reason === "expired") setInfo("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
   }, [reason]);
 
   const completeLogin = async (code?: string) => {
     const result = await signIn("credentials", {
-      redirect: false,
+      redirect: true,
+      callbackUrl: "/",
       email,
       password,
       ...(code ? { code } : {}),
-      callbackUrl: safeCallbackPath,
     });
-
-    setLoading(false);
-    if (result?.error) {
-      setError(code ? "Código incorrecto o expirado" : "Credenciales inválidas");
-      return;
-    }
-    let target = safeCallbackPath;
-    if (result?.url) {
-      try {
-        const parsed = new URL(result.url, window.location.origin);
-        if (parsed.origin === window.location.origin) {
-          target = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-        }
-      } catch {
-        // ignore malformed URL and keep safe callback
-      }
-    }
-    router.push(target);
   };
 
   const requestChallenge = async (event: FormEvent) => {
