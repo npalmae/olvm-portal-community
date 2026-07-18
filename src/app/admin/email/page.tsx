@@ -106,7 +106,20 @@ export default function EmailConfigPage() {
     <div className="min-h-screen p-8" style={{ background: "var(--bg)" }}>
       <div className="mx-auto max-w-2xl">
         <div className="mb-6">
-          <a href="/" className="text-xs text-blue-600 hover:underline">← Volver</a>
+          <div className="mb-2 flex gap-2">
+            <button
+              onClick={() => router.push("/admin/clusters")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              ← Setup Cluster
+            </button>
+            <button
+              onClick={() => router.push("/")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              ← Home
+            </button>
+          </div>
           <h1 className="mt-2 text-lg font-bold text-gray-900">Configuración de Email</h1>
           <p className="text-xs text-gray-500">Notificaciones, códigos 2FA y alertas del sistema</p>
         </div>
