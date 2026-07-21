@@ -1,0 +1,46 @@
+{
+  "name": "ovm-portal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cross-env NEXT_DISABLE_TURBOPACK=1 NEXT_WEBPACK_USE_LEGACY=1 next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@novnc/novnc": "1.4.0",
+    "@prisma/client": "^6.3.0",
+    "bcryptjs": "^3.0.3",
+    "bufferutil": "^4.1.0",
+    "next": "15.1.6",
+    "next-auth": "^5.0.0-beta.30",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "resend": "^6.16.0",
+    "undici": "^6.21.1",
+    "utf-8-validate": "^6.0.6",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/ws": "^8.5.10",
+    "cross-env": "^7.0.3",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.6",
+    "prisma": "^6.3.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.0.16"
+  }
+}

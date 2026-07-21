@@ -45,9 +45,9 @@ const parseJsonSafe = async (res: Response) => {
 
 const roleBadge = (role: string) => {
   if (role === "superadmin")
-    return "bg-amber-500/20 text-amber-200 border-amber-500/40";
+    return "bg-amber-100 text-amber-800 border-amber-300";
   if (role === "admin")
-    return "bg-blue-500/20 text-blue-200 border-blue-500/40";
+    return "bg-blue-100 text-blue-800 border-blue-300";
   return "bg-gray-100 text-gray-600 border-gray-200";
 };
 
@@ -211,7 +211,7 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#05070c] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#f0f2f5] text-gray-700 flex items-center justify-center">
         <p>Cargando...</p>
       </div>
     );
@@ -347,10 +347,10 @@ export default function AdminUsersPage() {
             </div>
             <button
               type="submit"
-              disabled={busy}
+              disabled={submitting}
               className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-60"
             >
-              {busy ? "Creando..." : "Crear"}
+              {submitting ? "Creando..." : "Crear"}
             </button>
           </form>
         )}
@@ -395,8 +395,8 @@ export default function AdminUsersPage() {
                           key={m.tenantId}
                           className={`px-2 py-1 rounded text-xs border ${
                             m.role === "admin"
-                              ? "bg-blue-500/15 text-blue-200 border-blue-500/30"
-                              : "bg-white/10 text-white/70 border-white/15"
+                              ? "bg-blue-100 text-blue-700 border-blue-300"
+                              : "bg-gray-100 text-gray-700 border-gray-200"
                           }`}
                           title={`${tenantName(m.tenantId)} (${m.role})`}
                         >
@@ -586,29 +586,29 @@ function EditModal({
     <ModalShell title={`Editar usuario · ${user.email}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm text-white/60">
+          <label className="block text-sm text-gray-600">
             Nombre
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             />
           </label>
-          <label className="block text-sm text-white/60">
+          <label className="block text-sm text-gray-600">
             Email
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             />
           </label>
         </div>
 
         {isSuperadmin ? (
           <>
-            <label className="block text-sm text-white/60">
+            <label className="block text-sm text-gray-600">
               Rol global
               <select
                 value={globalRole ?? ""}
@@ -617,7 +617,7 @@ function EditModal({
                     e.target.value === "superadmin" ? "superadmin" : null,
                   )
                 }
-                className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
               >
                 <option value="">Usuario / Admin por tenant</option>
                 <option value="superadmin">Superadmin (acceso global)</option>
@@ -626,7 +626,7 @@ function EditModal({
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-white/60">Membresías por tenant</p>
+                <p className="text-sm text-gray-600">Membresías por tenant</p>
                 <button
                   type="button"
                   onClick={addMembership}
@@ -634,14 +634,14 @@ function EditModal({
                     memberships.filter((m) => m.tenantId).length >= tenants.length ||
                     tenants.length === 0
                   }
-                  className="text-xs px-2 py-1 bg-white/10 hover:bg-white/20 rounded disabled:opacity-40"
+                  className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-40"
                 >
                   + Añadir tenant
                 </button>
               </div>
               <div className="space-y-2">
                 {memberships.length === 0 && (
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-gray-400">
                     Sin membresías. El usuario no verá ningún tenant.
                   </p>
                 )}
@@ -650,7 +650,7 @@ function EditModal({
                     <select
                       value={m.tenantId}
                       onChange={(e) => setMembershipTenant(i, e.target.value)}
-                      className="flex-1 px-2 py-1 bg-black/20 border border-white/10 rounded-lg text-sm"
+                      className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
                     >
                       <option value="">Selecciona tenant…</option>
                       {tenants
@@ -673,7 +673,7 @@ function EditModal({
                           e.target.value === "admin" ? "admin" : "user",
                         )
                       }
-                      className="px-2 py-1 bg-black/20 border border-white/10 rounded-lg text-sm"
+                      className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
                     >
                       <option value="user">user</option>
                       <option value="admin">admin</option>
@@ -681,7 +681,7 @@ function EditModal({
                     <button
                       type="button"
                       onClick={() => removeMembership(i)}
-                      className="text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded"
+                      className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded"
                     >
                       Quitar
                     </button>
@@ -690,12 +690,12 @@ function EditModal({
               </div>
             </div>
 
-            <label className="block text-sm text-white/60">
+            <label className="block text-sm text-gray-600">
               Tenant por defecto
               <select
                 value={defaultTenantId}
                 onChange={(e) => setDefaultTenantId(e.target.value)}
-                className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+                className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
               >
                 <option value="">—</option>
                 {memberships.map((m) => (
@@ -706,10 +706,10 @@ function EditModal({
               </select>
             </label>
 
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3">
-              <span className="text-sm text-white/70">
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <span className="text-sm text-gray-700">
                 Doble factor (2FA)
-                <span className="block text-xs text-white/45">
+                <span className="block text-xs text-gray-500">
                   {twoFactor
                     ? "Se exige código por email al iniciar sesión"
                     : "Login directo solo con contraseña"}
@@ -724,14 +724,14 @@ function EditModal({
             </label>
           </>
         ) : (
-          <label className="block text-sm text-white/60">
+          <label className="block text-sm text-gray-600">
             Rol en tu tenant ({adminTenantId})
             <select
               value={tenantRole}
               onChange={(e) =>
                 setTenantRole(e.target.value === "admin" ? "admin" : "user")
               }
-              className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             >
               <option value="user">user</option>
               <option value="admin">admin</option>
@@ -743,7 +743,7 @@ function EditModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
             Cancelar
           </button>
@@ -781,34 +781,34 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
   return (
     <ModalShell title={`Restablecer clave · ${user.email}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <label className="block text-sm text-white/60">
+        <label className="block text-sm text-gray-600">
           Nueva contraseña (mín. 6)
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+            className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
           />
         </label>
-        <label className="block text-sm text-white/60">
+        <label className="block text-sm text-gray-600">
           Confirmar contraseña
           <input
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
-            className="mt-1 w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg"
+            className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
           />
         </label>
         {mismatch && (
-          <p className="text-sm text-red-300">Las contraseñas no coinciden.</p>
+          <p className="text-sm text-red-600">Las contraseñas no coinciden.</p>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
             Cancelar
           </button>
@@ -836,7 +836,7 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
   return (
     <ModalShell title="Eliminar usuario" onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-white/80">
+        <p className="text-gray-800">
           ¿Seguro que deseas eliminar a{" "}
           <span className="font-semibold">{user.name}</span> ({user.email})? Esta
           acción no se puede deshacer.
@@ -845,7 +845,7 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
             Cancelar
           </button>
@@ -853,7 +853,7 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="px-6 py-2 bg-red-500/80 hover:bg-red-500 text-white font-semibold rounded-lg disabled:opacity-50"
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg disabled:opacity-50"
           >
             {busy ? "Eliminando..." : "Eliminar"}
           </button>
@@ -878,14 +878,14 @@ function ModalShell({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-[#0b0f17] border border-white/10 rounded-2xl p-6 shadow-2xl"
+        className="w-full max-w-lg bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
-            className="text-white/50 hover:text-white text-xl leading-none"
+            className="text-gray-400 hover:text-gray-700 text-xl leading-none"
           >
             ×
           </button>
