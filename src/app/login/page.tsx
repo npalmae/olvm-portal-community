@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
+import { usePortalBranding } from "@/components/usePortalBranding";
 
 function LoginPageContent() {
   const router = useRouter();
@@ -20,6 +21,7 @@ function LoginPageContent() {
   const [step, setStep] = useState<1 | 2>(1);
   const [maskedEmail, setMaskedEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const { branding } = usePortalBranding();
 
   const reason = searchParams.get("reason");
   useEffect(() => {
@@ -93,10 +95,21 @@ function LoginPageContent() {
         {/* Logo */}
         <div className="mb-6 text-center">
           <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
-            <SixmanagerMark subtitle="OLVM Portal" />
+            {branding.hasLogo && branding.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.logoUrl}
+                alt={branding.brandName}
+                width={branding.logoWidth || 160}
+                height={branding.logoHeight || 107}
+                className="h-auto w-[130px] sm:w-[160px] object-contain"
+              />
+            ) : (
+              <SixmanagerMark subtitle="OLVM Portal" />
+            )}
           </div>
           <h1 className="text-lg font-bold text-gray-900">
-            {step === 1 ? "Ingresar al portal" : "Verificación en dos pasos"}
+            {step === 1 ? `Ingresar a ${branding.brandName}` : "Verificación en dos pasos"}
           </h1>
           <p className="mt-0.5 text-xs text-gray-500">
             {step === 1

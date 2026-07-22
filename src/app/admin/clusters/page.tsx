@@ -173,6 +173,12 @@ export default function AdminClustersPage() {
             >
               Usuarios
             </button>
+            <button
+              onClick={() => router.push("/admin/branding")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Branding
+            </button>
           </div>
         </div>
 
@@ -416,8 +422,7 @@ function EngineForm({
   const [testRes, setTestRes] = useState<TestResult>(null);
   const [saving, setSaving] = useState(false);
   const [sharedSds, setSharedSds] = useState<string[]>(engine?.sharedStorageDomains ?? []);
-  const [brandName, setBrandName] = useState(engine?.brandName ?? "");
-  const [brandLogoUrl, setBrandLogoUrl] = useState(engine?.brandLogoUrl ?? "");
+  const [sharedStorageDomains, setSharedStorageDomains] = useState(engine?.sharedStorageDomains ?? []);
   const [availableSds, setAvailableSds] = useState<{ name: string; availableGB: number }[]>([]);
   const [loadingSds, setLoadingSds] = useState(false);
 
@@ -438,7 +443,7 @@ function EngineForm({
   };
 
   const buildPayload = () => {
-    const payload: Record<string, unknown> = { name, baseUrl, allowInsecure, sharedStorageDomains: sharedSds, brandName, brandLogoUrl };
+    const payload: Record<string, unknown> = { name, baseUrl, allowInsecure, sharedStorageDomains: sharedSds };
     if (authMethod === "basic") {
       payload.username = username;
       if (password) payload.password = password;
@@ -531,21 +536,7 @@ function EngineForm({
             </label>
           )}
 
-          {editing && (
-            <div className="rounded-md border p-3" style={{ borderColor: "var(--border)" }}>
-              <p className={labelCls}>Branding</p>
-              <p className="mb-2 text-[10px] text-gray-400">Personaliza la imagen del portal (logo + nombre en la barra superior)</p>
-              <label className="block">
-                <span className={labelCls}>Nombre de marca</span>
-                <input className={`${inputCls} mt-1`} value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="SixManager" />
-              </label>
-              <label className="mt-2 block">
-                <span className={labelCls}>URL del logo</span>
-                <input className={`${inputCls} mt-1`} value={brandLogoUrl} onChange={(e) => setBrandLogoUrl(e.target.value)} placeholder="https://ejemplo.com/logo.png" />
-                <span className="mt-0.5 block text-[10px] text-gray-400">Imagen rectangular, preferiblemente fondo transparente. Vacío = sin logo.</span>
-              </label>
-            </div>
-          )}
+
 
           {editing && (
             <div>

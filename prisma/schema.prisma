@@ -65,3 +65,15 @@ model EmailConfig {
   enabled     Boolean  @default(true)
   updatedAt   DateTime @updatedAt
 }
+
+/// Singleton (id=1): branding global del portal (login, register, etc.)
+model PortalBranding {
+  id          Int      @id @default(1)
+  brandName   String?
+  logoData    Bytes?
+  logoMime    String?
+  logoWidth   Int?
+  logoHeight  Int?
+  logoSize    Int?
+  updatedAt   DateTime @updatedAt
+}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { usePortalBranding } from "@/components/usePortalBranding";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -203,6 +204,7 @@ const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-
 
 export default function Home() {
   const { data: session } = useSession();
+  const { branding: portalBranding } = usePortalBranding();
   const isSuperadmin =
     session?.user?.globalRole === "superadmin" ||
     session?.user?.role === "superadmin";
@@ -1237,11 +1239,14 @@ export default function Home() {
             <div className="min-w-0 flex-1 flex items-center justify-center">
               {(() => {
                 const t = tenants.find((t) => t.id === selectedTenant) ?? tenants[0];
-                const logo = t?.brandLogoUrl;
-                const brand = t?.brandName || "OLVM-PORTAL";
+                const tenantLogo = t?.brandLogoUrl;
+                const globalLogo = portalBranding.hasLogo ? portalBranding.logoUrl : null;
+                const logo = tenantLogo || globalLogo;
+                const brand = t?.brandName || portalBranding.brandName || "OLVM-PORTAL";
                 return (
                   <div className="leading-tight text-center">
-                    {logo && <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />}
+                    {logo && // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />}
                     <div className="text-[13px] font-bold text-white">{brand}</div>
                     <div className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "var(--sidebar-muted)" }}>OLVM-PORTAL</div>
                   </div>
