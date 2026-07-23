@@ -3,6 +3,22 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+const XK_F1 = 0xffbe;
+const XK_F2 = 0xffbf;
+const XK_F3 = 0xffc0;
+const XK_F4 = 0xffc1;
+const XK_F5 = 0xffc2;
+const XK_F6 = 0xffc3;
+const XK_F7 = 0xffc4;
+const XK_F8 = 0xffc5;
+const XK_F9 = 0xffc6;
+const XK_F10 = 0xffc7;
+const XK_F11 = 0xffc8;
+const XK_F12 = 0xffc9;
+const XK_CTRL_L = 0xffe3;
+const XK_ALT_L = 0xffe9;
+const XK_DELETE = 0xffff;
+
 function ConsolePageContent() {
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -10,6 +26,8 @@ function ConsolePageContent() {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [renderInfo, setRenderInfo] = useState<string>('');
+  const [showOnboardKb, setShowOnboardKb] = useState(false);
+  const rfbRef = useRef<any>(null);
 
   const wsUrl = searchParams.get('wsUrl') || '';
   const ticket = searchParams.get('ticket') || '';
@@ -189,6 +207,7 @@ function ConsolePageContent() {
         rfb.addEventListener('connect', () => {
           console.log('[console] Conectado!');
           setStatus('connected');
+          rfbRef.current = rfb;
           const anyRfb = rfb as any;
           if (anyRfb?._screen) {
             anyRfb._screen.style.width = '100%';
@@ -322,6 +341,61 @@ function ConsolePageContent() {
     }
   };
 
+  const sendKey = (keysym: number, label: string) => {
+    const rfb = rfbRef.current;
+    if (!rfb) return;
+    try {
+      rfb.sendKey(keysym, label, true);
+      setTimeout(() => rfb.sendKey(keysym, label, false), 50);
+    } catch (e) {
+      console.error('[console] sendKey error:', e);
+    }
+  };
+
+  const sendCtrlAltDel = () => {
+    const rfb = rfbRef.current;
+    if (!rfb) return;
+    try {
+      rfb.sendCtrlAltDel();
+    } catch (e) {
+      console.error('[console] sendCtrlAltDel error:', e);
+      sendKey(XK_CTRL_L, 'ControlLeft');
+      sendKey(XK_ALT_L, 'AltLeft');
+      sendKey(XK_DELETE, 'Delete');
+    }
+  };
+
+  const sendCombo = (keys: { keysym: number; label: string }[]) => {
+    const rfb = rfbRef.current;
+    if (!rfb) return;
+    for (const k of keys) {
+      try {
+        rfb.sendKey(k.keysym, k.label, true);
+      } catch {}
+    }
+    setTimeout(() => {
+      for (const k of [...keys].reverse()) {
+        try {
+          rfb.sendKey(k.keysym, k.label, false);
+        } catch {}
+      }
+    }, 80);
+  };
+
+  const toggleFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        el.requestFullscreen();
+      }
+    } catch (e) {
+      console.error('[console] fullscreen error:', e);
+    }
+  };
+
   return (
     <div className="h-screen overflow-hidden bg-black text-white flex flex-col">
       <div className="flex-none flex items-center justify-between px-4 py-2 bg-[#0b1321] border-b border-white/10">
@@ -339,12 +413,27 @@ function ConsolePageContent() {
           {status === 'error' && (
             <span className="text-xs text-red-400">Error: {errorMsg}</span>
           )}
+          <button onClick={sendCtrlAltDel} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Ctrl+Alt+Del">Ctrl+Alt+Del</button>
+          <button onClick={() => sendCombo([{keysym: XK_CTRL_L, label: 'ControlLeft'}, {keysym: XK_ALT_L, label: 'AltLeft'}, {keysym: XK_F1, label: 'F1'}])} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Ctrl+Alt+F1">Ctrl+Alt+F1</button>
+          <button onClick={toggleFullscreen} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Pantalla completa">Fullscreen</button>
+          <button onClick={() => setShowOnboardKb(v => !v)} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Teclado en pantalla">Teclado</button>
           <button onClick={() => handleAction('shutdown')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado ordenado">Apagar</button>
           <button onClick={() => handleAction('stop')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado forzado">Stop</button>
           <button onClick={() => handleAction('reboot')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Reiniciar">Reiniciar</button>
           <button onClick={() => handleAction('eject')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Expulsar CD/ISO">Expulsar</button>
         </div>
       </div>
+      {showOnboardKb && (
+        <div className="flex-none px-4 py-2 bg-[#0b1321] border-b border-white/10 flex flex-wrap gap-1.5">
+          <button onClick={() => sendKey(XK_CTRL_L, 'ControlLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Ctrl</button>
+          <button onClick={() => sendKey(XK_ALT_L, 'AltLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Alt</button>
+          <button onClick={() => sendKey(XK_DELETE, 'Delete')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Del</button>
+          <span className="text-white/30 mx-1">|</span>
+          {[XK_F1,XK_F2,XK_F3,XK_F4,XK_F5,XK_F6,XK_F7,XK_F8,XK_F9,XK_F10,XK_F11,XK_F12].map((k, i) => (
+            <button key={k} onClick={() => sendKey(k, `F${i+1}`)} className="text-xs px-1.5 py-1 rounded bg-gray-700 hover:bg-gray-600">F{i+1}</button>
+          ))}
+        </div>
+      )}
       <div
         ref={containerRef}
         className="relative flex-1 overflow-hidden"

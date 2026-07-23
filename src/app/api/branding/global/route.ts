@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { readBrandingConfig, LOGO_URL } from "@/lib/brandingStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
 
 export async function GET() {
-  const row = await prisma.portalBranding.findUnique({ where: { id: 1 } });
+  const cfg = readBrandingConfig();
 
   return NextResponse.json({
-    brandName: row?.brandName ?? "",
-    hasLogo: Boolean(row?.logoData),
-    logoUrl: row?.logoData ? "/api/branding/logo" : null,
-    logoWidth: row?.logoWidth ?? 0,
-    logoHeight: row?.logoHeight ?? 0,
+    brandName: cfg.brandName ?? "",
+    hasLogo: Boolean(cfg.logoMime),
+    logoUrl: cfg.logoMime ? LOGO_URL : null,
+    logoWidth: cfg.logoWidth ?? 0,
+    logoHeight: cfg.logoHeight ?? 0,
   });
 }

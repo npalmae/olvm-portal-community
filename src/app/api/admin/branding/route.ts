@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isPlatformSuperadmin } from "@/lib/authz";
-import { prisma } from "@/lib/prisma";
 import { validateUpload, reencodeImage, MAX_LOGO_BYTES } from "@/lib/imageUpload";
+import { readBrandingConfig, writeBrandingConfig, writeLogo, clearBrandingConfig, deleteLogo } from "@/lib/brandingStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,17 +21,15 @@ export async function GET() {
   const check = await requireSuperadmin();
   if (check.denied) return JSON_RESP({ error: "Solo superadmin" }, check.status);
 
-  let row = await prisma.portalBranding.findUnique({ where: { id: 1 } });
-  if (!row) row = await prisma.portalBranding.create({ data: { id: 1 } });
-
+  const cfg = readBrandingConfig();
   return NextResponse.json({
-    brandName: row.brandName ?? "",
-    hasLogo: Boolean(row.logoData),
-    logoMime: row.logoMime ?? "",
-    logoWidth: row.logoWidth ?? 0,
-    logoHeight: row.logoHeight ?? 0,
-    logoSize: row.logoSize ?? 0,
-    updatedAt: row.updatedAt,
+    brandName: cfg.brandName ?? "",
+    hasLogo: Boolean(cfg.logoMime),
+    logoMime: cfg.logoMime ?? "",
+    logoWidth: cfg.logoWidth ?? 0,
+    logoHeight: cfg.logoHeight ?? 0,
+    logoSize: cfg.logoSize ?? 0,
+    updatedAt: cfg.updatedAt,
     maxBytes: MAX_LOGO_BYTES,
   });
 }
@@ -78,30 +76,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await prisma.portalBranding.upsert({
-    where: { id: 1 },
-    create: {
-      id: 1,
-      brandName,
-      logoData: reencoded.data,
-      logoMime: reencoded.mime,
-      logoWidth: reencoded.width,
-      logoHeight: reencoded.height,
-      logoSize: reencoded.size,
-    },
-    update: {
-      brandName,
-      logoData: reencoded.data,
-      logoMime: reencoded.mime,
-      logoWidth: reencoded.width,
-      logoHeight: reencoded.height,
-      logoSize: reencoded.size,
-    },
+  writeLogo(reencoded.data);
+  const cfg = writeBrandingConfig({
+    brandName,
+    logoMime: reencoded.mime,
+    logoWidth: reencoded.width,
+    logoHeight: reencoded.height,
+    logoSize: reencoded.size,
   });
 
   return NextResponse.json({
     ok: true,
-    brandName,
+    brandName: cfg.brandName,
     logo: {
       mime: reencoded.mime,
       width: reencoded.width,
@@ -115,11 +101,8 @@ export async function DELETE() {
   const check = await requireSuperadmin();
   if (check.denied) return JSON_RESP({ error: "Solo superadmin" }, check.status);
 
-  await prisma.portalBranding.upsert({
-    where: { id: 1 },
-    create: { id: 1, brandName: null, logoData: null, logoMime: null },
-    update: { brandName: null, logoData: null, logoMime: null, logoWidth: null, logoHeight: null, logoSize: null },
-  });
+  deleteLogo();
+  clearBrandingConfig();
 
   return NextResponse.json({ ok: true });
 }

@@ -2490,18 +2490,7 @@ export default function Home() {
             </div>
             <div className="relative flex-1 overflow-hidden rounded-b-xl bg-black" style={{ minHeight: 400 }}>
               {embeddedConsole.iframeUrl && (
-                <>
-                  <div className="flex items-center justify-between border-b px-2 py-1.5 bg-gray-900" style={{ borderColor: "var(--border)" }}>
-                    <span className="text-xs text-white/70 truncate max-w-[300px]">{selectedVm?.name ?? embeddedConsole.vmId}</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => embeddedConsole.rfb?.sendCtrlAltDel()} className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700">Ctrl+Alt+Del</button>
-                      <button onClick={() => embeddedConsole.rfb?.sendKey('F1', { ctrl: true, alt: true })} className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700">Ctrl+Alt+F1</button>
-                      <button onClick={() => { const iframe = document.querySelector('iframe'); iframe?.requestFullscreen(); }} className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700">Fullscreen</button>
-                      <button className="px-2 py-1 rounded text-[10px] border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="On-screen keyboard (no implementado)">⌨</button>
-                    </div>
-                  </div>
-                  <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
-                </>
+                <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
               )}
               {embeddedConsole.status === "connecting" && !embeddedConsole.iframeUrl && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">Conectando...</div>
