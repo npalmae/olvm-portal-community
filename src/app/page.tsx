@@ -258,6 +258,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [consoleLoading, setConsoleLoading] = useState<string | null>(null);
+  const [consolePreviewIframe, setConsolePreviewIframe] = useState<string | null>(null);
+  const [consolePreviewLoading, setConsolePreviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -282,7 +284,7 @@ export default function Home() {
   const [newDiskIface, setNewDiskIface] = useState("virtio_scsi");
   const [vmDiskList, setVmDiskList] = useState<{ attachmentId: string; diskId: string; name: string; sizeGB: number; interface: string; bootable: boolean; status: string }[]>([]);
   const [uploadingIso, setUploadingIso] = useState(false);
-  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning">("overview");
+  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
@@ -1049,6 +1051,11 @@ export default function Home() {
 
   const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
+  useEffect(() => {
+    setConsolePreviewIframe(null);
+    setConsolePreviewLoading(false);
+  }, [detailTab, selectedVm?.id, selectedVm?.status]);
+
   // Carga los discos de la VM seleccionada
   useEffect(() => {
     setVmDisks(null);
@@ -1164,6 +1171,34 @@ export default function Home() {
       consoleRef.parentElement?.removeChild(consoleRef);
     }
     setTimeout(() => { closingConsole.current = false; }, 1000);
+  };
+
+  const generateConsolePreview = async (vmId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setConsolePreviewLoading(true);
+    setConsolePreviewIframe(null);
+    try {
+      const infoRes = await fetch(
+        `/api/tenants/${tid}/vms/${vmId}/console/info?protocol=vnc&withTicket=1`,
+        { cache: "no-store" },
+      );
+      const info = await parseJsonSafe(infoRes);
+      if (!infoRes.ok || info?.error) return;
+      const ticket = info.ticket as string | undefined;
+      if (!ticket) return;
+      const proxyRes = await fetch(
+        `/api/console/proxy?tenantId=${tid}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(ticket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
+        { cache: "no-store" },
+      );
+      const proxy = await parseJsonSafe(proxyRes);
+      if (!proxyRes.ok || !proxy?.proxyWsUrl) return;
+      setConsolePreviewIframe(`/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=0`);
+    } catch {
+      // silent — preview is optional
+    } finally {
+      setConsolePreviewLoading(false);
+    }
   };
 
   const openEmbeddedConsole = async (vmId: string) => {
@@ -1941,7 +1976,7 @@ export default function Home() {
             <div className="p-3">
               {/* Tabs */}
               <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
-                {(["overview","actions","resources","provisioning"] as const).map((tab) => (
+                {(["overview","actions","resources","provisioning","console"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
@@ -1952,7 +1987,7 @@ export default function Home() {
                       boxShadow: detailTab === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
                     }}
                   >
-                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:"Nuevo"}[tab]}
+                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:"Nuevo",console:"Consola"}[tab]}
                   </button>
                 ))}
               </div>
@@ -2426,6 +2461,85 @@ export default function Home() {
                   >
                     {actionLoading === "create" ? "Creando..." : "Crear VM"}
                   </button>
+                </div>
+              )}
+
+              {/* ── Console tab ── */}
+              {detailTab === "console" && (
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Consola</p>
+                  {selectedVm ? (
+                    <>
+                      <div className="rounded-md border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                        <div className="bg-black relative" style={{ aspectRatio: "16/9", minHeight: 140 }}>
+                          {consolePreviewLoading ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
+                              <p className="mt-1.5 text-[10px]">Generando preview...</p>
+                            </div>
+                          ) : selectedVm.status === "up" && consolePreviewIframe ? (
+                            <iframe
+                              src={consolePreviewIframe}
+                              className="h-full w-full border-0 opacity-90"
+                              title={`Preview ${selectedVm.id}`}
+                              style={{ pointerEvents: "none" }}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/60">
+                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M8 21h8M12 17v4"/>
+                              </svg>
+                              <p className="mt-1.5 text-xs">
+                                {selectedVm.status === "up" ? "Preview no disponible" : "VM apagada"}
+                              </p>
+                            </div>
+                          )}
+                          {selectedVm.status === "up" && (
+                            <div className="absolute bottom-1.5 right-1.5">
+                              <span className="rounded bg-black/60 px-1.5 py-0.5 text-[9px] text-emerald-400">●</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium text-gray-900">{selectedVm.name}</p>
+                            <p className="text-[10px] text-gray-500">
+                              {selectedVm.status === "up" ? "En ejecución" : selectedVm.status}
+                            </p>
+                          </div>
+                          <StatusBadge status={selectedVm.status} />
+                        </div>
+                      </div>
+                      {selectedVm.status === "up" && !consolePreviewIframe && !consolePreviewLoading && (
+                        <button
+                          onClick={() => generateConsolePreview(selectedVm.id)}
+                          className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                          Generar Preview
+                        </button>
+                      )}
+                      {selectedVm.status === "up" ? (
+                        <button
+                          onClick={() => { setConsolePreviewIframe(null); openEmbeddedConsole(selectedVm.id); }}
+                          disabled={consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"}
+                          className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                        >
+                          {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"
+                            ? "Conectando..."
+                            : "Abrir Consola Completa"}
+                        </button>
+                      ) : (
+                        <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[10px] text-amber-700">
+                          Inicia la VM para acceder a la consola.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-400">Selecciona una VM para ver la consola.</p>
+                  )}
                 </div>
               )}
             </div>
