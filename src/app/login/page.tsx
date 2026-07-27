@@ -18,9 +18,11 @@ function LoginPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | "forgot">(1);
   const [maskedEmail, setMaskedEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
   const { branding } = usePortalBranding();
 
   const reason = searchParams.get("reason");
@@ -89,6 +91,26 @@ function LoginPageContent() {
     setInfo(null);
   };
 
+  const submitForgot = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Error al enviar el correo");
+      setForgotSent(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-sm">
@@ -109,12 +131,18 @@ function LoginPageContent() {
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900">
-            {step === 1 ? `Ingresar a ${branding.brandName}` : "Verificación en dos pasos"}
+            {step === "forgot"
+              ? "Recuperar contraseña"
+              : step === 1
+                ? `Ingresar a ${branding.brandName}`
+                : "Verificación en dos pasos"}
           </h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            {step === 1
-              ? "Accede con tus credenciales de tenant."
-              : `Ingresa el código de 6 dígitos enviado a ${maskedEmail}.`}
+            {step === "forgot"
+              ? "Ingresa tu correo y te enviaremos un enlace."
+              : step === 1
+                ? "Accede con tus credenciales de tenant."
+                : `Ingresa el código de 6 dígitos enviado a ${maskedEmail}.`}
           </p>
         </div>
 
@@ -130,7 +158,34 @@ function LoginPageContent() {
             </div>
           )}
 
-          {step === 1 ? (
+          {step === "forgot" ? (
+            forgotSent ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-700">
+                Si el correo existe, recibirás un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.
+              </div>
+            ) : (
+              <form onSubmit={submitForgot} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                    Correo electrónico
+                  </label>
+                  <input
+                    type="email" value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required autoFocus
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                    placeholder="admin@empresa.com"
+                  />
+                </div>
+                <button
+                  type="submit" disabled={loading}
+                  className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {loading ? "Enviando..." : "Enviar enlace de recuperación"}
+                </button>
+              </form>
+            )
+          ) : step === 1 ? (
             <form onSubmit={requestChallenge} className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
@@ -214,13 +269,29 @@ function LoginPageContent() {
           )}
         </div>
 
-        {step === 1 && (
-          <p className="mt-3 text-center text-xs text-gray-500">
-            ¿Sin cuenta?{" "}
-            <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700">
-              Crear usuario
-            </Link>
-          </p>
+        {(step === 1 || step === "forgot") && (
+          <div className="mt-3 text-center text-xs text-gray-500 space-y-1">
+            {step === 1 && (
+              <>
+                <p>
+                  ¿Sin cuenta?{" "}
+                  <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                    Crear usuario
+                  </Link>
+                </p>
+                <p>
+                  <button onClick={() => { setStep("forgot"); setForgotSent(false); setError(null); setForgotEmail(email); }} className="text-gray-400 hover:text-blue-600">
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </p>
+              </>
+            )}
+            {step === "forgot" && (
+              <button onClick={() => setStep(1)} className="text-gray-400 hover:text-blue-600">
+                ← Volver al login
+              </button>
+            )}
+          </div>
         )}
       </div>
     </main>

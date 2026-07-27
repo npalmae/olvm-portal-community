@@ -106,3 +106,36 @@ export const sendTestEmail = async (
     return { ok: false, error: (error as Error).message };
   }
 };
+
+export const sendPasswordResetEmail = async (
+  email: string,
+  resetUrl: string,
+): Promise<{ delivered: boolean; fallback: boolean; error?: string }> => {
+  const subject = "Recuperar contraseña - OLVM Portal";
+  const text = `Recibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace para crear una nueva contraseña:\n${resetUrl}\n\nEste enlace expira en 30 minutos.\n\nSi no solicitaste este cambio, ignora este correo.`;
+
+  const config = await getEmailConfig();
+  const apiKey = config.apiKey ?? process.env.RESEND_API_KEY;
+  const fromAddress = config.fromAddress ?? process.env.RESEND_FROM ?? "onboarding@resend.dev";
+
+  if (!apiKey || !config.enabled) {
+    console.log(`[reset dev] Reset link para ${email}: ${resetUrl}`);
+    return { delivered: true, fallback: true };
+  }
+
+  try {
+    const resend = createClient(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      to: email,
+      subject,
+      text,
+    });
+    if (error) throw new Error(error.message);
+    return { delivered: true, fallback: false };
+  } catch (error) {
+    console.warn(`[reset fallback] No se pudo enviar email a ${email}: ${(error as Error).message}`);
+    console.log(`[reset fallback] Reset link: ${resetUrl}`);
+    return { delivered: true, fallback: true, error: (error as Error).message };
+  }
+};
