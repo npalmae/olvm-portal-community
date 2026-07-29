@@ -9,7 +9,7 @@ type Params = {
   params: Promise<{ tenantId: string }>;
 };
 
-export async function GET(_: Request, context: Params) {
+export async function GET(request: Request, context: Params) {
   const { tenantId } = await context.params;
   try {
     const session = await auth();
@@ -18,8 +18,10 @@ export async function GET(_: Request, context: Params) {
     }
     assertTenantAccess(session.user, tenantId);
 
-    // Superadmin ve todos los storage domains; el resto solo los asignados
-    const sds = isPlatformSuperadmin(session.user)
+    const { searchParams } = new URL(request.url);
+    const showAll = searchParams.get("all") === "1";
+
+    const sds = isPlatformSuperadmin(session.user) && showAll
       ? await fetchAllStorageDomains(tenantId)
       : await fetchStorageDomains(tenantId);
 

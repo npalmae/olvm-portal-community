@@ -30,6 +30,8 @@ type Tenant = {
   engineUrl: string;
   tag?: string;
   storageDomains?: string[];
+  networks?: string[];
+  networkConfig?: { name: string; prefix: string; mask: string }[];
   createdAt: string;
 };
 
@@ -615,16 +617,28 @@ function TenantForm({
   const [selectedSds, setSelectedSds] = useState<string[]>(tenant?.storageDomains ?? []);
   const [availableSds, setAvailableSds] = useState<{ name: string; availableGB: number }[]>([]);
   const [loadingSds, setLoadingSds] = useState(false);
+  const [selectedNetworks, setSelectedNetworks] = useState<string[]>(tenant?.networks ?? []);
+  const [availableNetworks, setAvailableNetworks] = useState<string[]>([]);
+  const [loadingNetworks, setLoadingNetworks] = useState(false);
+  const [networkPrefixes, setNetworkPrefixes] = useState<Record<string, { prefix: string; mask: string }>>(
+    Object.fromEntries((tenant?.networkConfig ?? []).map((n) => [n.name, { prefix: n.prefix, mask: n.mask }]))
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!engineId) { setAvailableSds([]); return; }
+    if (!engineId) { setAvailableSds([]); setAvailableNetworks([]); return; }
     setLoadingSds(true);
     fetch(`/api/admin/engines/${engineId}/storage-domains`)
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setAvailableSds(data.map((sd: { name: string; availableGB: number }) => ({ name: sd.name, availableGB: sd.availableGB }))))
       .catch(() => setAvailableSds([]))
       .finally(() => setLoadingSds(false));
+    setLoadingNetworks(true);
+    fetch(`/api/admin/engines/${engineId}/networks`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setAvailableNetworks(Array.isArray(data) ? data.map((n: string) => n) : []))
+      .catch(() => setAvailableNetworks([]))
+      .finally(() => setLoadingNetworks(false));
   }, [engineId]);
 
   const toggleSd = (sdName: string) => {
@@ -633,10 +647,26 @@ function TenantForm({
     );
   };
 
+  const toggleNetwork = (netName: string) => {
+    setSelectedNetworks((prev) => {
+      const next = prev.includes(netName) ? prev.filter((s) => s !== netName) : [...prev, netName];
+      setNetworkPrefixes((pp) => {
+        if (next.includes(netName) && !pp[netName]) {
+          return { ...pp, [netName]: { prefix: "", mask: "" } };
+        }
+        return pp;
+      });
+      return next;
+    });
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      const payload: Record<string, unknown> = { name, engineId, tag, storageDomains: selectedSds };
+      const nc = selectedNetworks
+        .map((name) => ({ name, prefix: networkPrefixes[name]?.prefix ?? "", mask: networkPrefixes[name]?.mask ?? "" }))
+        .filter((n) => n.prefix || n.mask);
+      const payload: Record<string, unknown> = { name, engineId, tag, storageDomains: selectedSds, networks: selectedNetworks, networkConfig: nc.length > 0 ? nc : undefined };
       if (!editing) payload.id = id;
       const url = editing ? `/api/admin/clusters/${tenant!.id}` : "/api/admin/clusters";
       const method = editing ? "PATCH" : "POST";
@@ -705,6 +735,50 @@ function TenantForm({
                     <span className="text-xs text-gray-700">{sd.name}</span>
                     <span className="ml-auto text-[10px] text-gray-400">{sd.availableGB.toFixed(0)} GB libres</span>
                   </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <span className={labelCls}>Redes asignadas</span>
+            <p className="mt-0.5 text-[10px] text-gray-400">Si no seleccionas ninguna, el tenant ve todas las redes</p>
+            {loadingNetworks ? (
+              <p className="mt-1 text-[11px] text-gray-400">Cargando redes...</p>
+            ) : availableNetworks.length === 0 ? (
+              <p className="mt-1 text-[11px] text-gray-400">Sin redes disponibles</p>
+            ) : (
+              <div className="mt-1 space-y-1">
+                {availableNetworks.map((netName) => (
+                  <div key={netName} className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                    <label className="flex items-center gap-2 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={selectedNetworks.includes(netName)}
+                        onChange={() => toggleNetwork(netName)}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-xs font-medium text-gray-700">{netName}</span>
+                    </label>
+                    {selectedNetworks.includes(netName) && (
+                      <div className="mt-1 flex gap-2 pl-6">
+                        <input
+                          type="text"
+                          value={networkPrefixes[netName]?.prefix ?? ""}
+                          onChange={(e) => setNetworkPrefixes((pp) => ({ ...pp, [netName]: { prefix: e.target.value, mask: pp[netName]?.mask ?? "" } }))}
+                          placeholder="192.168.1"
+                          className="w-24 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-blue-400"
+                        />
+                        <input
+                          type="text"
+                          value={networkPrefixes[netName]?.mask ?? ""}
+                          onChange={(e) => setNetworkPrefixes((pp) => ({ ...pp, [netName]: { prefix: pp[netName]?.prefix ?? "", mask: e.target.value } }))}
+                          placeholder="255.255.255.0"
+                          className="w-28 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-blue-400"
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) assertTenantAccess(session.user, tenantId, "admin");
 
     const body = await req.json();
     const vnicProfileId = String(body.vnicProfileId ?? "");
@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) assertTenantAccess(session.user, tenantId, "admin");
 
     const body = await req.json();
     const nicId = String(body.nicId ?? "");
@@ -78,7 +78,7 @@ export async function DELETE(req: NextRequest, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) assertTenantAccess(session.user, tenantId, "admin");
 
     const { searchParams } = new URL(req.url);
     const nicId = searchParams.get("nicId");

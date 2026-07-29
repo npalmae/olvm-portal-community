@@ -35,6 +35,7 @@ COPY --from=builder /app/data ./data
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
+COPY proxy-server.js ./proxy-server.js
 COPY start.sh ./start.sh
 RUN chmod +x start.sh
 

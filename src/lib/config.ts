@@ -16,6 +16,8 @@ export type TenantConfig = {
   caCert?: Buffer;
   tag?: string;
   storageDomains?: string[];
+  networks?: string[];
+  networkConfig?: { name: string; prefix: string; mask: string }[];
   sharedStorageDomains?: string[];
   brandName?: string;
   brandLogoUrl?: string;
@@ -40,6 +42,8 @@ const toTenant = (cluster: ClusterConnection): TenantConfig => {
     allowInsecure: engine.allowInsecure,
     tag: cluster.tag,
     storageDomains: cluster.storageDomains,
+    networks: cluster.networks,
+    networkConfig: cluster.networkConfig,
     sharedStorageDomains: engine.sharedStorageDomains,
     brandName: engine.brandName,
     brandLogoUrl: engine.brandLogoUrl,

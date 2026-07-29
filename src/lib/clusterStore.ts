@@ -7,12 +7,16 @@ import {
   type OlvmEngine,
 } from "./engineStore";
 
+export type NetworkConfig = { name: string; prefix: string; mask: string };
+
 export type ClusterConnection = {
   id: string;
   name: string;
   engineId: string;
   tag?: string;
   storageDomains?: string[];
+  networks?: string[];
+  networkConfig?: NetworkConfig[];
   createdAt: string;
 };
 
@@ -150,6 +154,9 @@ const seedFromEnv = (): ClusterConnection[] => {
             storageDomains: Array.isArray(t.storageDomains)
               ? t.storageDomains.map(String)
               : undefined,
+            networks: Array.isArray(t.networks)
+              ? t.networks.map(String)
+              : undefined,
             createdAt: now,
           } as ClusterConnection;
         })
@@ -227,6 +234,8 @@ export const createCluster = (input: ClusterInput): ClusterConnection => {
     engineId: input.engineId!.trim(),
     tag: input.tag?.trim() || undefined,
     storageDomains: input.storageDomains && input.storageDomains.length > 0 ? input.storageDomains : undefined,
+    networks: input.networks && input.networks.length > 0 ? input.networks : undefined,
+    networkConfig: input.networkConfig && input.networkConfig.length > 0 ? input.networkConfig : undefined,
     createdAt: new Date().toISOString(),
   };
   list.push(conn);
@@ -251,6 +260,12 @@ export const updateCluster = (
     storageDomains: input.storageDomains !== undefined
       ? input.storageDomains.length > 0 ? input.storageDomains : undefined
       : current.storageDomains,
+    networks: input.networks !== undefined
+      ? input.networks.length > 0 ? input.networks : undefined
+      : current.networks,
+    networkConfig: input.networkConfig !== undefined
+      ? input.networkConfig.length > 0 ? input.networkConfig : undefined
+      : current.networkConfig,
   };
   list[index] = next;
   cache = list;

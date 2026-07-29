@@ -277,6 +277,7 @@ export default function Home() {
   } | null>(null);
   const [tenantDiskMap, setTenantDiskMap] = useState<Record<string, { totalSizeGB: number; usedGB: number; count: number }>>({});
   const [storageDomains, setStorageDomains] = useState<{ id: string; name: string; type: string; status?: string; availableGB: number; usedGB: number; totalGB: number }[]>([]);
+  const [showAllSds, setShowAllSds] = useState(false);
   const [isoList, setIsoList] = useState<{ id: string; name: string; storageDomainName: string; sizeGB: number }[]>([]);
   const [mountedIso, setMountedIso] = useState<string | null>(null);
   const [newDiskSize, setNewDiskSize] = useState("50");
@@ -291,11 +292,14 @@ export default function Home() {
     memoryMB: "", cpuCores: "", sockets: "1", comment: "",
     os: "linux", vnicProfileId: "",
   });
-  const [vmNics, setVmNics] = useState<{ id: string; name: string; mac: string; linked: boolean; interface: string; networkName: string; vnicProfileId: string }[]>([]);
+  const [cloudInit, setCloudInit] = useState({ ip: "", netmask: "", gateway: "", dns: "" });
+  const [useCloudInit, setUseCloudInit] = useState(false);
+  const [vmNics, setVmNics] = useState<{ id: string; name: string; mac: string; linked: boolean; plugged: boolean; interface: string; networkName: string; vnicProfileId: string; ipv4?: string }[]>([]);
   const [provClusters, setProvClusters] = useState<{ id: string; name: string }[]>([]);
   const [provTemplates, setProvTemplates] = useState<{ id: string; name: string }[]>([]);
   const [provNetworks, setProvNetworks] = useState<{ id: string; name: string }[]>([]);
   const [provVnicProfiles, setProvVnicProfiles] = useState<{ id: string; name: string; networkId: string; networkName: string }[]>([]);
+  const [netConfig, setNetConfig] = useState<Record<string, { prefix: string; mask: string }>>({});
   const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
   const [embeddedConsole, setEmbeddedConsole] = useState<{
     vmId: string; status: "idle" | "connecting" | "connected" | "error";
@@ -422,13 +426,14 @@ export default function Home() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/tenants/${selectedTenant}/storage-domains`);
+        const qs = showAllSds ? "?all=1" : "";
+        const res = await fetch(`/api/tenants/${selectedTenant}/storage-domains${qs}`);
         const data = await parseJsonSafe(res);
         if (!cancelled && res.ok && Array.isArray(data)) setStorageDomains(data);
       } catch { /* noop */ }
     })();
     return () => { cancelled = true; };
-  }, [selectedTenant]);
+  }, [selectedTenant, showAllSds]);
 
   // Carga ISOs del tenant actual
   useEffect(() => {
@@ -477,6 +482,11 @@ export default function Home() {
           if (Array.isArray(data.templates)) setProvTemplates(data.templates);
           if (Array.isArray(data.networks)) setProvNetworks(data.networks);
           if (Array.isArray(data.vnicProfiles)) setProvVnicProfiles(data.vnicProfiles);
+          if (Array.isArray(data.networkConfig)) {
+            const nc: Record<string, { prefix: string; mask: string }> = {};
+            for (const n of data.networkConfig) { nc[n.name] = { prefix: n.prefix, mask: n.mask }; }
+            setNetConfig(nc);
+          }
         }
       } catch { /* noop */ }
     })();
@@ -660,7 +670,7 @@ export default function Home() {
     }
   };
 
-  const handleToggleNic = async (vmId: string, nicId: string, linked: boolean) => {
+  const handleToggleNic = async (vmId: string, nicId: string, turnOn: boolean) => {
     const tid = tenantForVm(vmId);
     if (!tid) return;
     setActionLoading(`${vmId}-nic`);
@@ -668,12 +678,12 @@ export default function Home() {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/nics`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nicId, linked }),
+        body: JSON.stringify({ nicId, linked: turnOn }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess(linked ? "NIC conectada" : "NIC desconectada");
-      setVmNics(vmNics.map((n) => n.id === nicId ? { ...n, linked } : n));
+      setSuccess(turnOn ? "NIC conectada" : "NIC desconectada");
+      setVmNics(vmNics.map((n) => n.id === nicId ? { ...n, linked: turnOn, plugged: turnOn } : n));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -916,12 +926,15 @@ export default function Home() {
           comment: newVm.comment || undefined,
           os: newVm.os,
           vnicProfileId: newVm.vnicProfileId || undefined,
+          cloudInit: useCloudInit && cloudInit.ip ? cloudInit : undefined,
         }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo crear la VM");
       setSuccess("VM creada (el aprovisionamiento puede tardar)");
       setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "" });
+      setCloudInit({ ip: "", netmask: "", gateway: "", dns: "" });
+      setUseCloudInit(false);
       refresh();
     } catch (err) { setError((err as Error).message); }
     finally { setActionLoading(null); }
@@ -1052,9 +1065,13 @@ export default function Home() {
   const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
   useEffect(() => {
-    setConsolePreviewIframe(null);
-    setConsolePreviewLoading(false);
-  }, [detailTab, selectedVm?.id, selectedVm?.status]);
+    if (selectedVm?.status === "up" && selectedVm.id) {
+      generateConsolePreview(selectedVm.id);
+    } else {
+      setConsolePreviewIframe(null);
+      setConsolePreviewLoading(false);
+    }
+  }, [selectedVm?.id, selectedVm?.status]);
 
   // Carga los discos de la VM seleccionada
   useEffect(() => {
@@ -1193,7 +1210,7 @@ export default function Home() {
       );
       const proxy = await parseJsonSafe(proxyRes);
       if (!proxyRes.ok || !proxy?.proxyWsUrl) return;
-      setConsolePreviewIframe(`/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=0`);
+      setConsolePreviewIframe(`/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&preview=1`);
     } catch {
       // silent — preview is optional
     } finally {
@@ -1588,7 +1605,7 @@ export default function Home() {
 
                 {/* Donut metrics row */}
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-3">
-                  {/* CPU */}
+                {/* CPU */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">CPU Total</p>
                     <div className="flex items-center gap-3">
@@ -1636,7 +1653,17 @@ export default function Home() {
                 {/* Storage Domains */}
                 {selectedTenant !== ALL_TENANTS && storageDomains.length > 0 && (
                   <div className="mb-4">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Storage Domains</p>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Storage Domains</p>
+                      {isSuperadmin && (
+                        <button
+                          onClick={() => setShowAllSds((v) => !v)}
+                          className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                          {showAllSds ? "Solo asignados" : "Ver todos"}
+                        </button>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {storageDomains.map((sd) => {
                         const usedPct = sd.totalGB > 0 ? (sd.usedGB / sd.totalGB) * 100 : 0;
@@ -1853,7 +1880,6 @@ export default function Home() {
                   <dl className="space-y-1 text-xs">
                     {[
                       ["Sistema operativo", selectedVm.os ?? "N/D"],
-                      ["IP", selectedVm.ip ?? "N/D"],
                       ["Template", selectedVm.template ?? "N/D"],
                       ["Cluster", selectedVm.cluster ?? "N/D"],
                       ["Host", selectedVm.host ?? "N/D"],
@@ -1882,6 +1908,56 @@ export default function Home() {
                       <dd className="min-w-0 break-all text-gray-500">{selectedVm.id}</dd>
                     </div>
                   </dl>
+                </div>
+                {/* Consola */}
+                {selectedVm.status === "up" && (
+                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Consola</p>
+                    <div className="relative mb-2 overflow-hidden rounded-md border bg-black" style={{ aspectRatio: "16/9", borderColor: "var(--border)" }}>
+                      {consolePreviewLoading ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
+                        </div>
+                      ) : consolePreviewIframe ? (
+                        <iframe src={consolePreviewIframe} className="h-full w-full border-0" title="Console preview" style={{ pointerEvents: "none" }} />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-white/40">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { setConsolePreviewIframe(null); openEmbeddedConsole(selectedVm.id); }}
+                      disabled={consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"}
+                      className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting" ? "Conectando..." : "Abrir Consola"}
+                    </button>
+                  </div>
+                )}
+                {/* Red */}
+                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Red</p>
+                  <div className="space-y-1.5">
+                    {vmNics.filter(n => n.linked && n.plugged).length > 0 ? (
+                      vmNics.filter(n => n.linked && n.plugged).map((n) => (
+                        <div key={n.id} className="flex flex-col gap-0.5">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-500">{n.networkName || n.name}</span>
+                            <span className="font-semibold text-gray-800">{n.ipv4 ?? "Sin IP (guest agent requerido)"}</span>
+                          </div>
+                          <div className="flex justify-between text-[9px] text-gray-400">
+                            <span>{n.interface}</span>
+                            <span>MAC: {n.mac ?? "—"}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[11px] text-gray-400">Sin NICs activas</p>
+                    )}
+                  </div>
                 </div>
                 {/* CPU */}
                 <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
@@ -2335,39 +2411,54 @@ export default function Home() {
 
                     {/* Redes */}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                    <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Redes</p>
+                    <div className="flex items-center justify-between">
+                      <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Redes</p>
+                      {vmNics.some(n => !n.plugged) && (
+                        <button
+                          onClick={() => vmNics.filter(n => !n.plugged).forEach(n => handleToggleNic(selectedVm.id, n.id, true))}
+                          disabled={actionLoading === `${selectedVm.id}-nic`}
+                          className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                        >
+                          Conectar todas
+                        </button>
+                      )}
+                    </div>
                     {vmNics.length > 0 && (
                       <div className="space-y-1">
-                        {vmNics.map((n) => (
-                          <div key={n.id} className="flex items-center gap-1.5 rounded-md border px-2 py-1" style={{ borderColor: "var(--border)" }}>
-                            <span className={`h-2 w-2 shrink-0 rounded-full ${n.linked ? "bg-emerald-500" : "bg-gray-300"}`} />
-                            <span className="flex-1 truncate text-[10px] text-gray-600">{n.name}</span>
-                            <span className="shrink-0 text-[10px] text-gray-400">{n.networkName || "?"}</span>
-                            <span className="shrink-0 text-[9px] text-gray-300">{n.mac?.slice(0, 8)}</span>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`¿${n.linked ? "Desconectar" : "Conectar"} la NIC "${n.name}"?`)) {
-                                  handleToggleNic(selectedVm.id, n.id, !n.linked);
-                                }
-                              }}
-                              disabled={actionLoading === `${selectedVm.id}-nic`}
-                              className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${n.linked ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}
-                            >
-                              {n.linked ? "Off" : "On"}
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`¿Eliminar la NIC "${n.name}" (${n.networkName})?`)) {
-                                  handleDeleteNic(selectedVm.id, n.id);
-                                }
-                              }}
-                              disabled={actionLoading === `${selectedVm.id}-nic`}
-                              className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              Del
-                            </button>
+                        {vmNics.map((n) => {
+                          const isOn = n.plugged && n.linked;
+                          return (
+                          <div key={n.id} className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`h-2 w-2 shrink-0 rounded-full ${isOn ? "bg-emerald-500" : n.plugged ? "bg-amber-400" : "bg-gray-300"}`} title={isOn ? "Conectada" : n.plugged ? "Plugged pero sin link" : "Desconectada"} />
+                              <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{n.name}</span>
+                              <span className="shrink-0 text-[10px] text-gray-500">{n.networkName || "?"}</span>
+                              {n.ipv4 && (
+                                <span className="shrink-0 rounded bg-blue-50 px-1 text-[9px] font-medium text-blue-600">{n.ipv4}</span>
+                              )}
+                              <button
+                                onClick={() => handleToggleNic(selectedVm.id, n.id, !isOn)}
+                                disabled={actionLoading === `${selectedVm.id}-nic`}
+                                className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${isOn ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}
+                              >
+                                {isOn ? "Off" : "On"}
+                              </button>
+                              <button
+                                onClick={() => { if (window.confirm(`¿Eliminar la NIC "${n.name}"?`)) handleDeleteNic(selectedVm.id, n.id); }}
+                                disabled={actionLoading === `${selectedVm.id}-nic`}
+                                className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Del
+                              </button>
+                            </div>
+                            <div className="mt-0.5 flex gap-2 pl-3.5 text-[9px] text-gray-400">
+                              <span>{n.mac?.slice(0, 17)}</span>
+                              <span>{n.interface}</span>
+                              <span className={isOn ? "text-emerald-500" : "text-gray-400"}>{isOn ? "● Activa" : n.plugged ? "◐ Plugged" : "○ Desconectada"}</span>
+                            </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                     <div className="flex gap-1.5">
@@ -2380,7 +2471,7 @@ export default function Home() {
                       >
                         <option value="">{actionLoading === `${selectedVm.id}-nic` ? "Agregando..." : "Agregar NIC..."}</option>
                         {provVnicProfiles.map((p) => (
-                          <option key={p.id} value={p.id}>{p.networkName} ({p.name})</option>
+                          <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
                         ))}
                       </select>
                     </div>
@@ -2428,10 +2519,40 @@ export default function Home() {
                       className={inputCls}>
                       <option value="">Selecciona red…</option>
                       {provVnicProfiles.map((p) => (
-                        <option key={p.id} value={p.id}>{p.networkName} ({p.name})</option>
+                        <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
                       ))}
                     </select>
                   </Field>
+                  {newVm.vnicProfileId && (
+                    <label className="flex items-center gap-2 text-[10px] text-gray-500">
+                      <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
+                      Configurar IP automática (cloud-init)
+                    </label>
+                  )}
+                  {useCloudInit && (
+                    <div className="grid grid-cols-2 gap-2 rounded-md border border-blue-100 bg-blue-50 p-2.5">
+                      <Field label="IP">
+                        <input value={cloudInit.ip}
+                          onChange={(e) => setCloudInit((v) => ({ ...v, ip: e.target.value }))}
+                          className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.100` : "192.168.1.100"} />
+                      </Field>
+                      <Field label="Máscara">
+                        <input value={cloudInit.netmask}
+                          onChange={(e) => setCloudInit((v) => ({ ...v, netmask: e.target.value }))}
+                          className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.mask ?? "255.255.255.0"} />
+                      </Field>
+                      <Field label="Gateway">
+                        <input value={cloudInit.gateway}
+                          onChange={(e) => setCloudInit((v) => ({ ...v, gateway: e.target.value }))}
+                          className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.1` : "192.168.1.1"} />
+                      </Field>
+                      <Field label="DNS">
+                        <input value={cloudInit.dns}
+                          onChange={(e) => setCloudInit((v) => ({ ...v, dns: e.target.value }))}
+                          className={inputCls} placeholder="8.8.8.8" />
+                      </Field>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <Field label="RAM (MB)">
                       <input type="number" min={512} value={newVm.memoryMB}

@@ -9,10 +9,10 @@ type Params = {
   params: Promise<{ tenantId: string }>;
 };
 
-const asString = (value: unknown) =>
+const asString = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
-const asPositiveNumber = (value: unknown) => {
+const asPositiveNumber = (value: unknown): number | undefined => {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : undefined;
 };
@@ -25,14 +25,11 @@ export async function GET(_: Request, context: Params) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     assertTenantAccess(session.user, tenantId);
-
     const vms = await fetchVms(tenantId);
     return NextResponse.json(vms);
   } catch (error) {
     const message = (error as Error).message;
-    const lower = message.toLowerCase();
-    const status =
-      lower.includes("tenant") || lower.includes("required") ? 400 : 502;
+    const status = message.toLowerCase().includes("tenant") ? 400 : 502;
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -55,6 +52,8 @@ export async function POST(request: Request, context: Params) {
     const sockets = asPositiveNumber(body?.sockets);
     const comment = asString(body?.comment);
     const os = asString(body?.os);
+    const vnicProfileId = asString(body?.vnicProfileId);
+    const cloudInit = body?.cloudInit && typeof body.cloudInit === "object" ? body.cloudInit as { ip?: string; netmask?: string; gateway?: string; dns?: string } : undefined;
 
     if (!name || !clusterId) {
       return NextResponse.json(
@@ -72,15 +71,14 @@ export async function POST(request: Request, context: Params) {
       sockets,
       comment: comment || undefined,
       os: os || undefined,
+      vnicProfileId: vnicProfileId || undefined,
+      cloudInit,
     });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = (error as Error).message;
     const status = message.toLowerCase().includes("tenant") ? 400 : 500;
-    return NextResponse.json(
-      { error: message },
-      { status },
-    );
+    return NextResponse.json({ error: message }, { status });
   }
 }
