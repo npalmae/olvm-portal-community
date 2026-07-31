@@ -43,15 +43,15 @@ export async function POST(request: Request) {
   }
 
   // Cooldown anti-abuso entre reenvíos.
-  if (!canRequestChallenge(email)) {
-    const wait = Math.ceil(msUntilCanResend(email) / 1000);
+  if (!(await canRequestChallenge(email))) {
+    const wait = Math.ceil((await msUntilCanResend(email)) / 1000);
     return NextResponse.json(
       { error: `Espera ${wait}s antes de reenviar el código` },
       { status: 429 },
     );
   }
 
-  const code = createChallenge(email);
+  const code = await createChallenge(email);
   const result = await sendVerificationCode(user.email, code);
 
   return NextResponse.json({

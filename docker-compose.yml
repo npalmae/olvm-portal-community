@@ -35,3 +35,4 @@ services:
 
 volumes:
   olvm-pgdata:
+    name: ${POSTGRES_VOLUME_NAME:-olvm-portal_olvm-pgdata}

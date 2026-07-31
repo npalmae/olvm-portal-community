@@ -29,7 +29,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const userTwoFactorEnabled = user.twoFactorEnabled !== false;
         if (isTwoFactorRequired() && userTwoFactorEnabled) {
           const code = credentials.code;
-          if (typeof code !== "string" || !verifyChallenge(email, code)) {
+          if (typeof code !== "string" || !(await verifyChallenge(email, code))) {
             return null;
           }
         }
@@ -50,34 +50,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   secret: authSecret,
-  cookies: {
-    sessionToken: {
-      name: "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: false,
-      },
-    },
-    callbackUrl: {
-      name: "authjs.callback-url",
-      options: {
-        sameSite: "lax",
-        path: "/",
-        secure: false,
-      },
-    },
-    csrfToken: {
-      name: "authjs.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: false,
-      },
-    },
-  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

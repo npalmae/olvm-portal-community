@@ -1,10 +1,15 @@
 import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
 
-const CODE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const CODE_TTL_MS = 5 * 60 * 1000;
 const envCooldown = Number(process.env.TWO_FACTOR_COOLDOWN_MS);
 const COOLDOWN_MS =
-  Number.isFinite(envCooldown) && envCooldown >= 0 ? envCooldown : 30 * 1000; // 30s entre reenvíos
+  Number.isFinite(envCooldown) && envCooldown >= 0 ? envCooldown : 30 * 1000;
 const MAX_ATTEMPTS = 5;
+const storePath =
+  process.env.TWO_FACTOR_STORE_PATH ||
+  path.join(process.cwd(), "data", "two-factor-challenges.json");
 
 type Challenge = {
   code: string;
@@ -13,94 +18,82 @@ type Challenge = {
   createdAt: number;
 };
 
-// Store en memoria compartido vía globalThis para sobrevivir a la
-// re-instantiación de módulos en dev mode de Next.js (mismo patrón que Prisma).
-const globalForChallenges = globalThis as unknown as {
-  __ovm2faChallenges?: Map<string, Challenge>;
-};
-
-const challenges: Map<string, Challenge> =
-  globalForChallenges.__ovm2faChallenges ??
-  (globalForChallenges.__ovm2faChallenges = new Map());
+type ChallengeStore = Record<string, Challenge>;
 
 const normalize = (email: string) => email.trim().toLowerCase();
 
-const generateCode = () => {
-  // 6 dígitos, evita ceros a la izquierda excesivos
-  const n = crypto.randomInt(0, 1_000_000);
-  return n.toString().padStart(6, "0");
-};
-
-// Limpieza periódica de challenges expirados (cada 5 min)
-const purgeExpired = () => {
-  const now = Date.now();
-  for (const [key, challenge] of challenges) {
-    if (challenge.expiresAt < now) challenges.delete(key);
+const readChallenges = async (): Promise<ChallengeStore> => {
+  try {
+    const parsed = JSON.parse(await fs.readFile(storePath, "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as ChallengeStore
+      : {};
+  } catch {
+    return {};
   }
 };
 
-export const canRequestChallenge = (email: string): boolean => {
-  const key = normalize(email);
-  const existing = challenges.get(key);
-  if (!existing) return true;
-  return Date.now() - existing.createdAt >= COOLDOWN_MS;
+const writeChallenges = async (challenges: ChallengeStore) => {
+  await fs.mkdir(path.dirname(storePath), { recursive: true });
+  await fs.writeFile(storePath, JSON.stringify(challenges), "utf8");
 };
 
-export const msUntilCanResend = (email: string): number => {
-  const key = normalize(email);
-  const existing = challenges.get(key);
-  if (!existing) return 0;
-  return Math.max(0, COOLDOWN_MS - (Date.now() - existing.createdAt));
+const purgeExpired = (challenges: ChallengeStore) => {
+  const now = Date.now();
+  for (const [email, challenge] of Object.entries(challenges)) {
+    if (challenge.expiresAt < now) delete challenges[email];
+  }
 };
 
-// Crea (o reemplaza) un challenge y devuelve el código generado.
-export const createChallenge = (email: string): string => {
-  purgeExpired();
-  const key = normalize(email);
+const generateCode = () => crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+
+export const canRequestChallenge = async (email: string): Promise<boolean> => {
+  const challenge = (await readChallenges())[normalize(email)];
+  return !challenge || Date.now() - challenge.createdAt >= COOLDOWN_MS;
+};
+
+export const msUntilCanResend = async (email: string): Promise<number> => {
+  const challenge = (await readChallenges())[normalize(email)];
+  if (!challenge) return 0;
+  return Math.max(0, COOLDOWN_MS - (Date.now() - challenge.createdAt));
+};
+
+export const createChallenge = async (email: string): Promise<string> => {
+  const challenges = await readChallenges();
+  purgeExpired(challenges);
   const code = generateCode();
-  challenges.set(key, {
+  challenges[normalize(email)] = {
     code,
     expiresAt: Date.now() + CODE_TTL_MS,
     attempts: 0,
     createdAt: Date.now(),
-  });
+  };
+  await writeChallenges(challenges);
   return code;
 };
 
-// Solo para tests: devuelve el código pendiente (o null). No usar en producción.
-export const getPendingCode = (email: string): string | null => {
-  const key = normalize(email);
-  const challenge = challenges.get(key);
-  if (!challenge || challenge.expiresAt < Date.now()) return null;
-  return challenge.code;
+export const getPendingCode = async (email: string): Promise<string | null> => {
+  const challenges = await readChallenges();
+  purgeExpired(challenges);
+  const challenge = challenges[normalize(email)];
+  return challenge?.code ?? null;
 };
 
-// Verifica el código. Single-use: se borra al acertar. Cuenta intentos fallidos.
-export const verifyChallenge = (email: string, code: string): boolean => {
-  purgeExpired();
+export const verifyChallenge = async (email: string, code: string): Promise<boolean> => {
+  const challenges = await readChallenges();
+  purgeExpired(challenges);
   const key = normalize(email);
-  const challenge = challenges.get(key);
-  if (!challenge) return false;
-  if (challenge.expiresAt < Date.now()) {
-    challenges.delete(key);
-    return false;
-  }
-  if (challenge.attempts >= MAX_ATTEMPTS) {
-    challenges.delete(key);
-    return false;
-  }
+  const challenge = challenges[key];
+  if (!challenge || !code.trim()) return false;
 
-  const provided = code.trim();
-  if (!provided) return false;
-
-  if (challenge.code === provided) {
-    challenges.delete(key);
+  if (challenge.code === code.trim()) {
+    delete challenges[key];
+    await writeChallenges(challenges);
     return true;
   }
 
   challenge.attempts += 1;
-  if (challenge.attempts >= MAX_ATTEMPTS) {
-    challenges.delete(key);
-  }
+  if (challenge.attempts >= MAX_ATTEMPTS) delete challenges[key];
+  await writeChallenges(challenges);
   return false;
 };

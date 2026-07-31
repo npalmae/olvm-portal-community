@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   }
   const { searchParams } = new URL(request.url);
   const email = searchParams.get("email") ?? "";
-  const code = getPendingCode(email);
+  const code = await getPendingCode(email);
   if (!code) {
     return NextResponse.json({ error: "No hay código pendiente" }, { status: 404 });
   }
