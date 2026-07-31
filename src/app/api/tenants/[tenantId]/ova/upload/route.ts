@@ -57,7 +57,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       const ovf = stdout.split("\n").find((entry) => entry.toLowerCase().endsWith(".ovf"));
       if (!ovf) throw new Error("El OVA no contiene un archivo OVF");
       sessions.delete(id);
-      return NextResponse.json({ ok: true, done: true, filePath: upload.filePath, ovf });
+      return NextResponse.json({ ok: true, done: true, uploadId: id, ovf });
     } catch (error) {
       await rm(upload.filePath, { force: true });
       sessions.delete(id);

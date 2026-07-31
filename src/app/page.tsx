@@ -287,8 +287,9 @@ export default function Home() {
   const [uploadingIso, setUploadingIso] = useState(false);
   const [uploadingOva, setUploadingOva] = useState(false);
   const [ovaUploadProgress, setOvaUploadProgress] = useState<number | null>(null);
-  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console" | "ova">("overview");
-  const [newResourceMode, setNewResourceMode] = useState<"vm" | "ova">("vm");
+  const [uploadedOva, setUploadedOva] = useState<{ uploadId: string; name: string; ovf: string } | null>(null);
+  const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
+  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
@@ -846,6 +847,7 @@ export default function Home() {
       });
       const init = await parseJsonSafe(initRes);
       if (!initRes.ok) throw new Error(init?.error ?? "No se pudo iniciar la subida OVA");
+      let completed: { uploadId?: string; ovf?: string } | null = null;
       for (let i = 0; i < totalChunks; i++) {
         const chunk = file.slice(i * chunkSize, Math.min((i + 1) * chunkSize, file.size));
         const res = await fetch(`/api/tenants/${tid}/ova/upload`, {
@@ -854,9 +856,12 @@ export default function Home() {
         });
         const data = await parseJsonSafe(res);
         if (!res.ok) throw new Error(data?.error ?? `Error en bloque ${i + 1}`);
+        if (data?.done) completed = data;
         setOvaUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
       }
-      setSuccess(`OVA "${file.name}" subida y validada. OVF encontrado: ${init.ovf ?? "sí"}`);
+      if (!completed?.uploadId || !completed.ovf) throw new Error("El servidor no confirmó el OVA validado");
+      setUploadedOva({ uploadId: completed.uploadId, name: file.name, ovf: completed.ovf });
+      setSuccess(`OVA "${file.name}" subida y validada`);
     } catch (err) { setError((err as Error).message); }
     finally { setUploadingOva(false); setTimeout(() => setOvaUploadProgress(null), 1000); }
   };
@@ -2083,7 +2088,7 @@ export default function Home() {
             <div className="p-3">
               {/* Tabs */}
               <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
-                {(["overview","actions","resources","provisioning","console","ova"] as const).map((tab) => (
+                {(["overview","actions","resources","provisioning","console"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
@@ -2094,7 +2099,7 @@ export default function Home() {
                       boxShadow: detailTab === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
                     }}
                   >
-                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:"Nuevo",console:"Consola",ova:"OVA"}[tab]}
+                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:"Nuevo",console:"Consola"}[tab]}
                   </button>
                 ))}
               </div>
@@ -2516,18 +2521,37 @@ export default function Home() {
               {detailTab === "provisioning" && (
                 <div className="space-y-2.5">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Nueva VM</p>
-                  <div className="grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
-                    <button
-                      onClick={() => setNewResourceMode("vm")}
-                      className="rounded px-2 py-1.5 text-[10px] font-semibold"
-                      style={{ background: newResourceMode === "vm" ? "white" : "transparent", color: newResourceMode === "vm" ? "#1d4ed8" : "#6b7280" }}
-                    >Crear VM</button>
-                    <button
-                      onClick={() => { setNewResourceMode("ova"); setDetailTab("ova"); }}
-                      className="rounded px-2 py-1.5 text-[10px] font-semibold"
-                      style={{ background: newResourceMode === "ova" ? "white" : "transparent", color: newResourceMode === "ova" ? "#1d4ed8" : "#6b7280" }}
-                    >Importar OVA</button>
-                  </div>
+                  <Field label="Origen de la VM">
+                    <select value={newVmSource} onChange={(e) => setNewVmSource(e.target.value as "blank" | "template" | "ova")} className={inputCls}>
+                      <option value="blank">Nueva VM (Blank)</option>
+                      <option value="template">Template existente</option>
+                      <option value="ova">Archivo OVA</option>
+                    </select>
+                  </Field>
+                  {newVmSource === "ova" && (
+                    <div className="rounded-md border border-dashed p-2.5" style={{ borderColor: "var(--border)" }}>
+                      {uploadedOva ? (
+                        <div className="rounded bg-emerald-50 p-2 text-[10px] text-emerald-700">
+                          <p className="font-semibold">{uploadedOva.name}</p>
+                          <p className="truncate">OVF: {uploadedOva.ovf}</p>
+                          <button onClick={() => setUploadedOva(null)} className="mt-1 text-emerald-800 underline">Cambiar OVA</button>
+                        </div>
+                      ) : (
+                        <>
+                          {ovaUploadProgress !== null && (
+                            <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] text-blue-700">
+                              <div className="mb-1 flex justify-between"><span>Subiendo OVA...</span><span>{ovaUploadProgress}%</span></div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
+                            </div>
+                          )}
+                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
+                            {uploadingOva ? "Subiendo OVA..." : "Seleccionar archivo OVA"}
+                            <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  )}
                   <Field label="Nombre *">
                     <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
                       className={inputCls} placeholder="vm-app-01" />
@@ -2707,31 +2731,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ── OVA tab ── */}
-              {detailTab === "ova" && (
-                <div className="space-y-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Importar OVA</p>
-                  <div className="rounded-md border border-dashed p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-xs font-medium text-gray-800">Importar appliance virtual</p>
-                    <p className="mt-1 text-[10px] leading-relaxed text-gray-500">
-                      Sube un archivo OVA para importarlo como máquina virtual o template en OLVM.
-                    </p>
-                    {ovaUploadProgress !== null && (
-                      <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] text-blue-700">
-                        <div className="mb-1 flex justify-between"><span>{uploadingOva ? "Subiendo OVA..." : "OVA validado"}</span><span>{ovaUploadProgress}%</span></div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
-                      </div>
-                    )}
-                    <label className={`mt-3 flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
-                      {uploadingOva ? "Subiendo OVA..." : "Seleccionar archivo OVA"}
-                      <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
-                    </label>
-                    <p className="mt-2 text-[10px] text-amber-600">
-                      La importación requiere definir el host de conversión, cluster y storage domain.
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </aside>
         </div>
