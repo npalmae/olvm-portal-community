@@ -37,6 +37,7 @@ function ConsolePageContent() {
   const ticket = searchParams.get('ticket') || '';
   const vmId = searchParams.get('vmId') || '';
   const isPreview = searchParams.get('preview') === '1';
+  const showToolbar = searchParams.get('show_toolbar') !== '0';
 
   useEffect(() => {
     const buildEffectiveWsUrl = () => {
@@ -452,7 +453,7 @@ function ConsolePageContent() {
 
   return (
     <div className="h-screen overflow-hidden bg-black flex flex-col">
-      {!isPreview && (
+      {showToolbar && !isPreview && (
       <div className="flex-none flex items-center justify-between px-4 py-2 bg-[#0b1321] border-b border-white/10">
         <div>
           <h1 className="text-sm font-semibold">Consola VM</h1>
@@ -491,7 +492,7 @@ function ConsolePageContent() {
         </div>
       </div>
       )}
-      {!isPreview && showOnboardKb && (
+      {showToolbar && showOnboardKb && (
         <div className="flex-none px-4 py-2 bg-[#0b1321] border-b border-white/10 flex flex-wrap gap-1.5">
           <button onClick={() => sendKey(XK_CTRL_L, 'ControlLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Ctrl</button>
           <button onClick={() => sendKey(XK_ALT_L, 'AltLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Alt</button>
@@ -521,7 +522,6 @@ function ConsolePageContent() {
       <div
         ref={containerRef}
         className="relative flex-1 overflow-hidden"
-        style={{ height: isPreview ? '100vh' : 'calc(100vh - 70px)', minHeight: isPreview ? '100vh' : 'calc(100vh - 70px)' }}
       />
     </div>
   );

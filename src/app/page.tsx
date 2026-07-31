@@ -1241,7 +1241,7 @@ export default function Home() {
       );
       const proxy = await parseJsonSafe(proxyRes);
       if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? "No hay websocket disponible");
-      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=0`;
+      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=1`;
       setEmbeddedConsole({ vmId, status: "connected", error: null, rfb: null, iframeUrl });
     } catch (err) {
       if (embeddedConsoleSession.current !== sid) return;
@@ -2706,7 +2706,7 @@ export default function Home() {
       {/* ── Embedded console modal ─────────────────────────────────────── */}
       {showExperimentalConsole && embeddedConsole.status !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="flex w-full max-w-5xl flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", height: "90vh", maxHeight: "90vh" }}>
+            <div className="flex flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", width: "min(88vw, calc((78vh - 54px) * 16 / 9))", maxHeight: "78vh" }}>
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
                 <p className="text-[11px] text-gray-500">Consola embebida</p>
@@ -2723,7 +2723,7 @@ export default function Home() {
                 >Cerrar</button>
               </div>
             </div>
-            <div className="relative flex-1 overflow-hidden rounded-b-xl bg-black" style={{ minHeight: 400 }}>
+            <div className="relative overflow-hidden rounded-b-xl bg-black" style={{ aspectRatio: "16 / 9" }}>
               {embeddedConsole.iframeUrl && (
                 <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
               )}

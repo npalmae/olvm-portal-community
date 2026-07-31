@@ -24,6 +24,8 @@ services:
     environment:
       DATABASE_URL: postgresql://olvm:${DB_PASSWORD:-olvm-secret-2026}@127.0.0.1:5432/olvm_portal?schema=public
       AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL}
+      NEXTAUTH_URL: ${AUTH_URL}
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
       REQUIRE_2FA: ${REQUIRE_2FA:-true}
       RESEND_API_KEY: ${RESEND_API_KEY}
