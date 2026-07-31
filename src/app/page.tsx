@@ -288,6 +288,7 @@ export default function Home() {
   const [uploadingOva, setUploadingOva] = useState(false);
   const [ovaUploadProgress, setOvaUploadProgress] = useState<number | null>(null);
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console" | "ova">("overview");
+  const [newResourceMode, setNewResourceMode] = useState<"vm" | "ova">("vm");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
@@ -2515,6 +2516,18 @@ export default function Home() {
               {detailTab === "provisioning" && (
                 <div className="space-y-2.5">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Nueva VM</p>
+                  <div className="grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
+                    <button
+                      onClick={() => setNewResourceMode("vm")}
+                      className="rounded px-2 py-1.5 text-[10px] font-semibold"
+                      style={{ background: newResourceMode === "vm" ? "white" : "transparent", color: newResourceMode === "vm" ? "#1d4ed8" : "#6b7280" }}
+                    >Crear VM</button>
+                    <button
+                      onClick={() => { setNewResourceMode("ova"); setDetailTab("ova"); }}
+                      className="rounded px-2 py-1.5 text-[10px] font-semibold"
+                      style={{ background: newResourceMode === "ova" ? "white" : "transparent", color: newResourceMode === "ova" ? "#1d4ed8" : "#6b7280" }}
+                    >Importar OVA</button>
+                  </div>
                   <Field label="Nombre *">
                     <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
                       className={inputCls} placeholder="vm-app-01" />
