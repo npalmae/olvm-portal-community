@@ -2634,172 +2634,196 @@ export default function Home() {
 
               {/* ── Provisioning tab ── */}
               {detailTab === "provisioning" && (
-                <div className="space-y-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Nueva VM</p>
-                  <Field label="Origen de la VM">
-                    <select value={newVmSource} onChange={(e) => setNewVmSource(e.target.value as "blank" | "template" | "ova")} className={inputCls}>
-                      <option value="blank">Nueva VM (Blank)</option>
-                      <option value="template">Template existente</option>
-                      <option value="ova">Archivo OVA</option>
-                    </select>
-                  </Field>
+                <div className="space-y-4">
+                  <div>
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">1. Origen</p>
+                    <Field label="Tipo de VM">
+                      <select value={newVmSource} onChange={(e) => { setNewVmSource(e.target.value as "blank" | "template" | "ova"); setUploadedOva(null); }} className={inputCls}>
+                        <option value="blank">Nueva VM (Blank)</option>
+                        <option value="template">Template existente</option>
+                        <option value="ova">Importar desde OVA</option>
+                      </select>
+                    </Field>
+                  </div>
+
                   {newVmSource === "ova" && (
-                    <div className="rounded-md border border-dashed p-2.5" style={{ borderColor: "var(--border)" }}>
+                    <div>
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">2. Seleccionar OVA</p>
                       {uploadedOva ? (
-                        <div className="rounded bg-emerald-50 p-2 text-[10px] text-emerald-700">
-                          <p className="font-semibold">{uploadedOva.name}</p>
-                          <p className="truncate">OVF: {uploadedOva.ovf}</p>
-                          <button onClick={() => setUploadedOva(null)} className="mt-1 text-emerald-800 underline">Cambiar OVA</button>
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-emerald-800">{uploadedOva.name}</p>
+                              <p className="mt-0.5 truncate text-[10px] text-emerald-600">{uploadedOva.ovf}</p>
+                            </div>
+                            <button onClick={() => setUploadedOva(null)} className="ml-2 shrink-0 text-[10px] text-emerald-700 underline">Cambiar</button>
+                          </div>
                         </div>
-                      ) : (
-                        <>
-                          {ovaLibrary.length > 0 && (
-                            <div className="mb-2">
-                              <p className="mb-1 text-[10px] font-semibold text-gray-500">Catálogo de OVAs</p>
-                              <select
- value="" 
-                                onChange={(e) => {
-                                  const entry = ovaLibrary.find((o) => o.id === e.target.value);
-                                  if (entry) setUploadedOva({ uploadId: entry.id, name: entry.name, ovf: entry.ovf });
-                                  e.target.value = "";
-                                }}
-                                className={inputCls}
-                              >
-                                <option value="">Seleccionar del catálogo ({ovaLibrary.length})…</option>
-                                {ovaLibrary.map((o) => (
-                                  <option key={o.id} value={o.id}>{o.name} ({Math.round(o.size / 1024 / 1024)} MB)</option>
-                                ))}
-                              </select>
-                              <div className="my-1.5 flex items-center gap-2">
-                                <div className="h-px flex-1 bg-gray-200" />
-                                <span className="text-[9px] text-gray-400">o subir nuevo</span>
-                                <div className="h-px flex-1 bg-gray-200" />
-                              </div>
-                            </div>
-                          )}
+                      ) : ovaLibrary.length > 0 ? (
+                        <div className="space-y-2">
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const entry = ovaLibrary.find((o) => o.id === e.target.value);
+                              if (entry) setUploadedOva({ uploadId: entry.id, name: entry.name, ovf: entry.ovf });
+                            }}
+                            className={inputCls}
+                          >
+                            <option value="">Catálogo ({ovaLibrary.length} OVAs)…</option>
+                            {ovaLibrary.map((o) => (
+                              <option key={o.id} value={o.id}>{o.name} — {Math.round(o.size / 1024 / 1024)} MB</option>
+                            ))}
+                          </select>
                           {ovaUploadProgress !== null && (
-                            <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] text-blue-700">
-                              <div className="mb-1 flex justify-between"><span>Subiendo OVA...</span><span>{ovaUploadProgress}%</span></div>
-                              <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
+                            <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] text-blue-700">
+                              <div className="mb-1 flex justify-between"><span>Subiendo…</span><span>{ovaUploadProgress}%</span></div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
+                          <div className="flex items-center gap-2 py-0.5">
+                            <div className="h-px flex-1 bg-gray-200" />
+                            <span className="text-[9px] text-gray-400">subir nuevo</span>
+                            <div className="h-px flex-1 bg-gray-200" />
+                          </div>
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
-                            {uploadingOva ? "Subiendo OVA..." : "Seleccionar archivo OVA"}
+                            {uploadingOva ? "Subiendo…" : "Seleccionar archivo .ova"}
                             <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
-                        </>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {ovaUploadProgress !== null && (
+                            <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] text-blue-700">
+                              <div className="mb-1 flex justify-between"><span>Subiendo…</span><span>{ovaUploadProgress}%</span></div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
+                            </div>
+                          )}
+                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-3 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
+                            {uploadingOva ? "Subiendo…" : "Seleccionar archivo .ova"}
+                            <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
+                          </label>
+                        </div>
                       )}
                     </div>
                   )}
-                  <Field label="Nombre *">
-                    <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
-                      className={inputCls} placeholder="vm-app-01" />
-                  </Field>
-                  {newVmSource !== "ova" && <Field label="OS a instalar">
-                    <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
-                      className={inputCls}>
-                      <option value="linux">Linux (virtio)</option>
-                      <option value="windows">Windows (SATA + virtio drivers)</option>
-                    </select>
-                  </Field>}
-                  <Field label="Cluster *">
-                    <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
-                      className={inputCls}>
-                      <option value="">Selecciona un cluster…</option>
-                      {provClusters.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  {newVmSource === "template" && <Field label="Template">
-                    <select value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
-                      className={inputCls}>
-                      <option value="">Sin template (blank)</option>
-                      {provTemplates.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </Field>}
-                  {newVmSource === "ova" && <Field label="Storage domain *">
-                    <select value={ovaStorageDomainId} onChange={(e) => setOvaStorageDomainId(e.target.value)} className={inputCls}>
-                      <option value="">Selecciona un storage domain…</option>
-                      {storageDomains.filter((sd) => sd.type === "data").map((sd) => (
-                        <option key={sd.id} value={sd.id}>{sd.name}{sd.status ? ` (${sd.status})` : ""}</option>
-                      ))}
-                    </select>
-                  </Field>}
-                  {newVmSource === "ova" && <Field label="Host de importación *">
-                    <select value={ovaHostId} onChange={(e) => setOvaHostId(e.target.value)} className={inputCls}>
-                      <option value="">Selecciona un host…</option>
-                      {provHosts.map((h) => (
-                        <option key={h.id} value={h.id}>{h.name}{h.address ? ` (${h.address})` : ""}</option>
-                      ))}
-                    </select>
-                  </Field>}
-                  {newVmSource !== "ova" && <Field label="Red *">
-                    <select value={newVm.vnicProfileId} onChange={(e) => setNewVm((v) => ({ ...v, vnicProfileId: e.target.value }))}
-                      className={inputCls}>
-                      <option value="">Selecciona red…</option>
-                      {provVnicProfiles.map((p) => (
-                        <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
-                      ))}
-                    </select>
-                  </Field>}
-                  {newVmSource !== "ova" && newVm.vnicProfileId && (
-                    <label className="flex items-center gap-2 text-[10px] text-gray-500">
-                      <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
-                      Configurar IP automática (cloud-init)
-                    </label>
-                  )}
-                  {newVmSource !== "ova" && useCloudInit && (
-                    <div className="grid grid-cols-2 gap-2 rounded-md border border-blue-100 bg-blue-50 p-2.5">
-                      <Field label="IP">
-                        <input value={cloudInit.ip}
-                          onChange={(e) => setCloudInit((v) => ({ ...v, ip: e.target.value }))}
-                          className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.100` : "192.168.1.100"} />
+
+                  <div>
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{newVmSource === "ova" ? "3. Configuración" : "2. Configuración"}</p>
+                    <div className="space-y-2.5">
+                      <Field label="Nombre *">
+                        <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
+                          className={inputCls} placeholder="vm-app-01" />
                       </Field>
-                      <Field label="Máscara">
-                        <input value={cloudInit.netmask}
-                          onChange={(e) => setCloudInit((v) => ({ ...v, netmask: e.target.value }))}
-                          className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.mask ?? "255.255.255.0"} />
+                      {newVmSource !== "ova" && <Field label="OS a instalar">
+                        <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
+                          className={inputCls}>
+                          <option value="linux">Linux (virtio)</option>
+                          <option value="windows">Windows (SATA + virtio drivers)</option>
+                        </select>
+                      </Field>}
+                      <Field label="Cluster *">
+                        <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
+                          className={inputCls}>
+                          <option value="">Selecciona un cluster…</option>
+                          {provClusters.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
                       </Field>
-                      <Field label="Gateway">
-                        <input value={cloudInit.gateway}
-                          onChange={(e) => setCloudInit((v) => ({ ...v, gateway: e.target.value }))}
-                          className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.1` : "192.168.1.1"} />
-                      </Field>
-                      <Field label="DNS">
-                        <input value={cloudInit.dns}
-                          onChange={(e) => setCloudInit((v) => ({ ...v, dns: e.target.value }))}
-                          className={inputCls} placeholder="8.8.8.8" />
-                      </Field>
+                      {newVmSource === "template" && <Field label="Template">
+                        <select value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
+                          className={inputCls}>
+                          <option value="">Sin template (blank)</option>
+                          {provTemplates.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </Field>}
+                      {newVmSource === "ova" && <Field label="Storage domain *">
+                        <select value={ovaStorageDomainId} onChange={(e) => setOvaStorageDomainId(e.target.value)} className={inputCls}>
+                          <option value="">Selecciona…</option>
+                          {storageDomains.filter((sd) => sd.type === "data").map((sd) => (
+                            <option key={sd.id} value={sd.id}>{sd.name}{sd.status ? ` (${sd.status})` : ""}</option>
+                          ))}
+                        </select>
+                      </Field>}
+                      {newVmSource === "ova" && <Field label="Host de importación *">
+                        <select value={ovaHostId} onChange={(e) => setOvaHostId(e.target.value)} className={inputCls}>
+                          <option value="">Selecciona…</option>
+                          {provHosts.map((h) => (
+                            <option key={h.id} value={h.id}>{h.name}{h.address ? ` (${h.address})` : ""}</option>
+                          ))}
+                        </select>
+                      </Field>}
+                      {newVmSource !== "ova" && <Field label="Red *">
+                        <select value={newVm.vnicProfileId} onChange={(e) => setNewVm((v) => ({ ...v, vnicProfileId: e.target.value }))}
+                          className={inputCls}>
+                          <option value="">Selecciona red…</option>
+                          {provVnicProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
+                          ))}
+                        </select>
+                      </Field>}
+                      {newVmSource !== "ova" && newVm.vnicProfileId && (
+                        <label className="flex items-center gap-2 text-[10px] text-gray-500">
+                          <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
+                          Configurar IP automática (cloud-init)
+                        </label>
+                      )}
+                      {newVmSource !== "ova" && useCloudInit && (
+                        <div className="grid grid-cols-2 gap-2 rounded-md border border-blue-100 bg-blue-50 p-2.5">
+                          <Field label="IP">
+                            <input value={cloudInit.ip}
+                              onChange={(e) => setCloudInit((v) => ({ ...v, ip: e.target.value }))}
+                              className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.100` : "192.168.1.100"} />
+                          </Field>
+                          <Field label="Máscara">
+                            <input value={cloudInit.netmask}
+                              onChange={(e) => setCloudInit((v) => ({ ...v, netmask: e.target.value }))}
+                              className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.mask ?? "255.255.255.0"} />
+                          </Field>
+                          <Field label="Gateway">
+                            <input value={cloudInit.gateway}
+                              onChange={(e) => setCloudInit((v) => ({ ...v, gateway: e.target.value }))}
+                              className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.1` : "192.168.1.1"} />
+                          </Field>
+                          <Field label="DNS">
+                            <input value={cloudInit.dns}
+                              onChange={(e) => setCloudInit((v) => ({ ...v, dns: e.target.value }))}
+                              className={inputCls} placeholder="8.8.8.8" />
+                          </Field>
+                        </div>
+                      )}
+                      {newVmSource !== "ova" && <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Field label="RAM (MB)">
+                            <input type="number" min={512} value={newVm.memoryMB}
+                              onChange={(e) => setNewVm((v) => ({ ...v, memoryMB: e.target.value }))}
+                              className={inputCls} placeholder="4096" />
+                          </Field>
+                          <Field label="vCPU">
+                            <input type="number" min={1} value={newVm.cpuCores}
+                              onChange={(e) => setNewVm((v) => ({ ...v, cpuCores: e.target.value }))}
+                              className={inputCls} placeholder="2" />
+                          </Field>
+                        </div>
+                        <Field label="Sockets">
+                          <input type="number" min={1} value={newVm.sockets}
+                            onChange={(e) => setNewVm((v) => ({ ...v, sockets: e.target.value }))}
+                            className={inputCls} placeholder="1" />
+                        </Field>
+                        <Field label="Comentario">
+                          <textarea value={newVm.comment}
+                            onChange={(e) => setNewVm((v) => ({ ...v, comment: e.target.value }))}
+                            className={`${inputCls} resize-none`} placeholder="Propósito, ticket..." rows={2} />
+                        </Field>
+                      </>}
                     </div>
-                  )}
-                  {newVmSource !== "ova" && <><div className="grid grid-cols-2 gap-2">
-                    <Field label="RAM (MB)">
-                      <input type="number" min={512} value={newVm.memoryMB}
-                        onChange={(e) => setNewVm((v) => ({ ...v, memoryMB: e.target.value }))}
-                        className={inputCls} placeholder="4096" />
-                    </Field>
-                    <Field label="vCPU">
-                      <input type="number" min={1} value={newVm.cpuCores}
-                        onChange={(e) => setNewVm((v) => ({ ...v, cpuCores: e.target.value }))}
-                        className={inputCls} placeholder="2" />
-                    </Field>
                   </div>
-                  <Field label="Sockets">
-                    <input type="number" min={1} value={newVm.sockets}
-                      onChange={(e) => setNewVm((v) => ({ ...v, sockets: e.target.value }))}
-                      className={inputCls} placeholder="1" />
-                  </Field>
-                  <Field label="Comentario">
-                    <textarea value={newVm.comment}
-                      onChange={(e) => setNewVm((v) => ({ ...v, comment: e.target.value }))}
-                      className={`${inputCls} resize-none`} placeholder="Propósito, ticket..." rows={2} />
-                  </Field></>}
+
                   {ovaImportProgress !== null && (
-                    <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700">
-                      <div className="mb-1 flex justify-between font-medium">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] text-blue-700">
+                      <div className="mb-1.5 flex justify-between font-medium">
                         <span>{ovaImportProgress < 40 ? "Copiando OVA al host…" : ovaImportProgress < 75 ? "Importando en OLVM…" : "Esperando conversión…"}</span>
                         <span>{Math.round(ovaImportProgress)}%</span>
                       </div>
@@ -2811,7 +2835,7 @@ export default function Home() {
                   <button
                     onClick={handleNewVm}
                     disabled={actionLoading === "create"}
-                    className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    className="w-full rounded-md bg-blue-600 py-2 text-[12px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                   >
                     {actionLoading === "create" ? (newVmSource === "ova" ? "Importando OVA..." : "Creando...") : "Crear VM"}
                   </button>
