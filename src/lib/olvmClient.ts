@@ -1472,6 +1472,89 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
   if (newVmId) await applyTenantTag(tenant, newVmId);
 };
 
+type ImportOvaVmInput = {
+  name: string;
+  clusterId: string;
+  storageDomainId: string;
+  hostId: string;
+  hostPath: string;
+};
+
+const findVmIdByName = async (tenant: TenantConfig, name: string): Promise<string | null> => {
+  const data = await olvmFetch(
+    tenant,
+    withJsonFormat(`/vms?search=${encodeURIComponent(`name=${name}`)}`),
+  );
+  const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
+  const list = root && Array.isArray(root.vm) ? root.vm as RawVm[] : [];
+  return list.find((vm) => vm.name === name)?.id ?? null;
+};
+
+export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput) => {
+  const tenant = getTenantById(tenantId);
+  if (await findVmIdByName(tenant, payload.name)) {
+    throw new Error(`Ya existe una VM con nombre ${payload.name}`);
+  }
+
+  const importBody: Record<string, unknown> = {
+    vm: { name: payload.name },
+    cluster: { id: payload.clusterId },
+    storage_domain: { id: payload.storageDomainId },
+    host: { id: payload.hostId },
+    url: `ova://${payload.hostPath}`,
+  };
+
+  const payloadVariants = [
+    importBody,
+    { external_vm_import: importBody },
+  ];
+
+  let result: { vm?: { id?: string } } | null = null;
+  let firstError: unknown;
+  for (const body of payloadVariants) {
+    try {
+      result = await olvmFetch(tenant, "/externalvmimports", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }) as { vm?: { id?: string } } | null;
+      break;
+    } catch (error) {
+      firstError = error;
+    }
+  }
+
+  if (!result) throw firstError;
+
+  const returnedVmId = result?.vm?.id;
+  if (returnedVmId) {
+    await applyTenantTag(tenant, returnedVmId);
+    return { vmId: returnedVmId, pending: false };
+  }
+
+  const waitForImportedVm = async () => {
+    const deadline = Date.now() + (Number(process.env.OVA_IMPORT_TIMEOUT_MS) || 1_800_000);
+    while (Date.now() < deadline) {
+      const vmId = await findVmIdByName(tenant, payload.name);
+      if (vmId) {
+        await applyTenantTag(tenant, vmId);
+        return vmId;
+      }
+      await sleep(5_000);
+    }
+    return null;
+  };
+
+  const importPromise = waitForImportedVm();
+  const vmId = await Promise.race([
+    importPromise,
+    sleep(30_000).then(() => null),
+  ]);
+  if (vmId) return { vmId, pending: false };
+
+  void importPromise.catch(() => undefined);
+  return { vmId: null, pending: true };
+};
+
 type UpdateVmInput = {
   memoryMB?: number;
   cpuCores?: number;

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, open, rm } from "fs/promises";
-import path from "path";
+import { mkdir, open, rm, writeFile } from "fs/promises";
 import crypto from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
+import { getOvaStagingDir, getOvaUploadPaths } from "@/lib/ovaStaging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -13,7 +13,14 @@ export const runtime = "nodejs";
 
 const execFileAsync = promisify(execFile);
 const CHUNK_SIZE = 50 * 1024 * 1024;
-const sessions = new Map<string, { filePath: string; fileSize: number; totalChunks: number; received: Set<number> }>();
+const sessions = new Map<string, {
+  filePath: string;
+  fileSize: number;
+  totalChunks: number;
+  received: Set<number>;
+  tenantId: string;
+  originalName: string;
+}>();
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await ctx.params;
@@ -30,18 +37,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
         return NextResponse.json({ error: "Selecciona un archivo .ova válido" }, { status: 400 });
       }
       const id = crypto.randomUUID();
-      const dir = path.join(process.cwd(), "data", "ova-staging");
+      const dir = getOvaStagingDir();
       await mkdir(dir, { recursive: true });
-      const filePath = path.join(dir, `${id}.ova`);
+      const { filePath } = getOvaUploadPaths(id);
       await open(filePath, "w").then((file) => file.close());
-      sessions.set(id, { filePath, fileSize, totalChunks: Math.ceil(fileSize / CHUNK_SIZE), received: new Set() });
+      sessions.set(id, {
+        filePath,
+        fileSize,
+        totalChunks: Math.ceil(fileSize / CHUNK_SIZE),
+        received: new Set(),
+        tenantId,
+        originalName: fileName,
+      });
       return NextResponse.json({ sessionId: id });
     }
 
     const id = req.headers.get("x-session-id") ?? "";
     const upload = sessions.get(id);
     const index = Number(chunkIndex);
-    if (!upload || !Number.isInteger(index) || index < 0 || index >= upload.totalChunks) {
+    if (!upload || upload.tenantId !== tenantId || !Number.isInteger(index) || index < 0 || index >= upload.totalChunks) {
       return NextResponse.json({ error: "Sesión de subida inválida o expirada" }, { status: 404 });
     }
     const buffer = Buffer.from(await req.arrayBuffer());
@@ -56,6 +70,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       const { stdout } = await execFileAsync("tar", ["-tf", upload.filePath], { maxBuffer: 1024 * 1024 });
       const ovf = stdout.split("\n").find((entry) => entry.toLowerCase().endsWith(".ovf"));
       if (!ovf) throw new Error("El OVA no contiene un archivo OVF");
+      const { metadataPath } = getOvaUploadPaths(id);
+      await writeFile(metadataPath, JSON.stringify({ tenantId, originalName: upload.originalName, ovf }), {
+        mode: 0o600,
+      });
       sessions.delete(id);
       return NextResponse.json({ ok: true, done: true, uploadId: id, ovf });
     } catch (error) {

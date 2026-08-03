@@ -180,6 +180,13 @@ Acceder a `http://<servidor>:3000`
 | `OLVM_SHARED_SDS` | JSON con SDs compartidos globales | Opcional |
 | `USER_STORE_PATH` | Path custom para users.json | Opcional |
 | `ENGINE_STORE_PATH` | Path custom para engines.json | Opcional |
+| `OVA_STAGING_DIR` | Directorio del portal donde se guardan los OVA subidos | Para importar OVA |
+| `OVA_HOST_STAGING_DIR` | El mismo directorio compartido visto desde el host OLVM | Para importar OVA |
+| `OVA_IMPORT_HOST_ID` | ID del host OLVM que puede leer el staging compartido | Para importar OVA |
+| `OVA_STAGING_HOST_PATH` | Ruta del staging compartido en el servidor Docker, montada en `OVA_STAGING_DIR` | Para importar OVA con Compose |
+
+El staging OVA debe ser almacenamiento compartido: `OVA_STAGING_HOST_PATH` en el servidor del portal y
+`OVA_HOST_STAGING_DIR` en el host indicado por `OVA_IMPORT_HOST_ID` deben apuntar al mismo contenido.
 
 ---
 

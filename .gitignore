@@ -1,0 +1,8 @@
+node_modules/
+.next/
+data/ova-staging/
+*.ova
+.env
+.env.local
+*.log
+.DS_Store

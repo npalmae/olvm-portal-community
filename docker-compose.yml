@@ -33,6 +33,11 @@ services:
       RESEND_FROM: ${RESEND_FROM}
       OLVM_TENANTS: ${OLVM_TENANTS}
       OLVM_SHARED_SDS: ${OLVM_SHARED_SDS:-[]}
+      OVA_STAGING_DIR: ${OVA_STAGING_DIR:-/mnt/ova}
+      OVA_HOST_STAGING_DIR: ${OVA_HOST_STAGING_DIR:-/mnt/ova}
+      OVA_IMPORT_HOST_ID: ${OVA_IMPORT_HOST_ID}
+    volumes:
+      - ${OVA_STAGING_HOST_PATH:-./data/ova-staging}:${OVA_STAGING_DIR:-/mnt/ova}
 
 volumes:
   olvm-pgdata:

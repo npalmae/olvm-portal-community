@@ -288,6 +288,7 @@ export default function Home() {
   const [uploadingOva, setUploadingOva] = useState(false);
   const [ovaUploadProgress, setOvaUploadProgress] = useState<number | null>(null);
   const [uploadedOva, setUploadedOva] = useState<{ uploadId: string; name: string; ovf: string } | null>(null);
+  const [ovaStorageDomainId, setOvaStorageDomainId] = useState("");
   const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
@@ -438,6 +439,14 @@ export default function Home() {
     })();
     return () => { cancelled = true; };
   }, [selectedTenant, showAllSds]);
+
+  useEffect(() => {
+    if (ovaStorageDomainId && storageDomains.some((sd) => sd.id === ovaStorageDomainId)) return;
+    const activeDataDomain = storageDomains.find(
+      (sd) => sd.type === "data" && (!sd.status || sd.status.toLowerCase() === "active"),
+    );
+    setOvaStorageDomainId(activeDataDomain?.id ?? "");
+  }, [ovaStorageDomainId, storageDomains]);
 
   // Carga ISOs del tenant actual
   useEffect(() => {
@@ -949,13 +958,21 @@ export default function Home() {
       return;
     }
     if (!newVm.name || !newVm.clusterId) { setError("Nombre y Cluster ID son obligatorios"); return; }
+    if (newVmSource === "ova" && !uploadedOva) { setError("Sube un archivo OVA antes de crear la VM"); return; }
+    if (newVmSource === "ova" && !ovaStorageDomainId) { setError("Selecciona un storage domain para importar el OVA"); return; }
     setActionLoading("create"); setError(null); setSuccess(null);
     try {
-      const res = await fetch(`/api/tenants/${selectedTenant}/vms`, {
+      const isOva = newVmSource === "ova";
+      const res = await fetch(`/api/tenants/${selectedTenant}/${isOva ? "ova/import" : "vms"}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(isOva ? {
+          uploadId: uploadedOva?.uploadId,
+          name: newVm.name,
+          clusterId: newVm.clusterId,
+          storageDomainId: ovaStorageDomainId,
+        } : {
           name: newVm.name, clusterId: newVm.clusterId,
-          templateId: newVm.templateId || undefined,
+          templateId: newVmSource === "template" ? newVm.templateId || undefined : undefined,
           memoryMB: newVm.memoryMB ? Number(newVm.memoryMB) : undefined,
           cpuCores: newVm.cpuCores ? Number(newVm.cpuCores) : undefined,
           sockets: newVm.sockets ? Number(newVm.sockets) : undefined,
@@ -967,8 +984,13 @@ export default function Home() {
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? "No se pudo crear la VM");
-      setSuccess("VM creada (el aprovisionamiento puede tardar)");
+      setSuccess(isOva
+        ? data?.pending
+          ? "Importación OVA iniciada. La VM aparecerá cuando OLVM termine la conversión."
+          : "OVA importado como VM correctamente"
+        : "VM creada (el aprovisionamiento puede tardar)");
       setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "" });
+      if (isOva) setUploadedOva(null);
       setCloudInit({ ip: "", netmask: "", gateway: "", dns: "" });
       setUseCloudInit(false);
       refresh();
@@ -2556,13 +2578,13 @@ export default function Home() {
                     <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
                       className={inputCls} placeholder="vm-app-01" />
                   </Field>
-                  <Field label="OS a instalar">
+                  {newVmSource !== "ova" && <Field label="OS a instalar">
                     <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
                       className={inputCls}>
                       <option value="linux">Linux (virtio)</option>
                       <option value="windows">Windows (SATA + virtio drivers)</option>
                     </select>
-                  </Field>
+                  </Field>}
                   <Field label="Cluster *">
                     <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
                       className={inputCls}>
@@ -2572,7 +2594,7 @@ export default function Home() {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Template">
+                  {newVmSource === "template" && <Field label="Template">
                     <select value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
                       className={inputCls}>
                       <option value="">Sin template (blank)</option>
@@ -2580,8 +2602,16 @@ export default function Home() {
                         <option key={t.id} value={t.id}>{t.name}</option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Red *">
+                  </Field>}
+                  {newVmSource === "ova" && <Field label="Storage domain *">
+                    <select value={ovaStorageDomainId} onChange={(e) => setOvaStorageDomainId(e.target.value)} className={inputCls}>
+                      <option value="">Selecciona un storage domain…</option>
+                      {storageDomains.filter((sd) => sd.type === "data").map((sd) => (
+                        <option key={sd.id} value={sd.id}>{sd.name}{sd.status ? ` (${sd.status})` : ""}</option>
+                      ))}
+                    </select>
+                  </Field>}
+                  {newVmSource !== "ova" && <Field label="Red *">
                     <select value={newVm.vnicProfileId} onChange={(e) => setNewVm((v) => ({ ...v, vnicProfileId: e.target.value }))}
                       className={inputCls}>
                       <option value="">Selecciona red…</option>
@@ -2589,14 +2619,14 @@ export default function Home() {
                         <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
                       ))}
                     </select>
-                  </Field>
-                  {newVm.vnicProfileId && (
+                  </Field>}
+                  {newVmSource !== "ova" && newVm.vnicProfileId && (
                     <label className="flex items-center gap-2 text-[10px] text-gray-500">
                       <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
                       Configurar IP automática (cloud-init)
                     </label>
                   )}
-                  {useCloudInit && (
+                  {newVmSource !== "ova" && useCloudInit && (
                     <div className="grid grid-cols-2 gap-2 rounded-md border border-blue-100 bg-blue-50 p-2.5">
                       <Field label="IP">
                         <input value={cloudInit.ip}
@@ -2620,7 +2650,7 @@ export default function Home() {
                       </Field>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
+                  {newVmSource !== "ova" && <><div className="grid grid-cols-2 gap-2">
                     <Field label="RAM (MB)">
                       <input type="number" min={512} value={newVm.memoryMB}
                         onChange={(e) => setNewVm((v) => ({ ...v, memoryMB: e.target.value }))}
@@ -2641,7 +2671,7 @@ export default function Home() {
                     <textarea value={newVm.comment}
                       onChange={(e) => setNewVm((v) => ({ ...v, comment: e.target.value }))}
                       className={`${inputCls} resize-none`} placeholder="Propósito, ticket..." rows={2} />
-                  </Field>
+                  </Field></>}
                   <button
                     onClick={handleNewVm}
                     disabled={actionLoading === "create"}
