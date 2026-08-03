@@ -14,6 +14,7 @@ import {
   attachDiskToVm,
 } from "@/lib/olvmClient";
 import { getOvaUploadPaths, type OvaUploadMetadata } from "@/lib/ovaStaging";
+import { getOvaFromLibrary } from "@/lib/ovaLibrary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -58,7 +59,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     assertTenantAccess(session.user, tenantId, "admin");
 
     const body = await request.json();
-    const uploadId = asString(body?.uploadId);
+    const uploadId = asString(body?.uploadId) || asString(body?.ovaId);
     const name = asString(body?.name);
     const clusterId = asString(body?.clusterId);
     const storageDomainId = asString(body?.storageDomainId);
@@ -66,7 +67,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     hostAddr = asString(body?.hostAddress);
     if (!uploadId || !name || !clusterId || !storageDomainId || !hostId || !hostAddr) {
       return NextResponse.json(
-        { error: "uploadId, name, clusterId, storageDomainId, hostId y hostAddress son obligatorios" },
+        { error: "uploadId/ovaId, name, clusterId, storageDomainId, hostId y hostAddress son obligatorios" },
         { status: 400 },
       );
     }
@@ -79,14 +80,12 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
       );
     }
 
-    const { filePath, metadataPath } = getOvaUploadPaths(uploadId);
-    const [fileInfo, metadataText] = await Promise.all([
-      stat(filePath),
-      readFile(metadataPath, "utf8"),
-    ]);
+    const { filePath } = getOvaUploadPaths(uploadId);
+    const fileInfo = await stat(filePath);
     if (!fileInfo.isFile() || fileInfo.size === 0) throw new Error("El archivo OVA no está disponible");
-    const metadata = JSON.parse(metadataText) as OvaUploadMetadata;
-    if (metadata.tenantId !== tenantId) throw new Error("El OVA no pertenece al tenant seleccionado");
+
+    const libEntry = await getOvaFromLibrary(uploadId, tenantId);
+    if (!libEntry) throw new Error("El OVA no pertenece al tenant o no existe en el catálogo");
 
     extractDir = `/tmp/ova-import-${Date.now()}`;
     const remoteOva = path.posix.join(hostStagingDir, `${uploadId}.ova`);
@@ -123,11 +122,6 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     await finalizeImageTransfer(tenantId, transferId);
     await waitForDiskReady(tenantId, diskId);
     await attachDiskToVm(tenantId, vmId, diskId, { bootable: true, interface: "virtio_scsi" });
-
-    await Promise.all([
-      rm(filePath, { force: true }),
-      rm(metadataPath, { force: true }),
-    ]);
 
     return NextResponse.json({ ok: true, vmId, pending: false });
   } catch (error) {

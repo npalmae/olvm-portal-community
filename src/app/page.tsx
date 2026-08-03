@@ -291,6 +291,7 @@ export default function Home() {
   const [ovaStorageDomainId, setOvaStorageDomainId] = useState("");
   const [ovaHostId, setOvaHostId] = useState("");
   const [ovaImportProgress, setOvaImportProgress] = useState<number | null>(null);
+  const [ovaLibrary, setOvaLibrary] = useState<{ id: string; name: string; ovf: string; size: number }[]>([]);
   const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
@@ -530,6 +531,21 @@ export default function Home() {
             setNetConfig(nc);
           }
         }
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedTenant]);
+
+  // Carga catálogo de OVAs del tenant
+  useEffect(() => {
+    setOvaLibrary([]);
+    if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/ova/library`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && Array.isArray(data)) setOvaLibrary(data);
       } catch { /* noop */ }
     })();
     return () => { cancelled = true; };
@@ -2637,6 +2653,30 @@ export default function Home() {
                         </div>
                       ) : (
                         <>
+                          {ovaLibrary.length > 0 && (
+                            <div className="mb-2">
+                              <p className="mb-1 text-[10px] font-semibold text-gray-500">Catálogo de OVAs</p>
+                              <select
+ value="" 
+                                onChange={(e) => {
+                                  const entry = ovaLibrary.find((o) => o.id === e.target.value);
+                                  if (entry) setUploadedOva({ uploadId: entry.id, name: entry.name, ovf: entry.ovf });
+                                  e.target.value = "";
+                                }}
+                                className={inputCls}
+                              >
+                                <option value="">Seleccionar del catálogo ({ovaLibrary.length})…</option>
+                                {ovaLibrary.map((o) => (
+                                  <option key={o.id} value={o.id}>{o.name} ({Math.round(o.size / 1024 / 1024)} MB)</option>
+                                ))}
+                              </select>
+                              <div className="my-1.5 flex items-center gap-2">
+                                <div className="h-px flex-1 bg-gray-200" />
+                                <span className="text-[9px] text-gray-400">o subir nuevo</span>
+                                <div className="h-px flex-1 bg-gray-200" />
+                              </div>
+                            </div>
+                          )}
                           {ovaUploadProgress !== null && (
                             <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] text-blue-700">
                               <div className="mb-1 flex justify-between"><span>Subiendo OVA...</span><span>{ovaUploadProgress}%</span></div>
