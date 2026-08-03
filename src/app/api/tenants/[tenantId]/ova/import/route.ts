@@ -1,4 +1,4 @@
-import { readFile, rm, stat } from "fs/promises";
+import { stat } from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -12,9 +12,10 @@ import {
   finalizeImageTransfer,
   waitForDiskReady,
   attachDiskToVm,
+  uploadOvaAsDisk,
+  downloadOvaFromSd,
 } from "@/lib/olvmClient";
-import { getOvaUploadPaths, type OvaUploadMetadata } from "@/lib/ovaStaging";
-import { getOvaFromLibrary } from "@/lib/ovaLibrary";
+import { getOvaUploadPaths } from "@/lib/ovaStaging";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -59,17 +60,23 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     assertTenantAccess(session.user, tenantId, "admin");
 
     const body = await request.json();
-    const uploadId = asString(body?.uploadId) || asString(body?.ovaId);
+    const uploadId = asString(body?.uploadId);
+    const diskId = asString(body?.diskId);
     const name = asString(body?.name);
     const clusterId = asString(body?.clusterId);
     const storageDomainId = asString(body?.storageDomainId);
     const hostId = asString(body?.hostId);
     hostAddr = asString(body?.hostAddress);
-    if (!uploadId || !name || !clusterId || !storageDomainId || !hostId || !hostAddr) {
+    const ovaName = asString(body?.ovaName);
+    if (!name || !clusterId || !storageDomainId || !hostId || !hostAddr) {
       return NextResponse.json(
-        { error: "uploadId/ovaId, name, clusterId, storageDomainId, hostId y hostAddress son obligatorios" },
+        { error: "name, clusterId, storageDomainId, hostId y hostAddress son obligatorios" },
         { status: 400 },
       );
+    }
+    const isFromCatalog = !!diskId && !uploadId;
+    if (!isFromCatalog && !uploadId) {
+      return NextResponse.json({ error: "uploadId o diskId son obligatorios" }, { status: 400 });
     }
 
     const hostStagingDir = process.env.OVA_HOST_STAGING_DIR?.trim();
@@ -80,16 +87,29 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
       );
     }
 
-    const { filePath } = getOvaUploadPaths(uploadId);
-    const fileInfo = await stat(filePath);
-    if (!fileInfo.isFile() || fileInfo.size === 0) throw new Error("El archivo OVA no está disponible");
-
-    const libEntry = await getOvaFromLibrary(uploadId, tenantId);
-    if (!libEntry) throw new Error("El OVA no pertenece al tenant o no existe en el catálogo");
-
     extractDir = `/tmp/ova-import-${Date.now()}`;
-    const remoteOva = path.posix.join(hostStagingDir, `${uploadId}.ova`);
-    await scpToHost(filePath, hostAddr, remoteOva);
+    const remoteOva = path.posix.join(hostStagingDir, `${uploadId || diskId}.ova`);
+
+    if (isFromCatalog) {
+      const { transferId, downloadUrl } = await downloadOvaFromSd(tenantId, diskId);
+      await sshExec(hostAddr,
+        `curl -sk -o '${remoteOva}' '${downloadUrl}'`,
+        540_000,
+      );
+      await finalizeImageTransfer(tenantId, transferId);
+    } else {
+      const { filePath } = getOvaUploadPaths(uploadId);
+      const fileInfo = await stat(filePath);
+      if (!fileInfo.isFile() || fileInfo.size === 0) throw new Error("El archivo OVA no está disponible");
+      await scpToHost(filePath, hostAddr, remoteOva);
+
+      void uploadOvaAsDisk(tenantId, {
+        name: ovaName || `${uploadId}.ova`,
+        filePath,
+        fileSize: fileInfo.size,
+        storageDomainId,
+      }).catch(() => undefined);
+    }
 
     await sshExec(hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
 
@@ -105,23 +125,23 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
 
     const { vmId } = await importOvaVm(tenantId, { name, clusterId, storageDomainId, hostId, hostPath: remoteOva });
 
-    const diskName = `${name}-disk`;
-    const diskId = await createUploadDisk(tenantId, {
-      name: diskName,
+    const newDiskName = `${name}-disk`;
+    const newDiskId = await createUploadDisk(tenantId, {
+      name: newDiskName,
       provisionedSize: virtualSize,
       storageDomainId,
     });
 
-    const { transferId, uploadUrl } = await startImageTransfer(tenantId, diskId);
+    const { transferId: upTransferId, uploadUrl } = await startImageTransfer(tenantId, newDiskId);
 
     await sshExec(hostAddr,
       `curl -sk -X PUT -H 'Content-Type: application/octet-stream' --data-binary @'${qcow2Path}' '${uploadUrl}'`,
       540_000,
     );
 
-    await finalizeImageTransfer(tenantId, transferId);
-    await waitForDiskReady(tenantId, diskId);
-    await attachDiskToVm(tenantId, vmId, diskId, { bootable: true, interface: "virtio_scsi" });
+    await finalizeImageTransfer(tenantId, upTransferId);
+    await waitForDiskReady(tenantId, newDiskId);
+    await attachDiskToVm(tenantId, vmId, newDiskId, { bootable: true, interface: "virtio_scsi" });
 
     return NextResponse.json({ ok: true, vmId, pending: false });
   } catch (error) {

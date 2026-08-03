@@ -287,11 +287,11 @@ export default function Home() {
   const [uploadingIso, setUploadingIso] = useState(false);
   const [uploadingOva, setUploadingOva] = useState(false);
   const [ovaUploadProgress, setOvaUploadProgress] = useState<number | null>(null);
-  const [uploadedOva, setUploadedOva] = useState<{ uploadId: string; name: string; ovf: string } | null>(null);
+  const [uploadedOva, setUploadedOva] = useState<{ uploadId?: string; diskId?: string; name: string; ovf?: string } | null>(null);
   const [ovaStorageDomainId, setOvaStorageDomainId] = useState("");
   const [ovaHostId, setOvaHostId] = useState("");
   const [ovaImportProgress, setOvaImportProgress] = useState<number | null>(null);
-  const [ovaLibrary, setOvaLibrary] = useState<{ id: string; name: string; ovf: string; size: number }[]>([]);
+  const [ovaLibrary, setOvaLibrary] = useState<{ id: string; name: string; size: number; storageDomainName?: string }[]>([]);
   const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
@@ -1024,7 +1024,9 @@ export default function Home() {
       const res = await fetch(`/api/tenants/${selectedTenant}/${isOva ? "ova/import" : "vms"}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isOva ? {
-          uploadId: uploadedOva?.uploadId,
+          uploadId: uploadedOva?.uploadId || undefined,
+          diskId: uploadedOva?.diskId || undefined,
+          ovaName: uploadedOva?.name || undefined,
           name: newVm.name,
           clusterId: newVm.clusterId,
           storageDomainId: ovaStorageDomainId,
@@ -2665,7 +2667,7 @@ export default function Home() {
                             value=""
                             onChange={(e) => {
                               const entry = ovaLibrary.find((o) => o.id === e.target.value);
-                              if (entry) setUploadedOva({ uploadId: entry.id, name: entry.name, ovf: entry.ovf });
+                              if (entry) setUploadedOva({ diskId: entry.id, name: entry.name });
                             }}
                             className={inputCls}
                           >

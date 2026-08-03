@@ -6,7 +6,6 @@ import { promisify } from "util";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { getOvaStagingDir, getOvaUploadPaths } from "@/lib/ovaStaging";
-import { addOvaToLibrary } from "@/lib/ovaLibrary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -74,14 +73,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       const { metadataPath } = getOvaUploadPaths(id);
       await writeFile(metadataPath, JSON.stringify({ tenantId, originalName: upload.originalName, ovf }), {
         mode: 0o600,
-      });
-      await addOvaToLibrary({
-        id,
-        tenantId,
-        name: upload.originalName,
-        ovf,
-        size: upload.fileSize,
-        uploadDate: new Date().toISOString(),
       });
       sessions.delete(id);
       return NextResponse.json({ ok: true, done: true, uploadId: id, ovf });

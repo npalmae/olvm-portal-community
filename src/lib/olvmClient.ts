@@ -1594,6 +1594,170 @@ export const finalizeImageTransfer = async (tenantId: string, transferId: string
   });
 };
 
+export type OvaDiskInfo = { id: string; name: string; size: number; storageDomainName: string };
+
+export const fetchOvaDisks = async (tenantId: string): Promise<OvaDiskInfo[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/disks"));
+  const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
+  const list = root && Array.isArray(root.disk) ? root.disk as Record<string, unknown>[] : [];
+  const tenantSds = [...(tenant.storageDomains ?? []), ...(tenant.sharedStorageDomains ?? [])];
+  return list
+    .filter((d) => String(d.name ?? "").toLowerCase().endsWith(".ova"))
+    .filter((d) => {
+      if (!tenantSds.length) return true;
+      const sds = ((d as Record<string, unknown>).storage_domains as { storage_domain?: { name?: string }[] } | undefined)?.storage_domain ?? [];
+      return sds.some((sd) => tenantSds.includes(sd.name ?? ""));
+    })
+    .map((d) => ({
+      id: String(d.id ?? ""),
+      name: String(d.name ?? ""),
+      size: Number(d.provisioned_size ?? 0),
+      storageDomainName: (((d as Record<string, unknown>).storage_domains as { storage_domain?: { name?: string }[] } | undefined)?.storage_domain ?? [])[0]?.name ?? "",
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const uploadOvaAsDisk = async (
+  tenantId: string,
+  params: { name: string; filePath: string; fileSize: number; storageDomainId: string },
+): Promise<string> => {
+  const { readFile } = await import("fs/promises");
+  const tenant = getTenantById(tenantId);
+  const diskName = params.name.toLowerCase().endsWith(".ova") ? params.name : `${params.name}.ova`;
+
+  const diskRes = await olvmFetch(tenant, "/disks", {
+    method: "POST",
+    body: JSON.stringify({
+      name: diskName,
+      alias: diskName,
+      content_type: "iso",
+      format: "raw",
+      sparse: false,
+      provisioned_size: params.fileSize,
+      storage_domains: { storage_domain: [{ id: params.storageDomainId }] },
+    }),
+  });
+  const diskId = typeof diskRes === "string"
+    ? diskRes.match(/<disk[^>]*id="([^"]+)"/)?.[1] ?? ""
+    : String((diskRes as Record<string, unknown>)?.id ?? "");
+  if (!diskId) throw new Error("No se pudo crear el disco OVA en el storage domain");
+
+  for (let i = 0; i < 60; i++) {
+    const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`));
+    const status = typeof d === "string"
+      ? d.match(/<status[^>]*>([^<]+)<\/status>/)?.[1]?.trim() ?? ""
+      : String((d as Record<string, unknown>)?.status ?? "");
+    if (status === "ok") break;
+    await sleep(2000);
+  }
+
+  const transferRes = await olvmFetch(tenant, "/imagetransfers", {
+    method: "POST",
+    body: JSON.stringify({ disk: { id: diskId }, direction: "upload" }),
+  });
+  let transferId = "";
+  let proxyUrl = "";
+  if (typeof transferRes === "string") {
+    transferId = transferRes.match(/id="([^"]+)"/)?.[1] ?? "";
+    proxyUrl = transferRes.match(/<proxy_url>([^<]+)<\/proxy_url>/)?.[1]
+      ?? transferRes.match(/<transfer_url>([^<]+)<\/transfer_url>/)?.[1] ?? "";
+  } else {
+    const t = transferRes as Record<string, unknown> | null;
+    transferId = String(t?.id ?? "");
+    proxyUrl = String(t?.proxy_url ?? t?.transfer_url ?? "");
+  }
+  if (!transferId || !proxyUrl) throw new Error("No se pudo iniciar transferencia OVA");
+
+  for (let i = 0; i < 60; i++) {
+    await sleep(1000);
+    const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`));
+    const phase = typeof t === "string"
+      ? t.match(/<phase>([^<]+)<\/phase>/)?.[1]?.trim() ?? ""
+      : String((t as Record<string, unknown>)?.phase ?? "");
+    if (phase === "transferring") break;
+  }
+
+  const engineHost = new URL(tenant.baseUrl).hostname;
+  let uploadUrl = proxyUrl;
+  try {
+    const proxyHost = new URL(proxyUrl).hostname;
+    if (proxyHost !== engineHost && proxyHost !== "localhost") {
+      uploadUrl = proxyUrl.replace(proxyHost, engineHost);
+    }
+  } catch { /* keep */ }
+
+  const buffer = await readFile(params.filePath);
+  const uploadDispatcher = new UndiciAgent({
+    connect: { rejectUnauthorized: false },
+    bodyTimeout: 0,
+    headersTimeout: 0,
+  });
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "application/octet-stream", "Content-Length": String(params.fileSize) },
+    body: buffer,
+    dispatcher: uploadDispatcher as any,
+    duplex: "half",
+  } as any);
+  if (!uploadRes.ok) throw new Error(`Upload OVA al SD falló (${uploadRes.status})`);
+
+  await olvmFetch(tenant, `/imagetransfers/${transferId}/finalize`, {
+    method: "POST",
+    body: "{}",
+  });
+
+  return diskId;
+};
+
+export const downloadOvaFromSd = async (
+  tenantId: string,
+  diskId: string,
+): Promise<{ transferId: string; downloadUrl: string }> => {
+  const tenant = getTenantById(tenantId);
+  const transferRes = await olvmFetch(tenant, "/imagetransfers", {
+    method: "POST",
+    body: JSON.stringify({ disk: { id: diskId }, direction: "download" }),
+  });
+  let transferId = "";
+  let proxyUrl = "";
+  if (typeof transferRes === "string") {
+    transferId = transferRes.match(/id="([^"]+)"/)?.[1] ?? "";
+    proxyUrl = transferRes.match(/<proxy_url>([^<]+)<\/proxy_url>/)?.[1]
+      ?? transferRes.match(/<transfer_url>([^<]+)<\/transfer_url>/)?.[1] ?? "";
+  } else {
+    const t = transferRes as Record<string, unknown> | null;
+    transferId = String(t?.id ?? "");
+    proxyUrl = String(t?.proxy_url ?? t?.transfer_url ?? "");
+  }
+  if (!transferId || !proxyUrl) throw new Error("No se pudo iniciar download del OVA");
+
+  for (let i = 0; i < 60; i++) {
+    await sleep(1000);
+    const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`));
+    const phase = typeof t === "string"
+      ? t.match(/<phase>([^<]+)<\/phase>/)?.[1]?.trim() ?? ""
+      : String((t as Record<string, unknown>)?.phase ?? "");
+    if (phase === "transferring") break;
+  }
+
+  const engineHost = new URL(tenant.baseUrl).hostname;
+  let downloadUrl = proxyUrl;
+  try {
+    const proxyHost = new URL(proxyUrl).hostname;
+    if (proxyHost !== engineHost && proxyHost !== "localhost") {
+      downloadUrl = proxyUrl.replace(proxyHost, engineHost);
+    }
+  } catch { /* keep */ }
+
+  return { transferId, downloadUrl };
+};
+
+export const deleteOvaDisk = async (tenantId: string, diskId: string) => {
+  const tenant = getTenantById(tenantId);
+  await olvmFetch(tenant, `/disks/${diskId}`, { method: "DELETE" });
+};
+
 export const waitForDiskReady = async (
   tenantId: string,
   diskId: string,
