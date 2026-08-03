@@ -320,6 +320,9 @@ export default function Home() {
     newName: string; submitting: boolean; error: string | null;
   }>({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
 
+  const [powerTransition, setPowerTransition] = useState<{ vmId: string; action: string } | null>(null);
+  const powerPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const closingConsole = useRef(false);
   const embeddedConsoleSession = useRef(0);
   const consoleRef = useMemo(() => {
@@ -329,6 +332,22 @@ export default function Home() {
     Object.assign(div.style, { width: "100%", height: "100%", position: "relative", overflow: "hidden" });
     return div;
   }, []);
+
+  /* ── Stop power transition polling when VM stabilizes ── */
+  useEffect(() => {
+    if (!powerTransition || !vms.length) return;
+    const vm = vms.find((v) => v.id === powerTransition.vmId);
+    if (!vm) return;
+    const status = vm.status?.toLowerCase() ?? "";
+    const target = powerTransition.action === "stop" ? "down" : "up";
+    if (status === target) {
+      if (powerPollRef.current) { clearInterval(powerPollRef.current); powerPollRef.current = null; }
+      setPowerTransition(null);
+      setSuccess(powerTransition.action === "stop" ? "VM apagada correctamente" : "VM encendida correctamente");
+    }
+  }, [powerTransition, vms]);
+
+  useEffect(() => () => { if (powerPollRef.current) clearInterval(powerPollRef.current); }, []);
 
   /* ── Auto-clear toasts ── */
   useEffect(() => {
@@ -576,6 +595,11 @@ export default function Home() {
       setSuccess(`Acción ${action} enviada`);
       setActionHistory((p) => p.map((e) => e.vmId === vmId && e.timestamp === ts ? { ...e, status: "ok" } : e));
       refresh();
+      if (action === "start" || action === "stop" || action === "reboot") {
+        setPowerTransition({ vmId, action });
+        if (powerPollRef.current) clearInterval(powerPollRef.current);
+        powerPollRef.current = setInterval(() => { loadVms(selectedTenant); }, 3000);
+      }
     } catch (err) {
       const msg = (err as Error).message;
       setError(msg);
@@ -2241,6 +2265,35 @@ export default function Home() {
               {detailTab === "actions" && (
                 selectedVm ? (
                   <div className="space-y-1.5">
+                    {powerTransition?.vmId === selectedVm.id && (() => {
+                      const status = selectedVm.status?.toLowerCase() ?? "";
+                      const isStop = powerTransition.action === "stop";
+                      const phases = isStop ? ["Enviando", "Apagando", "Listo"] : ["Enviando", "Encendiendo", "Listo"];
+                      const step = status === "wait_for_launch" ? 0
+                        : status === "powering_up" || status === "powering_down" || status === "reboot_in_progress" ? 1
+                        : (isStop ? status === "down" : status === "up") ? 2 : 0;
+                      return (
+                        <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            {phases.map((phase, i) => (
+                              <div key={i} className="flex items-center gap-1">
+                                <div className={`h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-bold transition-all ${
+                                  i < step ? "bg-emerald-500 text-white" :
+                                  i === step ? "bg-blue-500 text-white animate-pulse" :
+                                  "bg-gray-200 text-gray-400"
+                                }`}>{i < step ? "✓" : i + 1}</div>
+                                <span className={`text-[10px] font-medium ${i <= step ? "text-blue-700" : "text-gray-400"}`}>{phase}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-blue-100">
+                            <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-1000"
+                              style={{ width: `${((step + 1) / 3) * 100}%` }} />
+                          </div>
+                          <p className="text-[10px] text-blue-600">Estado actual: {selectedVm.status}</p>
+                        </div>
+                      );
+                    })()}
                     {[
                       { label: "Start", action: "start" },
                       { label: "Stop", action: "stop" },
