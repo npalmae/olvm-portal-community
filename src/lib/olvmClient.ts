@@ -1601,14 +1601,8 @@ export const fetchOvaDisks = async (tenantId: string): Promise<OvaDiskInfo[]> =>
   const data = await olvmFetch(tenant, withJsonFormat("/disks"));
   const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
   const list = root && Array.isArray(root.disk) ? root.disk as Record<string, unknown>[] : [];
-  const tenantSds = [...(tenant.storageDomains ?? []), ...(tenant.sharedStorageDomains ?? [])];
   return list
     .filter((d) => String(d.name ?? "").toLowerCase().endsWith(".ova"))
-    .filter((d) => {
-      if (!tenantSds.length) return true;
-      const sds = ((d as Record<string, unknown>).storage_domains as { storage_domain?: { name?: string }[] } | undefined)?.storage_domain ?? [];
-      return sds.some((sd) => tenantSds.includes(sd.name ?? ""));
-    })
     .map((d) => ({
       id: String(d.id ?? ""),
       name: String(d.name ?? ""),
