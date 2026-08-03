@@ -1496,47 +1496,62 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput) =
     throw new Error(`Ya existe una VM con nombre ${payload.name}`);
   }
 
-  const result = await olvmFetch(tenant, "/externalvmimports", {
+  const templateName = `ova-${payload.name}-${Date.now()}`;
+
+  await olvmFetch(tenant, "/externaltemplateimports", {
     method: "POST",
     body: JSON.stringify({
-      provider: "kvm",
-      name: payload.name,
-      vm: { name: payload.name },
+      template: { name: templateName },
       cluster: { id: payload.clusterId },
       storage_domain: { id: payload.storageDomainId },
       host: { id: payload.hostId },
       url: `ova://${payload.hostPath}`,
+      clone: true,
     }),
-  }) as { vm?: { id?: string } } | null;
+  });
 
-  const returnedVmId = result?.vm?.id;
-  if (returnedVmId) {
-    await applyTenantTag(tenant, returnedVmId);
-    return { vmId: returnedVmId, pending: false };
+  const templateId = await waitForTemplate(tenant, templateName, 300_000);
+  if (!templateId) throw new Error("La importación del template desde OVA tardó demasiado");
+
+  try {
+    const created = await olvmFetch(tenant, "/vms", {
+      method: "POST",
+      body: JSON.stringify({
+        name: payload.name,
+        cluster: { id: payload.clusterId },
+        template: { id: templateId },
+      }),
+    }) as { id?: string } | null;
+
+    const newVmId = created?.id;
+    if (newVmId) await applyTenantTag(tenant, newVmId);
+    return { vmId: newVmId ?? null, pending: false };
+  } finally {
+    void deleteTemplate(tenant, templateId).catch(() => undefined);
   }
+};
 
-  const waitForImportedVm = async () => {
-    const deadline = Date.now() + (Number(process.env.OVA_IMPORT_TIMEOUT_MS) || 1_800_000);
-    while (Date.now() < deadline) {
-      const vmId = await findVmIdByName(tenant, payload.name);
-      if (vmId) {
-        await applyTenantTag(tenant, vmId);
-        return vmId;
-      }
-      await sleep(5_000);
-    }
-    return null;
-  };
+const waitForTemplate = async (
+  tenant: TenantConfig,
+  name: string,
+  timeoutMs: number,
+): Promise<string | null> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const data = await olvmFetch(tenant, withJsonFormat("/templates"));
+      const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
+      const list = root && Array.isArray(root.template) ? root.template as { id?: string; name?: string }[] : [];
+      const found = list.find((t) => t.name === name);
+      if (found?.id) return found.id;
+    } catch { /* retry */ }
+    await sleep(5_000);
+  }
+  return null;
+};
 
-  const importPromise = waitForImportedVm();
-  const vmId = await Promise.race([
-    importPromise,
-    sleep(30_000).then(() => null),
-  ]);
-  if (vmId) return { vmId, pending: false };
-
-  void importPromise.catch(() => undefined);
-  return { vmId: null, pending: true };
+const deleteTemplate = async (tenant: TenantConfig, templateId: string) => {
+  await olvmFetch(tenant, `/templates/${templateId}`, { method: "DELETE" });
 };
 
 type UpdateVmInput = {
