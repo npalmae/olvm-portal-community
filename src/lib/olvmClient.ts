@@ -1496,62 +1496,134 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput) =
     throw new Error(`Ya existe una VM con nombre ${payload.name}`);
   }
 
-  const templateName = `ova-${payload.name}-${Date.now()}`;
-
-  await olvmFetch(tenant, "/externaltemplateimports", {
+  const vmRes = await olvmFetch(tenant, "/vms", {
     method: "POST",
     body: JSON.stringify({
-      template: { name: templateName },
+      name: payload.name,
       cluster: { id: payload.clusterId },
-      storage_domain: { id: payload.storageDomainId },
-      host: { id: payload.hostId },
-      url: `ova://${payload.hostPath}`,
-      clone: true,
+      template: { id: "00000000-0000-0000-0000-000000000000" },
+    }),
+  }) as { id?: string } | null;
+  const vmId = vmRes?.id;
+  if (!vmId) throw new Error("No se pudo crear la VM");
+  await applyTenantTag(tenant, vmId);
+  return { vmId, pending: false };
+};
+
+export const createUploadDisk = async (
+  tenantId: string,
+  params: { name: string; provisionedSize: number; storageDomainId: string },
+): Promise<string> => {
+  const tenant = getTenantById(tenantId);
+  const res = await olvmFetch(tenant, "/disks", {
+    method: "POST",
+    body: JSON.stringify({
+      name: params.name,
+      alias: params.name,
+      format: "cow",
+      sparse: true,
+      provisioned_size: params.provisionedSize,
+      storage_domains: { storage_domain: [{ id: params.storageDomainId }] },
     }),
   });
+  const diskId = typeof res === "string"
+    ? res.match(/<disk[^>]*id="([^"]+)"/)?.[1] ?? ""
+    : String((res as Record<string, unknown>)?.id ?? "");
+  if (!diskId) throw new Error("No se pudo crear el disco");
 
-  const templateId = await waitForTemplate(tenant, templateName, 300_000);
-  if (!templateId) throw new Error("La importación del template desde OVA tardó demasiado");
+  for (let i = 0; i < 60; i++) {
+    const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`));
+    const status = typeof d === "string"
+      ? d.match(/<status[^>]*>([^<]+)<\/status>/)?.[1]?.trim() ?? ""
+      : String((d as Record<string, unknown>)?.status ?? "");
+    if (status === "ok") return diskId;
+    await sleep(2000);
+  }
+  throw new Error("El disco no quedó listo tras 2 minutos");
+};
 
+export const startImageTransfer = async (
+  tenantId: string,
+  diskId: string,
+): Promise<{ transferId: string; uploadUrl: string }> => {
+  const tenant = getTenantById(tenantId);
+  const res = await olvmFetch(tenant, "/imagetransfers", {
+    method: "POST",
+    body: JSON.stringify({ disk: { id: diskId }, direction: "upload" }),
+  });
+  let transferId = "";
+  let proxyUrl = "";
+  if (typeof res === "string") {
+    transferId = res.match(/id="([^"]+)"/)?.[1] ?? "";
+    proxyUrl = res.match(/<proxy_url>([^<]+)<\/proxy_url>/)?.[1]
+      ?? res.match(/<transfer_url>([^<]+)<\/transfer_url>/)?.[1] ?? "";
+  } else {
+    const t = res as Record<string, unknown> | null;
+    transferId = String(t?.id ?? "");
+    proxyUrl = String(t?.proxy_url ?? t?.transfer_url ?? "");
+  }
+  if (!transferId || !proxyUrl) throw new Error("No se pudo iniciar la transferencia");
+
+  for (let i = 0; i < 60; i++) {
+    await sleep(1000);
+    const t = await olvmFetch(tenant, withJsonFormat(`/imagetransfers/${transferId}`));
+    const phase = typeof t === "string"
+      ? t.match(/<phase>([^<]+)<\/phase>/)?.[1]?.trim() ?? ""
+      : String((t as Record<string, unknown>)?.phase ?? "");
+    if (phase === "transferring") break;
+    if (phase.includes("failure") || phase.includes("error")) throw new Error("Transfer fallida");
+  }
+
+  const engineHost = new URL(tenant.baseUrl).hostname;
+  let uploadUrl = proxyUrl;
   try {
-    const created = await olvmFetch(tenant, "/vms", {
-      method: "POST",
-      body: JSON.stringify({
-        name: payload.name,
-        cluster: { id: payload.clusterId },
-        template: { id: templateId },
-      }),
-    }) as { id?: string } | null;
+    const proxyHost = new URL(proxyUrl).hostname;
+    if (proxyHost !== engineHost && proxyHost !== "localhost") {
+      uploadUrl = proxyUrl.replace(proxyHost, engineHost);
+    }
+  } catch { /* keep */ }
 
-    const newVmId = created?.id;
-    if (newVmId) await applyTenantTag(tenant, newVmId);
-    return { vmId: newVmId ?? null, pending: false };
-  } finally {
-    void deleteTemplate(tenant, templateId).catch(() => undefined);
-  }
+  return { transferId, uploadUrl };
 };
 
-const waitForTemplate = async (
-  tenant: TenantConfig,
-  name: string,
-  timeoutMs: number,
-): Promise<string | null> => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+export const finalizeImageTransfer = async (tenantId: string, transferId: string) => {
+  const tenant = getTenantById(tenantId);
+  await olvmFetch(tenant, `/imagetransfers/${transferId}/finalize`, {
+    method: "POST",
+    body: "{}",
+  });
+};
+
+export const attachDiskToVm = async (
+  tenantId: string,
+  vmId: string,
+  diskId: string,
+  opts?: { bootable?: boolean; interface?: string },
+) => {
+  const tenant = getTenantById(tenantId);
+  const payload = {
+    disk: { id: diskId },
+    active: true,
+    bootable: opts?.bootable ?? true,
+    interface: opts?.interface ?? "virtio_scsi",
+  };
+  let attached = false;
+  let lastErr = "";
+  for (let i = 0; i < 12; i++) {
     try {
-      const data = await olvmFetch(tenant, withJsonFormat("/templates"));
-      const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
-      const list = root && Array.isArray(root.template) ? root.template as { id?: string; name?: string }[] : [];
-      const found = list.find((t) => t.name === name);
-      if (found?.id) return found.id;
-    } catch { /* retry */ }
-    await sleep(5_000);
+      await olvmFetch(tenant, `/vms/${vmId}/diskattachments`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      attached = true;
+      break;
+    } catch (err) {
+      lastErr = (err as Error).message;
+      if (!lastErr.toLowerCase().includes("locked")) throw err;
+      await sleep(5000);
+    }
   }
-  return null;
-};
-
-const deleteTemplate = async (tenant: TenantConfig, templateId: string) => {
-  await olvmFetch(tenant, `/templates/${templateId}`, { method: "DELETE" });
+  if (!attached) throw new Error(`No se pudo conectar el disco: ${lastErr}`);
 };
 
 type UpdateVmInput = {

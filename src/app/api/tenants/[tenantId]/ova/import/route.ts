@@ -5,7 +5,13 @@ import { promisify } from "util";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
-import { importOvaVm } from "@/lib/olvmClient";
+import {
+  importOvaVm,
+  createUploadDisk,
+  startImageTransfer,
+  finalizeImageTransfer,
+  attachDiskToVm,
+} from "@/lib/olvmClient";
 import { getOvaUploadPaths, type OvaUploadMetadata } from "@/lib/ovaStaging";
 
 export const dynamic = "force-dynamic";
@@ -15,32 +21,36 @@ export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 const asString = (value: unknown) => typeof value === "string" ? value.trim() : "";
 
+const sshExec = async (hostAddress: string, command: string, timeoutMs = 300_000) => {
+  const sshUser = process.env.OLVM_HOST_SSH_USER?.trim() || "root";
+  const sshPassword = process.env.OLVM_HOST_SSH_PASSWORD?.trim();
+  if (!sshPassword) throw new Error("OLVM_HOST_SSH_PASSWORD no está configurado");
+  const { stdout } = await execFileAsync("sshpass", [
+    "-p", sshPassword,
+    "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+    `${sshUser}@${hostAddress}`,
+    command,
+  ], { timeout: timeoutMs, maxBuffer: 50 * 1024 * 1024 });
+  return stdout;
+};
+
 const scpToHost = async (localPath: string, hostAddress: string, remotePath: string) => {
   const sshUser = process.env.OLVM_HOST_SSH_USER?.trim() || "root";
   const sshPassword = process.env.OLVM_HOST_SSH_PASSWORD?.trim();
   if (!sshPassword) throw new Error("OLVM_HOST_SSH_PASSWORD no está configurado");
-
   await execFileAsync("sshpass", [
     "-p", sshPassword,
     "scp",
-    "-o", "StrictHostKeyChecking=no",
-    "-o", "UserKnownHostsFile=/dev/null",
+    "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
     localPath,
     `${sshUser}@${hostAddress}:${remotePath}`,
   ], { timeout: 540_000, maxBuffer: 10 * 1024 * 1024 });
-
-  await execFileAsync("sshpass", [
-    "-p", sshPassword,
-    "ssh",
-    "-o", "StrictHostKeyChecking=no",
-    "-o", "UserKnownHostsFile=/dev/null",
-    `${sshUser}@${hostAddress}`,
-    `mkdir -p ${path.posix.dirname(remotePath)}`,
-  ], { timeout: 10_000 }).catch(() => undefined);
 };
 
 export async function POST(request: Request, context: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await context.params;
+  let hostAddr = "";
+  let extractDir = "";
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -52,8 +62,8 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     const clusterId = asString(body?.clusterId);
     const storageDomainId = asString(body?.storageDomainId);
     const hostId = asString(body?.hostId);
-    const hostAddress = asString(body?.hostAddress);
-    if (!uploadId || !name || !clusterId || !storageDomainId || !hostId || !hostAddress) {
+    hostAddr = asString(body?.hostAddress);
+    if (!uploadId || !name || !clusterId || !storageDomainId || !hostId || !hostAddr) {
       return NextResponse.json(
         { error: "uploadId, name, clusterId, storageDomainId, hostId y hostAddress son obligatorios" },
         { status: 400 },
@@ -77,24 +87,52 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     const metadata = JSON.parse(metadataText) as OvaUploadMetadata;
     if (metadata.tenantId !== tenantId) throw new Error("El OVA no pertenece al tenant seleccionado");
 
-    const remoteFile = path.posix.join(hostStagingDir, `${uploadId}.ova`);
-    await scpToHost(filePath, hostAddress, remoteFile);
+    extractDir = `/tmp/ova-import-${Date.now()}`;
+    const remoteOva = path.posix.join(hostStagingDir, `${uploadId}.ova`);
+    await scpToHost(filePath, hostAddr, remoteOva);
 
-    const result = await importOvaVm(tenantId, {
-      name,
-      clusterId,
+    await sshExec(hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
+
+    const vmdkName = (await sshExec(hostAddr, `find ${extractDir} -name '*.vmdk' -type f | head -1`)).trim();
+    if (!vmdkName) throw new Error("El OVA no contiene un disco VMDK");
+
+    const qcow2Path = `${extractDir}/disk.qcow2`;
+    await sshExec(hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${qcow2Path}'`, 540_000);
+
+    const infoRaw = await sshExec(hostAddr, `qemu-img info --output=json '${qcow2Path}'`);
+    const qcow2Info = JSON.parse(infoRaw);
+    const virtualSize = Number(qcow2Info["virtual-size"]) || 10 * 1024 * 1024 * 1024;
+
+    const { vmId } = await importOvaVm(tenantId, { name, clusterId, storageDomainId, hostId, hostPath: remoteOva });
+
+    const diskName = `${name}-disk`;
+    const diskId = await createUploadDisk(tenantId, {
+      name: diskName,
+      provisionedSize: virtualSize,
       storageDomainId,
-      hostId,
-      hostPath: remoteFile,
     });
+
+    const { transferId, uploadUrl } = await startImageTransfer(tenantId, diskId);
+
+    await sshExec(hostAddr,
+      `curl -sk -X PUT -H 'Content-Type: application/octet-stream' --data-binary @'${qcow2Path}' '${uploadUrl}'`,
+      540_000,
+    );
+
+    await finalizeImageTransfer(tenantId, transferId);
+    await attachDiskToVm(tenantId, vmId, diskId, { bootable: true, interface: "virtio_scsi" });
 
     await Promise.all([
       rm(filePath, { force: true }),
       rm(metadataPath, { force: true }),
     ]);
 
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, vmId, pending: false });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+  } finally {
+    if (hostAddr && extractDir) {
+      void sshExec(hostAddr, `rm -rf ${extractDir}`).catch(() => undefined);
+    }
   }
 }
