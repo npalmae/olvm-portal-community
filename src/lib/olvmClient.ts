@@ -1499,6 +1499,8 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput) =
   const result = await olvmFetch(tenant, "/externalvmimports", {
     method: "POST",
     body: JSON.stringify({
+      provider: "kvm",
+      name: payload.name,
       vm: { name: payload.name },
       cluster: { id: payload.clusterId },
       storage_domain: { id: payload.storageDomainId },
