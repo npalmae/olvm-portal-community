@@ -1496,34 +1496,16 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput) =
     throw new Error(`Ya existe una VM con nombre ${payload.name}`);
   }
 
-  const importBody: Record<string, unknown> = {
-    vm: { name: payload.name },
-    cluster: { id: payload.clusterId },
-    storage_domain: { id: payload.storageDomainId },
-    host: { id: payload.hostId },
-    url: `ova://${payload.hostPath}`,
-  };
-
-  const payloadVariants = [
-    importBody,
-    { external_vm_import: importBody },
-  ];
-
-  let result: { vm?: { id?: string } } | null = null;
-  let firstError: unknown;
-  for (const body of payloadVariants) {
-    try {
-      result = await olvmFetch(tenant, "/externalvmimports", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }) as { vm?: { id?: string } } | null;
-      break;
-    } catch (error) {
-      firstError = error;
-    }
-  }
-
-  if (!result) throw firstError;
+  const result = await olvmFetch(tenant, "/externalvmimports", {
+    method: "POST",
+    body: JSON.stringify({
+      vm: { name: payload.name },
+      cluster: { id: payload.clusterId },
+      storage_domain: { id: payload.storageDomainId },
+      host: { id: payload.hostId },
+      url: `ova://${payload.hostPath}`,
+    }),
+  }) as { vm?: { id?: string } } | null;
 
   const returnedVmId = result?.vm?.id;
   if (returnedVmId) {

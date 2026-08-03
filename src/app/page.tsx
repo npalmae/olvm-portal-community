@@ -290,6 +290,7 @@ export default function Home() {
   const [uploadedOva, setUploadedOva] = useState<{ uploadId: string; name: string; ovf: string } | null>(null);
   const [ovaStorageDomainId, setOvaStorageDomainId] = useState("");
   const [ovaHostId, setOvaHostId] = useState("");
+  const [ovaImportProgress, setOvaImportProgress] = useState<number | null>(null);
   const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
@@ -971,8 +972,15 @@ export default function Home() {
     if (newVmSource === "ova" && !ovaStorageDomainId) { setError("Selecciona un storage domain para importar el OVA"); return; }
     if (newVmSource === "ova" && !ovaHostId) { setError("Selecciona un host para importar el OVA"); return; }
     setActionLoading("create"); setError(null); setSuccess(null);
+    const isOva = newVmSource === "ova";
+    let progressInterval: ReturnType<typeof setInterval> | null = null;
+    if (isOva) {
+      setOvaImportProgress(0);
+      progressInterval = setInterval(() => {
+        setOvaImportProgress((p) => (p === null ? null : Math.min(p + Math.random() * 3, 95)));
+      }, 1500);
+    }
     try {
-      const isOva = newVmSource === "ova";
       const res = await fetch(`/api/tenants/${selectedTenant}/${isOva ? "ova/import" : "vms"}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isOva ? {
@@ -1007,7 +1015,11 @@ export default function Home() {
       setUseCloudInit(false);
       refresh();
     } catch (err) { setError((err as Error).message); }
-    finally { setActionLoading(null); }
+    finally {
+      if (progressInterval) clearInterval(progressInterval);
+      setOvaImportProgress(null);
+      setActionLoading(null);
+    }
   };
 
   /* ── Derived state ── */
@@ -2692,12 +2704,23 @@ export default function Home() {
                       onChange={(e) => setNewVm((v) => ({ ...v, comment: e.target.value }))}
                       className={`${inputCls} resize-none`} placeholder="Propósito, ticket..." rows={2} />
                   </Field></>}
+                  {ovaImportProgress !== null && (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-2 text-[10px] text-blue-700">
+                      <div className="mb-1 flex justify-between font-medium">
+                        <span>{ovaImportProgress < 40 ? "Copiando OVA al host…" : ovaImportProgress < 75 ? "Importando en OLVM…" : "Esperando conversión…"}</span>
+                        <span>{Math.round(ovaImportProgress)}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                        <div className="h-full rounded-full bg-blue-500 transition-all duration-1000" style={{ width: `${ovaImportProgress}%` }} />
+                      </div>
+                    </div>
+                  )}
                   <button
                     onClick={handleNewVm}
                     disabled={actionLoading === "create"}
                     className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                   >
-                    {actionLoading === "create" ? "Creando..." : "Crear VM"}
+                    {actionLoading === "create" ? (newVmSource === "ova" ? "Importando OVA..." : "Creando...") : "Crear VM"}
                   </button>
                 </div>
               )}
