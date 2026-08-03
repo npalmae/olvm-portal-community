@@ -211,7 +211,7 @@ export async function GET(request: Request) {
     // al navegador (salvo override vía CONSOLE_PROXY_PUBLIC_HOST_PORT para
     // despliegues con reverse proxy que mapeen /console-proxy/ al 3010).
     const proxyAuthority =
-      process.env.CONSOLE_PROXY_PUBLIC_HOST_PORT ??
+      process.env.CONSOLE_PROXY_PUBLIC_HOST_PORT ||
       `${externalUrl.hostname}:${port}`;
     const proxyUrl = `${wsProtocol}//${proxyAuthority}${normalizedProxyPath}?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
 
