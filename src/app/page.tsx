@@ -289,6 +289,7 @@ export default function Home() {
   const [ovaUploadProgress, setOvaUploadProgress] = useState<number | null>(null);
   const [uploadedOva, setUploadedOva] = useState<{ uploadId: string; name: string; ovf: string } | null>(null);
   const [ovaStorageDomainId, setOvaStorageDomainId] = useState("");
+  const [ovaHostId, setOvaHostId] = useState("");
   const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
   const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
@@ -304,6 +305,7 @@ export default function Home() {
   const [provTemplates, setProvTemplates] = useState<{ id: string; name: string }[]>([]);
   const [provNetworks, setProvNetworks] = useState<{ id: string; name: string }[]>([]);
   const [provVnicProfiles, setProvVnicProfiles] = useState<{ id: string; name: string; networkId: string; networkName: string }[]>([]);
+  const [provHosts, setProvHosts] = useState<{ id: string; name: string; address?: string }[]>([]);
   const [netConfig, setNetConfig] = useState<Record<string, { prefix: string; mask: string }>>({});
   const [actionHistory, setActionHistory] = useState<ActionLog[]>([]);
   const [embeddedConsole, setEmbeddedConsole] = useState<{
@@ -448,6 +450,11 @@ export default function Home() {
     setOvaStorageDomainId(activeDataDomain?.id ?? "");
   }, [ovaStorageDomainId, storageDomains]);
 
+  useEffect(() => {
+    if (ovaHostId && provHosts.some((h) => h.id === ovaHostId)) return;
+    setOvaHostId(provHosts[0]?.id ?? "");
+  }, [ovaHostId, provHosts]);
+
   // Carga ISOs del tenant actual
   useEffect(() => {
     setIsoList([]);
@@ -484,6 +491,7 @@ export default function Home() {
     setProvTemplates([]);
     setProvNetworks([]);
     setProvVnicProfiles([]);
+    setProvHosts([]);
     if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) return;
     let cancelled = false;
     (async () => {
@@ -495,6 +503,7 @@ export default function Home() {
           if (Array.isArray(data.templates)) setProvTemplates(data.templates);
           if (Array.isArray(data.networks)) setProvNetworks(data.networks);
           if (Array.isArray(data.vnicProfiles)) setProvVnicProfiles(data.vnicProfiles);
+          if (Array.isArray(data.hosts)) setProvHosts(data.hosts);
           if (Array.isArray(data.networkConfig)) {
             const nc: Record<string, { prefix: string; mask: string }> = {};
             for (const n of data.networkConfig) { nc[n.name] = { prefix: n.prefix, mask: n.mask }; }
@@ -960,6 +969,7 @@ export default function Home() {
     if (!newVm.name || !newVm.clusterId) { setError("Nombre y Cluster ID son obligatorios"); return; }
     if (newVmSource === "ova" && !uploadedOva) { setError("Sube un archivo OVA antes de crear la VM"); return; }
     if (newVmSource === "ova" && !ovaStorageDomainId) { setError("Selecciona un storage domain para importar el OVA"); return; }
+    if (newVmSource === "ova" && !ovaHostId) { setError("Selecciona un host para importar el OVA"); return; }
     setActionLoading("create"); setError(null); setSuccess(null);
     try {
       const isOva = newVmSource === "ova";
@@ -970,6 +980,8 @@ export default function Home() {
           name: newVm.name,
           clusterId: newVm.clusterId,
           storageDomainId: ovaStorageDomainId,
+          hostId: ovaHostId,
+          hostAddress: provHosts.find((h) => h.id === ovaHostId)?.address ?? "",
         } : {
           name: newVm.name, clusterId: newVm.clusterId,
           templateId: newVmSource === "template" ? newVm.templateId || undefined : undefined,
@@ -2608,6 +2620,14 @@ export default function Home() {
                       <option value="">Selecciona un storage domain…</option>
                       {storageDomains.filter((sd) => sd.type === "data").map((sd) => (
                         <option key={sd.id} value={sd.id}>{sd.name}{sd.status ? ` (${sd.status})` : ""}</option>
+                      ))}
+                    </select>
+                  </Field>}
+                  {newVmSource === "ova" && <Field label="Host de importación *">
+                    <select value={ovaHostId} onChange={(e) => setOvaHostId(e.target.value)} className={inputCls}>
+                      <option value="">Selecciona un host…</option>
+                      {provHosts.map((h) => (
+                        <option key={h.id} value={h.id}>{h.name}{h.address ? ` (${h.address})` : ""}</option>
                       ))}
                     </select>
                   </Field>}

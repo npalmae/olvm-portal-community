@@ -38,6 +38,7 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY proxy-server.js ./proxy-server.js
 COPY start.sh ./start.sh
 RUN chmod +x start.sh
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-client sshpass && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 3000
 EXPOSE 3010

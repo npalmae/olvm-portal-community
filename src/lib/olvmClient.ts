@@ -1585,6 +1585,23 @@ export const updateVmResources = async (
   });
 };
 
+export type OlvmHost = { id: string; name: string; address?: string };
+
+export const fetchHosts = async (tenantId: string): Promise<OlvmHost[]> => {
+  const tenant = getTenantById(tenantId);
+  const data = await olvmFetch(tenant, withJsonFormat("/hosts"));
+  const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const list = root && Array.isArray(root.host) ? root.host as Record<string, unknown>[] : [];
+  return list
+    .map((h) => ({
+      id: String(h.id ?? ""),
+      name: String(h.name ?? ""),
+      address: typeof h.address === "string" ? h.address : undefined,
+    }))
+    .filter((h) => h.id)
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
 export type StorageDomainInfo = {
   id: string;
   name: string;
