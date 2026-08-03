@@ -10,6 +10,7 @@ import {
   createUploadDisk,
   startImageTransfer,
   finalizeImageTransfer,
+  waitForDiskReady,
   attachDiskToVm,
 } from "@/lib/olvmClient";
 import { getOvaUploadPaths, type OvaUploadMetadata } from "@/lib/ovaStaging";
@@ -120,6 +121,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     );
 
     await finalizeImageTransfer(tenantId, transferId);
+    await waitForDiskReady(tenantId, diskId);
     await attachDiskToVm(tenantId, vmId, diskId, { bootable: true, interface: "virtio_scsi" });
 
     await Promise.all([

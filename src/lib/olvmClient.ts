@@ -1594,6 +1594,23 @@ export const finalizeImageTransfer = async (tenantId: string, transferId: string
   });
 };
 
+export const waitForDiskReady = async (
+  tenantId: string,
+  diskId: string,
+  timeoutMs = 120_000,
+) => {
+  const tenant = getTenantById(tenantId);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`));
+    const status = typeof d === "string"
+      ? d.match(/<status[^>]*>([^<]+)<\/status>/)?.[1]?.trim() ?? ""
+      : String((d as Record<string, unknown>)?.status ?? "");
+    if (status === "ok") return;
+    await sleep(3_000);
+  }
+};
+
 export const attachDiskToVm = async (
   tenantId: string,
   vmId: string,
@@ -1619,7 +1636,7 @@ export const attachDiskToVm = async (
       break;
     } catch (err) {
       lastErr = (err as Error).message;
-      if (!lastErr.toLowerCase().includes("locked")) throw err;
+      if (!lastErr.toLowerCase().includes("locked") && !lastErr.toLowerCase().includes("transferr")) throw err;
       await sleep(5000);
     }
   }
