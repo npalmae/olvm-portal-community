@@ -8,7 +8,7 @@ export async function GET(
   request: Request,
   ctx: { params: Promise<{ tenantId: string }> },
 ) {
-  if (!checkApiKey(request)) return unauthorizedResponse();
+  if (!(await checkApiKey(request))) return unauthorizedResponse();
 
   const { tenantId } = await ctx.params;
   try {

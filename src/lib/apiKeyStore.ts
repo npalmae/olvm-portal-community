@@ -6,6 +6,8 @@ export type ApiKey = {
   id: string;
   key: string;
   name: string;
+  userId: string;
+  userEmail: string;
   createdAt: string;
   active: boolean;
   lastUsed?: string;
@@ -30,12 +32,18 @@ const saveKeys = async (keys: ApiKey[]) => {
   await fs.writeFile(file, JSON.stringify(keys, null, 2), { mode: 0o600 });
 };
 
-export const createApiKey = async (name: string): Promise<ApiKey> => {
+export const listKeysByUser = async (userId: string): Promise<ApiKey[]> => {
+  return (await listApiKeys()).filter((k) => k.userId === userId);
+};
+
+export const createApiKey = async (name: string, userId: string, userEmail: string): Promise<ApiKey> => {
   const keys = await listApiKeys();
   const newKey: ApiKey = {
     id: crypto.randomUUID(),
     key: crypto.randomBytes(24).toString("hex"),
     name: name.trim() || "Unnamed",
+    userId,
+    userEmail,
     createdAt: new Date().toISOString(),
     active: true,
   };
@@ -58,15 +66,35 @@ export const toggleApiKey = async (id: string): Promise<void> => {
   }
 };
 
-export const validateApiKey = async (providedKey: string): Promise<boolean> => {
+export type ApiKeyContext = {
+  userId: string;
+  userEmail: string;
+  globalRole: string | null;
+  tenantIds: string[];
+};
+
+export const validateApiKey = async (providedKey: string): Promise<ApiKeyContext | null> => {
   const envKey = process.env.API_READ_KEY?.trim();
-  if (envKey && providedKey === envKey) return true;
+  if (envKey && providedKey === envKey) {
+    return { userId: "env", userEmail: "env-key", globalRole: "superadmin", tenantIds: [] };
+  }
   const keys = await listApiKeys();
   const match = keys.find((k) => k.active && k.key === providedKey);
-  if (match) {
-    match.lastUsed = new Date().toISOString();
-    await saveKeys(keys).catch(() => undefined);
-    return true;
-  }
-  return false;
+  if (!match) return null;
+
+  match.lastUsed = new Date().toISOString();
+  await saveKeys(keys).catch(() => undefined);
+
+  const { listUsers } = await import("./userStore");
+  const users = await listUsers();
+  const user = users.find((u) => u.id === match.userId);
+  if (!user) return null;
+
+  const tenantIds = (user.memberships ?? []).map((m) => m.tenantId);
+  return {
+    userId: user.id,
+    userEmail: user.email,
+    globalRole: user.globalRole ?? null,
+    tenantIds,
+  };
 };

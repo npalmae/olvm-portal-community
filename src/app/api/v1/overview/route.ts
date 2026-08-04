@@ -6,12 +6,17 @@ import { fetchVms, fetchStorageDomains } from "@/lib/olvmClient";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!checkApiKey(request)) return unauthorizedResponse();
+  const ctx = await checkApiKey(request);
+  if (!ctx) return unauthorizedResponse();
 
   try {
-    const tenants = getTenants();
+    const allTenants = getTenants();
+    const allowed = ctx.globalRole === "superadmin"
+      ? allTenants
+      : allTenants.filter((t) => ctx.tenantIds.includes(t.id));
+
     const results = await Promise.all(
-      tenants.map(async (t) => {
+      allowed.map(async (t) => {
         try {
           const [vms, storage] = await Promise.all([
             fetchVms(t.id).catch(() => []),
@@ -25,12 +30,8 @@ export async function GET(request: Request) {
             totalCpuCores: vms.reduce((sum, v) => sum + (v.cpuCores ?? 0), 0),
             totalMemoryMB: vms.reduce((sum, v) => sum + (v.memoryMB ?? 0), 0),
             storage: storage.map((s) => ({
-              name: s.name,
-              type: s.type,
-              status: s.status,
-              totalGB: s.totalGB,
-              usedGB: s.usedGB,
-              availableGB: s.availableGB,
+              name: s.name, type: s.type, status: s.status,
+              totalGB: s.totalGB, usedGB: s.usedGB, availableGB: s.availableGB,
             })),
           };
         } catch {

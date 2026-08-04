@@ -522,90 +522,6 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {isSuperadmin && (
-        <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">API Keys (read-only)</h2>
-            <p className="text-xs text-gray-500">Claves para integraciones externas — acceso solo lectura a /api/v1/*</p>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="Nombre (ej: Billing System)"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
-              />
-              <button
-                onClick={handleCreateKey}
-                disabled={creatingKey || !newKeyName.trim()}
-                className="px-4 py-2 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg text-sm disabled:opacity-50"
-              >
-                {creatingKey ? "Generando…" : "Generar Key"}
-              </button>
-            </div>
-
-            {apiKeys.length > 0 && (
-              <div className="overflow-hidden rounded-lg border border-gray-100">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-xs text-gray-500">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-medium">Nombre</th>
-                      <th className="px-4 py-2 text-left font-medium">API Key</th>
-                      <th className="px-4 py-2 text-left font-medium">Creada</th>
-                      <th className="px-4 py-2 text-left font-medium">Último uso</th>
-                      <th className="px-4 py-2 text-center font-medium">Estado</th>
-                      <th className="px-4 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {apiKeys.map((k) => (
-                      <tr key={k.id} className="border-t border-gray-100">
-                        <td className="px-4 py-3 font-medium text-gray-900">{k.name}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-600">
-                          {revealedKeyId === k.id ? (
-                            <span className="flex items-center gap-2">
-                              {k.key}
-                              <button onClick={() => setRevealedKeyId(null)} className="text-blue-600 underline text-[10px]">ocultar</button>
-                              <button onClick={() => { navigator.clipboard.writeText(k.key); }} className="text-blue-600 underline text-[10px]">copiar</button>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-2">
-                              {k.keyPreview}
-                              <button onClick={() => setRevealedKeyId(k.id)} className="text-blue-600 underline text-[10px]">mostrar</button>
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{new Date(k.createdAt).toLocaleDateString("es-CL")}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{k.lastUsed ? new Date(k.lastUsed).toLocaleString("es-CL") : "—"}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded text-xs border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
-                            {k.active ? "Activa" : "Inactiva"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 justify-end">
-                            <button onClick={() => handleToggleKey(k.id)} className="text-xs text-gray-500 hover:text-blue-600">{k.active ? "Desactivar" : "Activar"}</button>
-                            <button onClick={() => handleDeleteKey(k.id)} className="text-xs text-red-500 hover:text-red-700">Eliminar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
-              <p className="text-xs text-gray-500 mb-1">Ejemplo de uso:</p>
-              <code className="text-xs text-gray-700">curl -H "X-API-Key: TU_KEY" https://olvmportal.sixmanager.io/api/v1/vms</code>
-            </div>
-          </div>
-        </div>
-      )}
-
       {modal.type === "edit" && (
         <EditModal
           user={modal.user}
@@ -684,6 +600,50 @@ function EditModal({
   const [tenantRole, setTenantRole] = useState<"user" | "admin">(
     tenantAdminMembership?.role ?? "user",
   );
+
+  const [userApiKeys, setUserApiKeys] = useState<ApiKeyEntry[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [revealedKeyId, setRevealedKeyId] = useState<string | null>(null);
+
+  const loadUserKeys = async () => {
+    try {
+      const res = await fetch(`/api/admin/api-keys?userId=${user.id}`);
+      if (res.ok) setUserApiKeys(await res.json());
+    } catch { /* noop */ }
+  };
+
+  useEffect(() => {
+    if (isSuperadmin) loadUserKeys();
+  }, [isSuperadmin, user.id]);
+
+  const handleCreateKey = async () => {
+    if (!newKeyName.trim()) return;
+    setCreatingKey(true);
+    try {
+      const res = await fetch("/api/admin/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName, userId: user.id, userEmail: user.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setNewKeyName("");
+      await loadUserKeys();
+      setRevealedKeyId(data.id);
+    } catch { /* noop */ }
+    finally { setCreatingKey(false); }
+  };
+
+  const handleDeleteKey = async (id: string) => {
+    await fetch(`/api/admin/api-keys?id=${id}`, { method: "DELETE" });
+    await loadUserKeys();
+  };
+
+  const handleToggleKey = async (id: string) => {
+    await fetch(`/api/admin/api-keys?id=${id}&action=toggle`, { method: "DELETE" });
+    await loadUserKeys();
+  };
 
   const addMembership = () => {
     const available = tenants.filter(
@@ -899,7 +859,61 @@ function EditModal({
           </button>
         </div>
       </form>
-    </ModalShell>
+
+        {isSuperadmin && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">API Keys</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Claves read-only para {user.email}. Heredan los tenants de este usuario.
+            </p>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+                placeholder="Nombre (ej: Billing)"
+                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
+              />
+              <button
+                onClick={handleCreateKey}
+                disabled={creatingKey || !newKeyName.trim()}
+                className="px-4 py-1.5 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg text-sm disabled:opacity-50"
+              >
+                {creatingKey ? "…" : "+ Key"}
+              </button>
+            </div>
+            {userApiKeys.length > 0 && (
+              <div className="space-y-1.5">
+                {userApiKeys.map((k) => (
+                  <div key={k.id} className="flex items-center gap-2 rounded-md bg-white border border-gray-100 px-3 py-2">
+                    <span className="flex-1 text-sm font-medium text-gray-800">{k.name}</span>
+                    <span className="font-mono text-xs text-gray-500">
+                      {revealedKeyId === k.id ? (
+                        <span className="flex items-center gap-1">
+                          {k.key}
+                          <button onClick={() => setRevealedKeyId(null)} className="text-blue-600 underline text-[10px]">ocultar</button>
+                          <button onClick={() => navigator.clipboard.writeText(k.key)} className="text-blue-600 underline text-[10px]">copiar</button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          {k.keyPreview}
+                          <button onClick={() => setRevealedKeyId(k.id)} className="text-blue-600 underline text-[10px]">ver</button>
+                        </span>
+                      )}
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                      {k.active ? "ON" : "OFF"}
+                    </span>
+                    <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-blue-600">{k.active ? "Desact." : "Activar"}</button>
+                    <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">Elim.</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </ModalShell>
   );
 }
 

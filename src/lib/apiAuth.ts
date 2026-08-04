@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { validateApiKey } from "./apiKeyStore";
+import { validateApiKey, type ApiKeyContext } from "./apiKeyStore";
 
-export const checkApiKey = async (request: Request): Promise<boolean> => {
+export const checkApiKey = async (request: Request): Promise<ApiKeyContext | null> => {
   const provided = request.headers.get("x-api-key") ?? "";
-  if (!provided) return false;
+  if (!provided) return null;
   return validateApiKey(provided);
 };
 
