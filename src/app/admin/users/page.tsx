@@ -884,29 +884,42 @@ function EditModal({
               </button>
             </div>
             {userApiKeys.length > 0 && (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {userApiKeys.map((k) => (
-                  <div key={k.id} className="flex items-center gap-2 rounded-md bg-white border border-gray-100 px-3 py-2">
-                    <span className="flex-1 text-sm font-medium text-gray-800">{k.name}</span>
-                    <span className="font-mono text-xs text-gray-500">
+                  <div key={k.id} className="rounded-md bg-white border border-gray-100 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 text-sm font-medium text-gray-800 truncate">{k.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                        {k.active ? "ON" : "OFF"}
+                      </span>
+                      <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-blue-600">{k.active ? "Desact." : "Activ."}</button>
+                      <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">Elim.</button>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2">
                       {revealedKeyId === k.id ? (
-                        <span className="flex items-center gap-1">
-                          {k.key}
-                          <button onClick={() => setRevealedKeyId(null)} className="text-blue-600 underline text-[10px]">ocultar</button>
-                          <button onClick={() => navigator.clipboard.writeText(k.key)} className="text-blue-600 underline text-[10px]">copiar</button>
-                        </span>
+                        <>
+                          <code className="flex-1 text-[11px] text-gray-600 bg-gray-50 rounded px-2 py-1 break-all">{k.key}</code>
+                          <button
+                            onClick={() => {
+                              const ta = document.createElement("textarea");
+                              ta.value = k.key;
+                              ta.style.cssText = "position:fixed;opacity:0";
+                              document.body.appendChild(ta);
+                              ta.select();
+                              try { document.execCommand("copy"); } catch {}
+                              document.body.removeChild(ta);
+                            }}
+                            className="shrink-0 text-[10px] bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-1 hover:bg-blue-100"
+                          >Copiar</button>
+                          <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 hover:text-gray-700">Ocultar</button>
+                        </>
                       ) : (
-                        <span className="flex items-center gap-1">
-                          {k.keyPreview}
-                          <button onClick={() => setRevealedKeyId(k.id)} className="text-blue-600 underline text-[10px]">ver</button>
-                        </span>
+                        <>
+                          <code className="text-[11px] text-gray-400 font-mono">{k.keyPreview}</code>
+                          <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-blue-600 hover:text-blue-800">Mostrar</button>
+                        </>
                       )}
-                    </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
-                      {k.active ? "ON" : "OFF"}
-                    </span>
-                    <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-blue-600">{k.active ? "Desact." : "Activar"}</button>
-                    <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">Elim.</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1035,7 +1048,7 @@ function ModalShell({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl"
+        className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
