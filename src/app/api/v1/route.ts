@@ -7,7 +7,9 @@ export async function GET(request: Request) {
   const ctx = await checkApiKey(request);
   if (!ctx) return unauthorizedResponse();
 
-  const base = new URL(request.url).origin + "/api/v1";
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "localhost";
+  const proto = request.headers.get("x-forwarded-proto") ?? "http";
+  const base = `${proto}://${host}/api/v1`;
 
   return NextResponse.json({
     api: "OLVM Portal Read-Only API",
