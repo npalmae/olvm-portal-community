@@ -2366,6 +2366,13 @@ export const deleteNicFromVm = async (
   nicId: string,
 ): Promise<void> => {
   const tenant = getTenantById(tenantId);
+  try {
+    await olvmFetch(tenant, `/vms/${vmId}/nics/${nicId}/deactivate`, {
+      method: "POST",
+      body: "{}",
+    });
+  } catch { /* VM apagada o ya desactivada — ignorar */ }
+  await sleep(1000);
   await olvmFetch(tenant, `/vms/${vmId}/nics/${nicId}`, {
     method: "DELETE",
   });
