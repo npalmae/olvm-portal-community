@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
+import { validateApiKey } from "./apiKeyStore";
 
-const VALID_KEY = () => process.env.API_READ_KEY?.trim();
-
-export const checkApiKey = (request: Request): boolean => {
-  const key = VALID_KEY();
-  if (!key) return false;
+export const checkApiKey = async (request: Request): Promise<boolean> => {
   const provided = request.headers.get("x-api-key") ?? "";
-  return provided === key;
+  if (!provided) return false;
+  return validateApiKey(provided);
 };
 
 export const unauthorizedResponse = () =>

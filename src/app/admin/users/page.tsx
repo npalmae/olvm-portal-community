@@ -34,6 +34,16 @@ type ModalState =
   | { type: "delete"; user: User }
   | { type: "password"; user: User };
 
+type ApiKeyEntry = {
+  id: string;
+  name: string;
+  key: string;
+  keyPreview: string;
+  createdAt: string;
+  active: boolean;
+  lastUsed?: string;
+};
+
 const parseJsonSafe = async (res: Response) => {
   const text = await res.text();
   try {
@@ -58,6 +68,10 @@ export default function AdminUsersPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKeyEntry[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [revealedKeyId, setRevealedKeyId] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: "closed" });
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -126,6 +140,45 @@ export default function AdminUsersPage() {
     loadUsers();
     loadTenants();
   }, [session, status, router, loadUsers, loadTenants]);
+
+  const loadApiKeys = async () => {
+    try {
+      const res = await fetch("/api/admin/api-keys");
+      if (res.ok) setApiKeys(await res.json());
+    } catch { /* noop */ }
+  };
+
+  useEffect(() => {
+    if (isSuperadmin) loadApiKeys();
+  }, [isSuperadmin]);
+
+  const handleCreateKey = async () => {
+    if (!newKeyName.trim()) return;
+    setCreatingKey(true);
+    try {
+      const res = await fetch("/api/admin/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Error");
+      setNewKeyName("");
+      await loadApiKeys();
+      setRevealedKeyId(data.id);
+    } catch (e) { setError((e as Error).message); }
+    finally { setCreatingKey(false); }
+  };
+
+  const handleDeleteKey = async (id: string) => {
+    await fetch(`/api/admin/api-keys?id=${id}`, { method: "DELETE" });
+    await loadApiKeys();
+  };
+
+  const handleToggleKey = async (id: string) => {
+    await fetch(`/api/admin/api-keys?id=${id}&action=toggle`, { method: "DELETE" });
+    await loadApiKeys();
+  };
 
   // Auto-dismiss alertas
   useEffect(() => {
@@ -468,6 +521,90 @@ export default function AdminUsersPage() {
           </table>
         </div>
       </div>
+
+      {isSuperadmin && (
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-900">API Keys (read-only)</h2>
+            <p className="text-xs text-gray-500">Claves para integraciones externas — acceso solo lectura a /api/v1/*</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+                placeholder="Nombre (ej: Billing System)"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
+              />
+              <button
+                onClick={handleCreateKey}
+                disabled={creatingKey || !newKeyName.trim()}
+                className="px-4 py-2 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg text-sm disabled:opacity-50"
+              >
+                {creatingKey ? "Generando…" : "Generar Key"}
+              </button>
+            </div>
+
+            {apiKeys.length > 0 && (
+              <div className="overflow-hidden rounded-lg border border-gray-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs text-gray-500">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium">Nombre</th>
+                      <th className="px-4 py-2 text-left font-medium">API Key</th>
+                      <th className="px-4 py-2 text-left font-medium">Creada</th>
+                      <th className="px-4 py-2 text-left font-medium">Último uso</th>
+                      <th className="px-4 py-2 text-center font-medium">Estado</th>
+                      <th className="px-4 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {apiKeys.map((k) => (
+                      <tr key={k.id} className="border-t border-gray-100">
+                        <td className="px-4 py-3 font-medium text-gray-900">{k.name}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                          {revealedKeyId === k.id ? (
+                            <span className="flex items-center gap-2">
+                              {k.key}
+                              <button onClick={() => setRevealedKeyId(null)} className="text-blue-600 underline text-[10px]">ocultar</button>
+                              <button onClick={() => { navigator.clipboard.writeText(k.key); }} className="text-blue-600 underline text-[10px]">copiar</button>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-2">
+                              {k.keyPreview}
+                              <button onClick={() => setRevealedKeyId(k.id)} className="text-blue-600 underline text-[10px]">mostrar</button>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{new Date(k.createdAt).toLocaleDateString("es-CL")}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{k.lastUsed ? new Date(k.lastUsed).toLocaleString("es-CL") : "—"}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded text-xs border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                            {k.active ? "Activa" : "Inactiva"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => handleToggleKey(k.id)} className="text-xs text-gray-500 hover:text-blue-600">{k.active ? "Desactivar" : "Activar"}</button>
+                            <button onClick={() => handleDeleteKey(k.id)} className="text-xs text-red-500 hover:text-red-700">Eliminar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+              <p className="text-xs text-gray-500 mb-1">Ejemplo de uso:</p>
+              <code className="text-xs text-gray-700">curl -H "X-API-Key: TU_KEY" https://olvmportal.sixmanager.io/api/v1/vms</code>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal.type === "edit" && (
         <EditModal
