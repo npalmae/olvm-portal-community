@@ -920,6 +920,12 @@ function EditModal({
                         </>
                       )}
                     </div>
+                    {revealedKeyId === k.id && (
+                      <div className="mt-1.5 rounded bg-gray-50 border border-gray-200 px-2.5 py-1.5">
+                        <p className="text-[9px] font-semibold text-gray-400 uppercase mb-0.5">Uso</p>
+                        <code className="text-[10px] text-gray-600 break-all">curl -H "X-API-Key: {k.key}" http://10.176.160.124:3000/api/v1/vms</code>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
