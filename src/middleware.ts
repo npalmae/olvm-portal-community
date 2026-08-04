@@ -6,8 +6,8 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const user = req.auth?.user;
 
-  // Permitir rutas de auth sin autenticación
-  if (pathname.startsWith("/api/auth") || pathname === "/login" || pathname === "/register" || pathname === "/reset-password") {
+  // Permitir rutas de auth y API v1 (API key propia) sin autenticación de sesión
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/v1") || pathname === "/login" || pathname === "/register" || pathname === "/reset-password") {
     return NextResponse.next();
   }
   
