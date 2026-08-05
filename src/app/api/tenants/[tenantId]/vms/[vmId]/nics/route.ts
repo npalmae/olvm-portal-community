@@ -4,6 +4,7 @@ import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import {
   addNicToVm,
   deleteNicFromVm,
+  enforceVmTagPolicy,
   fetchVmNics,
   updateNicLink,
 } from "@/lib/olvmClient";
@@ -20,6 +21,7 @@ export async function GET(_req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
     const nics = await fetchVmNics(tenantId, vmId);
     return NextResponse.json(nics);
   } catch (error) {
@@ -33,6 +35,7 @@ export async function POST(req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!isPlatformSuperadmin(session.user)) assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const body = await req.json();
     const vnicProfileId = String(body.vnicProfileId ?? "");
@@ -57,6 +60,7 @@ export async function PUT(req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!isPlatformSuperadmin(session.user)) assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const body = await req.json();
     const nicId = String(body.nicId ?? "");
@@ -79,6 +83,7 @@ export async function DELETE(req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!isPlatformSuperadmin(session.user)) assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const { searchParams } = new URL(req.url);
     const nicId = searchParams.get("nicId");

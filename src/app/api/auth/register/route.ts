@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { isPlatformSuperadmin } from "@/lib/authz";
 import { createUser, getUserByEmail } from "@/lib/userStore";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "El registro publico esta deshabilitado" }, { status: 403 });
+    }
+    if (!isPlatformSuperadmin(session.user)) {
+      return NextResponse.json({ error: "Forbidden: solo superadmin" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { email, password, name, tenantId, role } = body ?? {};
 

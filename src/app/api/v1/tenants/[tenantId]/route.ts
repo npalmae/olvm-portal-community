@@ -8,9 +8,13 @@ export async function GET(
   request: Request,
   ctx: { params: Promise<{ tenantId: string }> },
 ) {
-  if (!(await checkApiKey(request))) return unauthorizedResponse();
+  const apiKey = await checkApiKey(request);
+  if (!apiKey) return unauthorizedResponse();
 
   const { tenantId } = await ctx.params;
+  if (apiKey.globalRole !== "superadmin" && !apiKey.tenantIds.includes(tenantId)) {
+    return NextResponse.json({ error: "Forbidden: tenant fuera del scope de la API key" }, { status: 403 });
+  }
   try {
     const [vms, storage] = await Promise.all([
       fetchVms(tenantId),

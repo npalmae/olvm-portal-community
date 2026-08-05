@@ -712,7 +712,7 @@ function TenantForm({
 
           <label className="block">
             <span className={labelCls}>Tag (multitenant)</span>
-            <input className={`${inputCls} mt-1`} value={tag} onChange={(e) => setTag(e.target.value)} placeholder="tenant-a (opcional)" />
+            <input className={`${inputCls} mt-1`} value={tag} onChange={(e) => setTag(e.target.value)} placeholder="tenant-a" required />
           </label>
 
           <div>

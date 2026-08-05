@@ -515,16 +515,18 @@ const parseTagNames = (data: unknown): string[] => {
   );
 };
 
-const vmMatchesTenantTag = (vm: RawVm, expectedTag?: string) => {
+export const vmMatchesTenantTag = (vm: RawVm, expectedTag?: string) => {
   const normalizedExpected = expectedTag?.trim().toLowerCase();
-  if (!normalizedExpected) return true;
+  if (!normalizedExpected) return false;
   return parseTagNames(vm).some((tag) => tag.toLowerCase() === normalizedExpected);
 };
 
 export const enforceVmTagPolicy = async (tenantId: string, vmId: string) => {
   const tenant = getTenantById(tenantId);
   const expectedTag = tenant.tag?.trim();
-  if (!expectedTag) return;
+  if (!expectedTag) {
+    throw new Error(`Forbidden: tenant ${tenantId} no tiene un tag OLVM configurado`);
+  }
 
   const payload = await olvmFetch(
     tenant,

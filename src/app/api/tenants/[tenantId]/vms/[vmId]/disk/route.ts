@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { assertTenantAccess } from "@/lib/authz";
-import { addDiskToVm, fetchVmDiskDetails, deleteVmDisk } from "@/lib/olvmClient";
+import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
+import { addDiskToVm, enforceVmTagPolicy, fetchVmDiskDetails, deleteVmDisk } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ export async function GET(_req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
     const disks = await fetchVmDiskDetails(tenantId, vmId);
     return NextResponse.json(disks);
   } catch (error) {
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const body = await req.json();
     const sizeGB = Number(body.sizeGB);
@@ -58,6 +60,7 @@ export async function DELETE(req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId, "admin");
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const { searchParams } = new URL(req.url);
     const attachmentId = searchParams.get("attachmentId");

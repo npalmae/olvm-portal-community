@@ -219,6 +219,25 @@ export const getClusterById = (id: string): ClusterConnection | null => {
 const validate = (input: ClusterInput) => {
   if (!input.name?.trim()) throw new Error("El nombre es obligatorio");
   if (!input.engineId?.trim()) throw new Error("Debe seleccionar un engine");
+  if (!input.tag?.trim()) throw new Error("El tag multitenant es obligatorio");
+};
+
+const assertUniqueTag = (
+  list: ClusterConnection[],
+  engineId: string,
+  tag: string,
+  excludedId?: string,
+) => {
+  const normalizedTag = tag.trim().toLowerCase();
+  const duplicate = list.find(
+    (tenant) =>
+      tenant.id !== excludedId &&
+      tenant.engineId === engineId &&
+      tenant.tag?.trim().toLowerCase() === normalizedTag,
+  );
+  if (duplicate) {
+    throw new Error(`El tag "${tag}" ya esta asignado al tenant ${duplicate.id}`);
+  }
 };
 
 export const createCluster = (input: ClusterInput): ClusterConnection => {
@@ -228,6 +247,7 @@ export const createCluster = (input: ClusterInput): ClusterConnection => {
   if (list.some((c) => c.id === id)) {
     throw new Error(`Ya existe un tenant con id "${id}"`);
   }
+  assertUniqueTag(list, input.engineId!.trim(), input.tag!.trim());
   const conn: ClusterConnection = {
     id,
     name: input.name!.trim(),
@@ -267,6 +287,8 @@ export const updateCluster = (
       ? input.networkConfig.length > 0 ? input.networkConfig : undefined
       : current.networkConfig,
   };
+  validate(next);
+  assertUniqueTag(list, next.engineId, next.tag!, id);
   list[index] = next;
   cache = list;
   persist();

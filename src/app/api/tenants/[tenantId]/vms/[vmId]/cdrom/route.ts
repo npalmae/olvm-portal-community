@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { assertTenantAccess } from "@/lib/authz";
-import { mountIso, unmountIso, fetchCurrentIso } from "@/lib/olvmClient";
+import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
+import { enforceVmTagPolicy, mountIso, unmountIso, fetchCurrentIso } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ export async function GET(_req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
     const isoId = await fetchCurrentIso(tenantId, vmId);
     return NextResponse.json({ isoId });
   } catch (error) {
@@ -28,6 +29,7 @@ export async function PUT(req: NextRequest, context: Params) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const body = await req.json().catch(() => ({}));
     if (body.isoId) {

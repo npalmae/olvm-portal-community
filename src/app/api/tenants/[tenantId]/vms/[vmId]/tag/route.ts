@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
+import { isPlatformSuperadmin } from "@/lib/authz";
 import { assignTagToVm, removeTagFromVm } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,9 @@ export async function POST(_: Request, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId);
+    if (!isPlatformSuperadmin(session.user)) {
+      return NextResponse.json({ error: "Forbidden: solo superadmin" }, { status: 403 });
+    }
 
     await assignTagToVm(tenantId, vmId);
     return NextResponse.json({ ok: true });
