@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useLocale, useTranslations } from "@/components/LocaleProvider";
+import { adminMessages } from "@/i18n/admin";
 
 type Membership = {
   tenantId: string;
@@ -66,6 +69,8 @@ const roleBadge = (role: string) => {
 export default function AdminUsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const t = useTranslations(adminMessages);
+  const { locale } = useLocale();
   const [users, setUsers] = useState<User[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +104,7 @@ export default function AdminUsersPage() {
   const loadUsers = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/users");
-      if (!res.ok) throw new Error("Error cargando usuarios");
+      if (!res.ok) throw new Error(t("loadUsersError"));
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -107,13 +112,13 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   const loadTenants = useCallback(async () => {
     try {
       const res = await fetch("/api/tenants");
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error cargando tenants");
+      if (!res.ok) throw new Error(data?.error ?? t("loadTenantsError"));
       setTenants(Array.isArray(data) ? data : []);
       if (Array.isArray(data) && data.length) {
         setForm((prev) => ({
@@ -124,7 +129,7 @@ export default function AdminUsersPage() {
     } catch {
       // No bloquea la página si los tenants no cargan
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -164,7 +169,7 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ name: newKeyName }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Error");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
       setNewKeyName("");
       await loadApiKeys();
       setRevealedKeyId(data.id);
@@ -212,10 +217,10 @@ export default function AdminUsersPage() {
         }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error || "Error creando usuario");
+      if (!res.ok) throw new Error(data?.error || t("userCreateError"));
       setForm({ email: "", password: "", name: "", tenantId: tenants[0]?.id ?? "", role: "user" });
       setShowForm(false);
-      setSuccess("Usuario creado");
+      setSuccess(t("userCreated"));
       await loadUsers();
     } catch (err) {
       setError((err as Error).message);
@@ -234,8 +239,8 @@ export default function AdminUsersPage() {
         body: JSON.stringify(payload),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error || "Error actualizando usuario");
-      setSuccess("Usuario actualizado");
+      if (!res.ok) throw new Error(data?.error || t("userUpdateError"));
+      setSuccess(t("userUpdated"));
       setModal({ type: "closed" });
       await loadUsers();
     } catch (err) {
@@ -253,8 +258,8 @@ export default function AdminUsersPage() {
         method: "DELETE",
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error || "Error eliminando usuario");
-      setSuccess("Usuario eliminado");
+      if (!res.ok) throw new Error(data?.error || t("userDeleteError"));
+      setSuccess(t("userDeleted"));
       setModal({ type: "closed" });
       await loadUsers();
     } catch (err) {
@@ -267,7 +272,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f0f2f5] text-gray-700 flex items-center justify-center">
-        <p>Cargando...</p>
+        <p>{t("loading")}</p>
       </div>
     );
   }
@@ -281,7 +286,7 @@ export default function AdminUsersPage() {
               <button
                 onClick={() => router.push("/")}
                 className="flex shrink-0 items-center gap-1 hover:text-blue-600"
-                title="Inicio"
+                title={t("home")}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
                   <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
@@ -294,33 +299,34 @@ export default function AdminUsersPage() {
                 onClick={() => router.push("/admin/clusters")}
                 className="shrink-0 text-gray-600 hover:text-blue-600"
               >
-                Configuración
+                {t("settings")}
               </button>
               <span className="shrink-0 text-gray-400">/</span>
-              <span className="truncate text-gray-700">Usuarios</span>
+              <span className="truncate text-gray-700">{t("users")}</span>
             </div>
-            <h1 className="text-lg font-semibold text-gray-900">Administración de Usuarios</h1>
-            <p className="text-xs text-gray-500">Gestiona usuarios del portal</p>
+            <h1 className="text-lg font-semibold text-gray-900">{t("usersTitle")}</h1>
+            <p className="text-xs text-gray-500">{t("usersSubtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/email")}
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
             >
-              Config Email
+              {t("emailConfigNav")}
             </button>
             <button
               onClick={() => router.push("/admin/clusters")}
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
             >
-              Clusters
+              {t("clusters")}
             </button>
             <button
               onClick={() => router.push("/admin/branding")}
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
             >
-              Branding
+              {t("branding")}
             </button>
+            <LanguageSelector />
           </div>
         </div>
 
@@ -336,7 +342,7 @@ export default function AdminUsersPage() {
             onClick={() => setShowForm(!showForm)}
             className="px-6 py-3 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg"
           >
-            {showForm ? "Cancelar" : "+ Crear Usuario"}
+            {showForm ? t("cancel") : t("createUser")}
           </button>
         </div>
 
@@ -345,10 +351,10 @@ export default function AdminUsersPage() {
             onSubmit={handleCreate}
             className="mb-8 p-6 bg-white rounded-lg border" style={{ borderColor: "var(--border)" }}
           >
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Nuevo Usuario</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900">{t("newUser")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm text-gray-500">
-                Nombre
+                {t("name")}
                 <input
                   type="text"
                   value={form.name}
@@ -358,7 +364,7 @@ export default function AdminUsersPage() {
                 />
               </label>
               <label className="block text-sm text-gray-500">
-                Email
+                {t("email")}
                 <input
                   type="email"
                   value={form.email}
@@ -368,7 +374,7 @@ export default function AdminUsersPage() {
                 />
               </label>
               <label className="block text-sm text-gray-500">
-                Contraseña
+                {t("password")}
                 <input
                   type="password"
                   value={form.password}
@@ -385,7 +391,7 @@ export default function AdminUsersPage() {
                   required
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 >
-                  {tenants.length === 0 && <option value="">Sin tenants</option>}
+                  {tenants.length === 0 && <option value="">{t("noTenants")}</option>}
                   {tenants.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} ({t.id})
@@ -394,16 +400,16 @@ export default function AdminUsersPage() {
                 </select>
               </label>
               <label className="block text-sm text-gray-500 col-span-2">
-                Rol
+                {t("role")}
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 >
-                  <option value="operator">operator</option>
-                  <option value="user">user</option>
-                  <option value="admin">admin</option>
-                  {isSuperadmin && <option value="superadmin">superadmin</option>}
+                  <option value="operator">{t("operatorRole")}</option>
+                  <option value="user">{t("userRole")}</option>
+                  <option value="admin">{t("adminRole")}</option>
+                  {isSuperadmin && <option value="superadmin">{t("superadminRole")}</option>}
                 </select>
               </label>
             </div>
@@ -412,7 +418,7 @@ export default function AdminUsersPage() {
               disabled={submitting}
               className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-60"
             >
-              {submitting ? "Creando..." : "Crear"}
+              {submitting ? t("creating") : t("create")}
             </button>
           </form>
         )}
@@ -421,20 +427,20 @@ export default function AdminUsersPage() {
           <table className="w-full text-left">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tenants</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rol</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("name")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("email")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("tenants")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("role")}</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">2FA</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("created")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                    No hay usuarios para mostrar.
+                    {t("noUsers")}
                   </td>
                 </tr>
               )}
@@ -443,14 +449,14 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4">
                     {user.name}
                     {user.id === selfId && (
-                      <span className="ml-2 text-xs text-gray-400">(tú)</span>
+                      <span className="ml-2 text-xs text-gray-400">{t("you")}</span>
                     )}
                   </td>
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {user.memberships.length === 0 && (
-                        <span className="text-xs text-gray-400">Sin tenant</span>
+                        <span className="text-xs text-gray-400">{t("noTenant")}</span>
                       )}
                       {user.memberships.map((m) => (
                         <span
@@ -486,11 +492,11 @@ export default function AdminUsersPage() {
                           : "bg-gray-100 text-gray-600 border-gray-200"
                       }`}
                     >
-                      {user.twoFactorEnabled ? "Activo" : "Desactivado"}
+                      {user.twoFactorEnabled ? t("active") : t("disabled")}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(user.createdAt).toLocaleDateString()}
+                    {new Date(user.createdAt).toLocaleDateString({ es: "es-ES", en: "en-GB", de: "de-DE", pt: "pt-PT" }[locale])}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
@@ -498,25 +504,25 @@ export default function AdminUsersPage() {
                         onClick={() => setModal({ type: "edit", user })}
                         className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
                       >
-                        Editar
+                        {t("edit")}
                       </button>
                       <button
                         onClick={() => setModal({ type: "password", user })}
                         className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
                       >
-                        Clave
+                        {t("key")}
                       </button>
                       <button
                         onClick={() => setModal({ type: "delete", user })}
                         disabled={user.id === selfId}
                         title={
                           user.id === selfId
-                            ? "No puedes eliminar tu propia cuenta"
-                            : "Eliminar usuario"
+                            ? t("cannotDeleteSelf")
+                            : t("deleteUser")
                         }
                         className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        Eliminar
+                        {t("delete")}
                       </button>
                     </div>
                   </td>
@@ -581,6 +587,7 @@ function EditModal({
   onClose,
   onSave,
 }: EditModalProps) {
+  const t = useTranslations(adminMessages);
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [globalRole, setGlobalRole] = useState<"superadmin" | null>(
@@ -632,7 +639,7 @@ function EditModal({
         body: JSON.stringify({ name: newKeyName, userId: user.id, userEmail: user.email }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Error");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
       setNewKeyName("");
       setUserApiKeys((current) => [
         {
@@ -697,11 +704,11 @@ function EditModal({
   };
 
   return (
-    <ModalShell title={`Editar usuario · ${user.email}`} onClose={onClose}>
+    <ModalShell title={t("editUserTitle", { email: user.email })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm text-gray-600">
-            Nombre
+            {t("name")}
             <input
               type="text"
               value={name}
@@ -723,7 +730,7 @@ function EditModal({
         {isSuperadmin ? (
           <>
             <label className="block text-sm text-gray-600">
-              Rol global
+              {t("globalRole")}
               <select
                 value={globalRole ?? ""}
                 onChange={(e) =>
@@ -733,14 +740,14 @@ function EditModal({
                 }
                 className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
               >
-                <option value="">Usuario / Admin por tenant</option>
-                <option value="superadmin">Superadmin (acceso global)</option>
+                <option value="">{t("tenantUserAdmin")}</option>
+                <option value="superadmin">{t("globalAccess")}</option>
               </select>
             </label>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">Membresías por tenant</p>
+                <p className="text-sm text-gray-600">{t("tenantMemberships")}</p>
                 <button
                   type="button"
                   onClick={addMembership}
@@ -750,13 +757,13 @@ function EditModal({
                   }
                   className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-40"
                 >
-                  + Añadir tenant
+                  {t("addTenant")}
                 </button>
               </div>
               <div className="space-y-2">
                 {memberships.length === 0 && (
                   <p className="text-xs text-gray-400">
-                    Sin membresías. El usuario no verá ningún tenant.
+                    {t("noMemberships")}
                   </p>
                 )}
                 {memberships.map((m, i) => (
@@ -766,7 +773,7 @@ function EditModal({
                       onChange={(e) => setMembershipTenant(i, e.target.value)}
                       className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
                     >
-                      <option value="">Selecciona tenant…</option>
+                      <option value="">{t("selectTenant")}</option>
                       {tenants
                         .filter(
                           (t) =>
@@ -789,16 +796,16 @@ function EditModal({
                       }
                       className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
                     >
-                      <option value="operator">operator</option>
-                      <option value="user">user</option>
-                      <option value="admin">admin</option>
+                      <option value="operator">{t("operatorRole")}</option>
+                      <option value="user">{t("userRole")}</option>
+                      <option value="admin">{t("adminRole")}</option>
                     </select>
                     <button
                       type="button"
                       onClick={() => removeMembership(i)}
                       className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded"
                     >
-                      Quitar
+                      {t("remove")}
                     </button>
                   </div>
                 ))}
@@ -806,7 +813,7 @@ function EditModal({
             </div>
 
             <label className="block text-sm text-gray-600">
-              Tenant por defecto
+              {t("defaultTenant")}
               <select
                 value={defaultTenantId}
                 onChange={(e) => setDefaultTenantId(e.target.value)}
@@ -823,11 +830,11 @@ function EditModal({
 
             <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
               <span className="text-sm text-gray-700">
-                Doble factor (2FA)
+                {t("twoFactor")}
                 <span className="block text-xs text-gray-500">
                   {twoFactor
-                    ? "Se exige código por email al iniciar sesión"
-                    : "Login directo solo con contraseña"}
+                    ? t("twoFactorRequired")
+                    : t("passwordOnlyLogin")}
                 </span>
               </span>
               <input
@@ -840,15 +847,15 @@ function EditModal({
           </>
         ) : (
           <label className="block text-sm text-gray-600">
-            Rol en tu tenant ({adminTenantId})
+            {t("roleInTenant", { id: adminTenantId })}
             <select
               value={tenantRole}
               onChange={(e) => setTenantRole(e.target.value as Membership["role"])}
               className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             >
-              <option value="operator">operator</option>
-              <option value="user">user</option>
-              <option value="admin">admin</option>
+              <option value="operator">{t("operatorRole")}</option>
+              <option value="user">{t("userRole")}</option>
+              <option value="admin">{t("adminRole")}</option>
             </select>
           </label>
         )}
@@ -859,30 +866,30 @@ function EditModal({
             onClick={onClose}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
-            Cancelar
+            {t("cancel")}
           </button>
           <button
             type="submit"
             disabled={busy}
             className="px-6 py-2 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg disabled:opacity-50"
           >
-            {busy ? "Guardando..." : "Guardar"}
+            {busy ? t("saving") : t("save")}
           </button>
         </div>
       </form>
 
         {isSuperadmin && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">API Keys</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">{t("apiKeysTitle")}</h3>
             <p className="text-xs text-gray-500 mb-3">
-              Claves read-only para {user.email}. Heredan los tenants de este usuario.
+               {t("apiKeysDescription", { email: user.email })}
             </p>
             <div className="flex gap-2 mb-3">
               <input
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="Nombre (ej: Billing)"
+                 placeholder={t("keyNamePlaceholder")}
                 className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
               />
@@ -891,7 +898,7 @@ function EditModal({
                 disabled={creatingKey || !newKeyName.trim()}
                 className="px-4 py-1.5 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg text-sm disabled:opacity-50"
               >
-                {creatingKey ? "…" : "+ Key"}
+                {creatingKey ? "…" : t("createApiKey")}
               </button>
             </div>
             {userApiKeys.length > 0 && (
@@ -903,8 +910,8 @@ function EditModal({
                       <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
                         {k.active ? "ON" : "OFF"}
                       </span>
-                      <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-blue-600">{k.active ? "Desact." : "Activ."}</button>
-                      <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">Elim.</button>
+                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-blue-600">{k.active ? t("deactivateShort") : t("activateShort")}</button>
+                       <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">{t("deleteShort")}</button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-2">
                       {revealedKeyId === k.id && k.key ? (
@@ -921,21 +928,21 @@ function EditModal({
                               document.body.removeChild(ta);
                             }}
                             className="shrink-0 text-[10px] bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-1 hover:bg-blue-100"
-                          >Copiar</button>
-                          <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 hover:text-gray-700">Ocultar</button>
+                           >{t("copy")}</button>
+                           <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 hover:text-gray-700">{t("hide")}</button>
                         </>
                       ) : (
                         <>
                           <code className="text-[11px] text-gray-400 font-mono">{k.keyPreview}</code>
                           {k.key && (
-                            <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-blue-600 hover:text-blue-800">Mostrar</button>
+                             <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-blue-600 hover:text-blue-800">{t("show")}</button>
                           )}
                         </>
                       )}
                     </div>
                     {revealedKeyId === k.id && k.key && (
                       <div className="mt-1.5 rounded bg-gray-50 border border-gray-200 px-2.5 py-1.5">
-                        <p className="text-[9px] font-semibold text-gray-400 uppercase mb-0.5">Uso</p>
+                         <p className="text-[9px] font-semibold text-gray-400 uppercase mb-0.5">{t("usage")}</p>
                         <code className="text-[10px] text-gray-600 break-all">curl -H "X-API-Key: {k.key}" http://10.176.160.124:3000/api/v1/vms</code>
                       </div>
                     )}
@@ -957,6 +964,7 @@ type PasswordModalProps = {
 };
 
 function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
+  const t = useTranslations(adminMessages);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const mismatch = password.length > 0 && password !== confirm;
@@ -968,10 +976,10 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
   };
 
   return (
-    <ModalShell title={`Restablecer clave · ${user.email}`} onClose={onClose}>
+    <ModalShell title={t("resetPasswordTitle", { email: user.email })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <label className="block text-sm text-gray-600">
-          Nueva contraseña (mín. 6)
+          {t("newPassword")}
           <input
             type="password"
             value={password}
@@ -981,7 +989,7 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
           />
         </label>
         <label className="block text-sm text-gray-600">
-          Confirmar contraseña
+          {t("confirmPassword")}
           <input
             type="password"
             value={confirm}
@@ -991,7 +999,7 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
           />
         </label>
         {mismatch && (
-          <p className="text-sm text-red-600">Las contraseñas no coinciden.</p>
+          <p className="text-sm text-red-600">{t("passwordsMismatch")}</p>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <button
@@ -999,14 +1007,14 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
             onClick={onClose}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
-            Cancelar
+            {t("cancel")}
           </button>
           <button
             type="submit"
             disabled={busy || password.length < 6 || mismatch}
             className="px-6 py-2 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg disabled:opacity-50"
           >
-            {busy ? "Guardando..." : "Guardar"}
+            {busy ? t("saving") : t("save")}
           </button>
         </div>
       </form>
@@ -1022,13 +1030,12 @@ type DeleteModalProps = {
 };
 
 function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
+  const t = useTranslations(adminMessages);
   return (
-    <ModalShell title="Eliminar usuario" onClose={onClose}>
+    <ModalShell title={t("deleteUser")} onClose={onClose}>
       <div className="space-y-4">
         <p className="text-gray-800">
-          ¿Seguro que deseas eliminar a{" "}
-          <span className="font-semibold">{user.name}</span> ({user.email})? Esta
-          acción no se puede deshacer.
+          {t("deleteUserConfirmation", { name: user.name, email: user.email })}
         </p>
         <div className="flex justify-end gap-2 pt-2">
           <button
@@ -1036,7 +1043,7 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
             onClick={onClose}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
-            Cancelar
+            {t("cancel")}
           </button>
           <button
             type="button"
@@ -1044,7 +1051,7 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
             disabled={busy}
             className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg disabled:opacity-50"
           >
-            {busy ? "Eliminando..." : "Eliminar"}
+            {busy ? t("deleting") : t("delete")}
           </button>
         </div>
       </div>

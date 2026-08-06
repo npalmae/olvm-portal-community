@@ -2,6 +2,9 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { useTranslations } from '@/components/LocaleProvider';
+import { consoleMessages } from '@/i18n/console';
 
 const XK_F1 = 0xffbe;
 const XK_F2 = 0xffbf;
@@ -20,6 +23,9 @@ const XK_ALT_L = 0xffe9;
 const XK_DELETE = 0xffff;
 
 function ConsolePageContent() {
+  const t = useTranslations(consoleMessages);
+  const tRef = useRef(t);
+  tRef.current = t;
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
@@ -75,13 +81,13 @@ function ConsolePageContent() {
     );
     
     if (!effectiveWsUrl || !containerRef.current) {
-      setErrorMsg('Falta wsUrl o container');
+      setErrorMsg(tRef.current('missingConnection'));
       setStatus('error');
       return;
     }
 
     if (effectiveWsUrl.includes(':0/') || effectiveWsUrl.includes('localhost:0')) {
-      setErrorMsg('URL tiene puerto 0 - proxy no iniciado correctamente');
+      setErrorMsg(tRef.current('invalidProxyPort'));
       setStatus('error');
       return;
     }
@@ -98,7 +104,7 @@ function ConsolePageContent() {
         
         const mod = await import('@novnc/novnc/lib/rfb');
         const RFB = (mod as { default?: any }).default;
-        if (!RFB) throw new Error('noVNC no disponible');
+        if (!RFB) throw new Error(tRef.current('novncUnavailable'));
 
         const container = containerRef.current!;
         container.innerHTML = '';
@@ -292,13 +298,13 @@ function ConsolePageContent() {
         rfb.addEventListener('disconnect', (evt: any) => {
           console.log('[console] Desconectado:', evt);
           setStatus('error');
-          setErrorMsg(`Desconectado: ${JSON.stringify(evt?.detail || {})}`);
+          setErrorMsg(`${tRef.current('disconnected')}: ${JSON.stringify(evt?.detail || {})}`);
         });
 
         rfb.addEventListener('securityfailure', (evt: any) => {
           console.log('[console] Security failure:', evt);
           setStatus('error');
-          setErrorMsg('Security failure');
+          setErrorMsg(tRef.current('securityFailure'));
         });
 
         rfb.addEventListener('credentialsrequired', () => {
@@ -345,7 +351,7 @@ function ConsolePageContent() {
         body: JSON.stringify({ action }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? 'Error en la acción');
+      if (!res.ok) throw new Error(data?.error ?? t('actionFallback'));
     } catch (err) {
       setErrorMsg((err as Error).message);
     }
@@ -427,9 +433,9 @@ function ConsolePageContent() {
     if (!rfb) return;
     try {
       rfb.clipboardPasteFrom(clipboardText);
-      setInfoMsg('Texto enviado a la VM');
+      setInfoMsg(t('sentToVm'));
     } catch {
-      setInfoMsg('No se pudo enviar a la VM');
+      setInfoMsg(t('sendToVmFailed'));
     }
     setTimeout(() => setInfoMsg(null), 3000);
   };
@@ -441,12 +447,12 @@ function ConsolePageContent() {
         ta.value = vmClipboard;
         ta.select();
         document.execCommand('copy');
-        setInfoMsg('Copiado al portapapeles');
+        setInfoMsg(t('copied'));
       } else {
-        setInfoMsg(vmClipboard ? vmClipboard.substring(0, 100) : 'VM clipboard vacío');
+        setInfoMsg(vmClipboard ? vmClipboard.substring(0, 100) : t('vmClipboardEmpty'));
       }
     } catch {
-      setInfoMsg('No se pudo copiar');
+      setInfoMsg(t('copyFailed'));
     }
     setTimeout(() => setInfoMsg(null), 3000);
   };
@@ -454,49 +460,50 @@ function ConsolePageContent() {
   return (
     <div className="h-screen overflow-hidden bg-black flex flex-col">
       {showToolbar && !isPreview && (
-      <div className="flex-none flex items-center justify-between px-4 py-2 bg-[#0b1321] border-b border-white/10">
-        <div>
-          <h1 className="text-sm font-semibold">Consola VM</h1>
-          <p className="text-xs text-white/50">Haz clic dentro de la consola para capturar teclado y mouse.</p>
+      <div className="flex-none flex items-center gap-3 px-4 py-2 bg-[#0b1321] border-b border-white/10">
+        <div className="shrink-0">
+          <h1 className="text-sm font-semibold">{t('title')}</h1>
+          <p className="text-xs text-white/50">{t('captureHint')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto">
           {status === 'connecting' && (
-            <span className="text-xs text-amber-300">Conectando...</span>
+            <span className="text-xs text-amber-300">{t('connecting')}</span>
           )}
           {status === 'connected' && (
-            <span className="text-xs text-emerald-400">● Conectado</span>
+            <span className="text-xs text-emerald-400">● {t('connected')}</span>
           )}
           {status === 'error' && (
-            <span className="text-xs text-red-400">Error: {errorMsg}</span>
+            <span className="text-xs text-red-400">{t('error')}: {errorMsg}</span>
           )}
           {infoMsg && (
             <span className="text-xs text-blue-300">{infoMsg}</span>
           )}
-          <button onClick={sendCtrlAltDel} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Ctrl+Alt+Del">Ctrl+Alt+Del</button>
-          <button onClick={() => sendCombo([{keysym: XK_CTRL_L, label: 'ControlLeft'}, {keysym: XK_ALT_L, label: 'AltLeft'}, {keysym: XK_F1, label: 'F1'}])} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Ctrl+Alt+F1">Ctrl+Alt+F1</button>
-          <button onClick={toggleFullscreen} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Pantalla completa">Fullscreen</button>
-          <button onClick={() => setShowOnboardKb(v => !v)} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Teclado en pantalla">Teclado</button>
+          <button onClick={sendCtrlAltDel} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('ctrlAltDel')}>{t('ctrlAltDel')}</button>
+          <button onClick={() => sendCombo([{keysym: XK_CTRL_L, label: 'ControlLeft'}, {keysym: XK_ALT_L, label: 'AltLeft'}, {keysym: XK_F1, label: 'F1'}])} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('ctrlAltF1')}>{t('ctrlAltF1')}</button>
+          <button onClick={toggleFullscreen} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('fullscreen')}>{t('fullscreen')}</button>
+          <button onClick={() => setShowOnboardKb(v => !v)} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('keyboardTitle')}>{t('keyboard')}</button>
           <div className="flex items-center gap-1 border-l border-gray-600 pl-2">
-            <button onClick={() => setShowClipboard(v => !v)} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Panel de clipboard">Clipboard</button>
+            <button onClick={() => setShowClipboard(v => !v)} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('clipboardPanel')}>{t('clipboard')}</button>
             {showClipboard && (
               <>
-                <button onClick={syncClipboardFromVM} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Leer clipboard de la VM">⬇ Copy</button>
-                <button onClick={syncClipboardToVM} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Enviar texto a la VM">⬆ Paste</button>
+                <button onClick={syncClipboardFromVM} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('copyTitle')}>↓ {t('copy')}</button>
+                <button onClick={syncClipboardToVM} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('pasteTitle')}>↑ {t('paste')}</button>
               </>
             )}
           </div>
-          <button onClick={() => handleAction('shutdown')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado ordenado">Apagar</button>
-          <button onClick={() => handleAction('stop')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Apagado forzado">Stop</button>
-          <button onClick={() => handleAction('reboot')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Reiniciar">Reiniciar</button>
-          <button onClick={() => handleAction('eject')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title="Expulsar CD/ISO">Expulsar</button>
+          <button onClick={() => handleAction('shutdown')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('shutdownTitle')}>{t('shutdown')}</button>
+          <button onClick={() => handleAction('stop')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('stopTitle')}>{t('stop')}</button>
+          <button onClick={() => handleAction('reboot')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('reboot')}>{t('reboot')}</button>
+          <button onClick={() => handleAction('eject')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('ejectTitle')}>{t('eject')}</button>
         </div>
+        <div className="shrink-0"><LanguageSelector /></div>
       </div>
       )}
       {showToolbar && showOnboardKb && (
         <div className="flex-none px-4 py-2 bg-[#0b1321] border-b border-white/10 flex flex-wrap gap-1.5">
-          <button onClick={() => sendKey(XK_CTRL_L, 'ControlLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Ctrl</button>
+          <button onClick={() => sendKey(XK_CTRL_L, 'ControlLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">{t('controlKey')}</button>
           <button onClick={() => sendKey(XK_ALT_L, 'AltLeft')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Alt</button>
-          <button onClick={() => sendKey(XK_DELETE, 'Delete')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">Del</button>
+          <button onClick={() => sendKey(XK_DELETE, 'Delete')} className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">{t('deleteKey')}</button>
           <span className="text-white/30 mx-1">|</span>
           {[XK_F1,XK_F2,XK_F3,XK_F4,XK_F5,XK_F6,XK_F7,XK_F8,XK_F9,XK_F10,XK_F11,XK_F12].map((k, i) => (
             <button key={k} onClick={() => sendKey(k, `F${i+1}`)} className="text-xs px-1.5 py-1 rounded bg-gray-700 hover:bg-gray-600">F{i+1}</button>
@@ -506,14 +513,14 @@ function ConsolePageContent() {
       {showClipboard && (
         <div className="flex-none px-4 py-2 bg-[#0b1321] border-b border-white/10">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] text-white/50">Clipboard</span>
+            <span className="text-[10px] text-white/50">{t('clipboard')}</span>
             <button onClick={() => setShowClipboard(false)} className="text-white/30 hover:text-white/70 text-xs">×</button>
           </div>
           <textarea
             id="clip-area"
             value={clipboardText}
             onChange={(e) => setClipboardText(e.target.value)}
-            placeholder="Pega aquí el texto para enviarlo a la VM con ⬆ Paste, o lee de la VM con ⬇ Copy"
+            placeholder={t('clipboardPlaceholder')}
             className="w-full h-16 rounded border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-white/80 outline-none resize-none"
             spellCheck={false}
           />

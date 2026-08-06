@@ -6,10 +6,14 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 import { usePortalBranding } from "@/components/usePortalBranding";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useTranslations } from "@/components/LocaleProvider";
+import { authMessages } from "@/i18n/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { branding } = usePortalBranding();
+  const t = useTranslations(authMessages);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -35,11 +39,11 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (!res.ok) {
-      setError(data?.error || "No se pudo crear el usuario");
+      setError(data?.error || "register.createError");
       return;
     }
 
-    setSuccess("Usuario creado. Iniciando sesión…");
+    setSuccess("register.success");
     await signIn("credentials", {
       redirect: false,
       email,
@@ -52,6 +56,7 @@ export default function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-xl">
+        <div className="mb-2 flex justify-end"><LanguageSelector /></div>
         <div className="mb-6 text-center">
           <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
             {branding.hasLogo && branding.logoUrl ? (
@@ -67,48 +72,48 @@ export default function RegisterPage() {
               <SixmanagerMark subtitle="OLVM Portal" />
             )}
           </div>
-          <h1 className="text-lg font-bold text-gray-900">Crear cuenta</h1>
+          <h1 className="text-lg font-bold text-gray-900">{t("register.title")}</h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            Registra un usuario asociado a un tenant existente.
+            {t("register.description")}
           </p>
         </div>
 
         <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
           {error && (
             <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {error}
+              {error in authMessages ? t(error) : error}
             </div>
           )}
           {success && (
             <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-              {success}
+              {success in authMessages ? t(success) : success}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-              Nombre
+              {t("register.name")}
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
-                placeholder="Jane Doe"
+                placeholder={t("register.namePlaceholder")}
               />
             </label>
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-              Correo electrónico
+              {t("common.email")}
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
-                placeholder="admin@empresa.com"
+                placeholder={t("common.emailPlaceholder")}
               />
             </label>
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-              Contraseña
+              {t("common.password")}
               <input
                 type="password"
                 value={password}
@@ -120,7 +125,7 @@ export default function RegisterPage() {
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Tenant ID
+                {t("register.tenantId")}
                 <input
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
@@ -130,20 +135,20 @@ export default function RegisterPage() {
                 />
               </label>
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                Rol
+                {t("register.role")}
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2"
                 >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="superadmin">Superadmin</option>
+                  <option value="user">{t("register.userRole")}</option>
+                  <option value="admin">{t("register.adminRole")}</option>
+                  <option value="superadmin">{t("register.superadminRole")}</option>
                 </select>
               </label>
             </div>
             <p className="text-xs text-gray-500">
-              El rol <span className="font-semibold text-amber-700">superadmin</span> puede gestionar todos los tenants. Úsalo solo si necesitas control global.
+              {t("register.roleHelpBefore")} <span className="font-semibold text-amber-700">superadmin</span> {t("register.roleHelpAfter")}
             </p>
 
             <button
@@ -151,15 +156,15 @@ export default function RegisterPage() {
               disabled={loading}
               className="mt-1 w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
             >
-              {loading ? "Creando usuario…" : "Registrar"}
+              {loading ? t("register.creating") : t("register.submit")}
             </button>
           </form>
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-500">
-          ¿Ya tienes cuenta?{" "}
+          {t("register.haveAccount")}{" "}
           <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
-            Iniciar sesión
+            {t("register.signIn")}
           </Link>
         </p>
       </div>

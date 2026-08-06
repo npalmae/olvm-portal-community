@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 import { usePortalBranding } from "@/components/usePortalBranding";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useTranslations } from "@/components/LocaleProvider";
+import { authMessages } from "@/i18n/auth";
 
 function LoginPageContent() {
   const router = useRouter();
@@ -24,11 +27,12 @@ function LoginPageContent() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const { branding } = usePortalBranding();
+  const t = useTranslations(authMessages);
 
   const reason = searchParams.get("reason");
   useEffect(() => {
-    if (reason === "inactivity") setInfo("Tu sesión se cerró por inactividad (30 min sin actividad).");
-    else if (reason === "expired") setInfo("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+    if (reason === "inactivity") setInfo("login.inactivity");
+    else if (reason === "expired") setInfo("login.expired");
   }, [reason]);
 
   const completeLogin = async (code?: string) => {
@@ -54,7 +58,7 @@ function LoginPageContent() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.error || "No se pudo enviar el código");
+        setError(data?.error || "login.challengeError");
         return;
       }
       // 2FA desactivado para este usuario: login directo sin código
@@ -66,11 +70,11 @@ function LoginPageContent() {
       setStep(2);
       setInfo(
         data?.fallback
-          ? "Se envió un código a tu correo (modo prueba: revisa la consola del servidor si no llega)."
-          : "Se envió un código a tu correo.",
+          ? "login.codeSentFallback"
+          : "login.codeSent",
       );
     } catch {
-      setError("No se pudo contactar con el servidor");
+      setError("login.serverError");
     } finally {
       setLoading(false);
     }
@@ -102,7 +106,7 @@ function LoginPageContent() {
         body: JSON.stringify({ email: forgotEmail }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Error al enviar el correo");
+      if (!res.ok) throw new Error(data?.error || "login.resetRequestError");
       setForgotSent(true);
     } catch (err) {
       setError((err as Error).message);
@@ -114,6 +118,7 @@ function LoginPageContent() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-sm">
+        <div className="mb-2 flex justify-end"><LanguageSelector /></div>
         {/* Logo */}
         <div className="mb-6 text-center">
           <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
@@ -132,56 +137,56 @@ function LoginPageContent() {
           </div>
           <h1 className="text-lg font-bold text-gray-900">
             {step === "forgot"
-              ? "Recuperar contraseña"
+              ? t("login.forgotTitle")
               : step === 1
-                ? `Ingresar a ${branding.brandName}`
-                : "Verificación en dos pasos"}
+                ? t("login.title", { brand: branding.brandName })
+                : t("login.twoFactorTitle")}
           </h1>
           <p className="mt-0.5 text-xs text-gray-500">
             {step === "forgot"
-              ? "Ingresa tu correo y te enviaremos un enlace."
+              ? t("login.forgotDescription")
               : step === 1
-                ? "Accede con tus credenciales de tenant."
-                : `Ingresa el código de 6 dígitos enviado a ${maskedEmail}.`}
+                ? t("login.description")
+                : t("login.codeDescription", { email: maskedEmail })}
           </p>
         </div>
 
         <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
           {error && (
             <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {error}
+              {error in authMessages ? t(error) : error}
             </div>
           )}
           {info && (
             <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-              {info}
+              {info in authMessages ? t(info) : info}
             </div>
           )}
 
           {step === "forgot" ? (
             forgotSent ? (
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-700">
-                Si el correo existe, recibirás un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.
+                {t("login.forgotSuccess")}
               </div>
             ) : (
               <form onSubmit={submitForgot} className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                    Correo electrónico
+                    {t("common.email")}
                   </label>
                   <input
                     type="email" value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     required autoFocus
                     className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
-                    placeholder="admin@empresa.com"
+                    placeholder={t("common.emailPlaceholder")}
                   />
                 </div>
                 <button
                   type="submit" disabled={loading}
                   className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                 >
-                  {loading ? "Enviando..." : "Enviar enlace de recuperación"}
+                  {loading ? t("login.sending") : t("login.sendRecoveryLink")}
                 </button>
               </form>
             )
@@ -189,19 +194,19 @@ function LoginPageContent() {
             <form onSubmit={requestChallenge} className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Correo electrónico
+                  {t("common.email")}
                 </label>
                 <input
                   type="email" value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
-                  placeholder="admin@empresa.com"
+                  placeholder={t("common.emailPlaceholder")}
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Contraseña
+                  {t("common.password")}
                 </label>
                 <div className="relative">
                   <input
@@ -216,6 +221,7 @@ function LoginPageContent() {
                   onClick={() => setShowPassword((s) => !s)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   tabIndex={-1}
+                  aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 >
                   {showPassword ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
@@ -229,14 +235,14 @@ function LoginPageContent() {
                 type="submit" disabled={loading}
                 className="mt-1 w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
-                {loading ? "Enviando código..." : "Continuar"}
+                {loading ? t("login.sendingCode") : t("login.continue")}
               </button>
             </form>
           ) : (
             <form onSubmit={verifyAndSignIn} className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Código de verificación
+                  {t("login.verificationCode")}
                 </label>
                 <input
                   type="text" inputMode="numeric" autoComplete="one-time-code"
@@ -251,19 +257,19 @@ function LoginPageContent() {
                 type="submit" disabled={loading || code.length !== 6}
                 className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
-                {loading ? "Verificando..." : "Verificar e ingresar"}
+                {loading ? t("login.verifying") : t("login.verifyAndSignIn")}
               </button>
               <button
                 type="button" onClick={requestChallenge} disabled={loading}
                 className="w-full text-center text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
               >
-                Reenviar código
+                {t("login.resendCode")}
               </button>
               <button
                 type="button" onClick={backToCredentials}
                 className="w-full text-center text-xs text-gray-400 hover:text-gray-600"
               >
-                ← Volver
+                {t("login.back")}
               </button>
             </form>
           )}
@@ -274,21 +280,21 @@ function LoginPageContent() {
             {step === 1 && (
               <>
                 <p>
-                  ¿Sin cuenta?{" "}
+                  {t("login.noAccount")}{" "}
                   <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700">
-                    Crear usuario
+                    {t("login.createUser")}
                   </Link>
                 </p>
                 <p>
                   <button onClick={() => { setStep("forgot"); setForgotSent(false); setError(null); setForgotEmail(email); }} className="text-gray-400 hover:text-blue-600">
-                    ¿Olvidaste tu contraseña?
+                    {t("login.forgotPassword")}
                   </button>
                 </p>
               </>
             )}
             {step === "forgot" && (
               <button onClick={() => setStep(1)} className="text-gray-400 hover:text-blue-600">
-                ← Volver al login
+                {t("common.backToLogin")}
               </button>
             )}
           </div>

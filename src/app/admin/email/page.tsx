@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useLocale, useTranslations } from "@/components/LocaleProvider";
+import { adminMessages } from "@/i18n/admin";
 
 type EmailConfig = {
   provider: string;
@@ -15,6 +18,8 @@ type EmailConfig = {
 export default function EmailConfigPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const t = useTranslations(adminMessages);
+  const { locale } = useLocale();
   const [config, setConfig] = useState<EmailConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,7 +44,7 @@ export default function EmailConfigPage() {
     (async () => {
       try {
         const res = await fetch("/api/admin/email");
-        if (!res.ok) throw new Error("No autorizado");
+        if (!res.ok) throw new Error(t("unauthorized"));
         const data = await res.json();
         setConfig(data);
         setFromAddress(data.fromAddress ?? "");
@@ -67,19 +72,19 @@ export default function EmailConfigPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Error");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
       setConfig(data);
       setApiKey("");
-      setSuccess("Configuración guardada");
+      setSuccess(t("configurationSaved"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSaving(false);
     }
-  }, [apiKey, fromAddress, enabled]);
+  }, [apiKey, fromAddress, enabled, locale]);
 
   const sendTest = useCallback(async () => {
-    if (!testEmail) { setError("Ingresa un email para probar"); return; }
+    if (!testEmail) { setError(t("testEmailRequired")); return; }
     setTesting(true);
     setError(null);
     setSuccess(null);
@@ -90,27 +95,28 @@ export default function EmailConfigPage() {
         body: JSON.stringify({ to: testEmail }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess(`Email de prueba enviado a ${testEmail}`);
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("testEmailSent", { email: testEmail }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setTesting(false);
     }
-  }, [testEmail]);
+  }, [testEmail, locale]);
 
-  if (loading) return <div className="p-8 text-sm text-gray-500">Cargando...</div>;
+  if (loading) return <div className="p-8 text-sm text-gray-500">{t("loading")}</div>;
   if (!isSuperadmin) return null;
 
   return (
     <div className="min-h-screen p-8" style={{ background: "var(--bg)" }}>
       <div className="mx-auto max-w-2xl">
-        <div className="mb-6">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
           <div className="mb-2 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
             <button
               onClick={() => router.push("/")}
               className="flex shrink-0 items-center gap-1 hover:text-blue-600"
-              title="Inicio"
+              title={t("home")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
                 <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
@@ -123,13 +129,15 @@ export default function EmailConfigPage() {
               onClick={() => router.push("/admin/clusters")}
               className="shrink-0 text-gray-600 hover:text-blue-600"
             >
-              Configuración
+              {t("settings")}
             </button>
             <span className="shrink-0 text-gray-400">/</span>
-            <span className="truncate text-gray-700">Email</span>
+            <span className="truncate text-gray-700">{t("email")}</span>
           </div>
-          <h1 className="mt-3 text-lg font-bold text-gray-900">Configuración de Email</h1>
-          <p className="text-xs text-gray-500">Notificaciones, códigos 2FA y alertas del sistema</p>
+          <h1 className="mt-3 text-lg font-bold text-gray-900">{t("emailTitle")}</h1>
+          <p className="text-xs text-gray-500">{t("emailSubtitle")}</p>
+          </div>
+          <LanguageSelector />
         </div>
 
         {error && (
@@ -141,13 +149,13 @@ export default function EmailConfigPage() {
 
         <div className="space-y-4 rounded-lg border bg-white p-6" style={{ borderColor: "var(--border)" }}>
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Proveedor</label>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("provider")}</label>
             <div className="flex items-center gap-2">
               <span className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">Resend</span>
               {config?.hasApiKey ? (
                 <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">API Key: {config.apiKeyHint}</span>
               ) : (
-                <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700">Sin API Key</span>
+                <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700">{t("noApiKey")}</span>
               )}
             </div>
           </div>
@@ -160,15 +168,15 @@ export default function EmailConfigPage() {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={config?.hasApiKey ? `Actual: ${config.apiKeyHint} (dejar vacío para mantener)` : "re_xxxxxxxxxxxx"}
+               placeholder={config?.hasApiKey ? t("currentKeep", { value: config.apiKeyHint }) : "re_xxxxxxxxxxxx"}
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
             />
-            <p className="mt-1 text-[10px] text-gray-400">Obtén tu API key en <a href="https://resend.com/api-keys" target="_blank" rel="noopener" className="text-blue-500 hover:underline">resend.com/api-keys</a></p>
+            <p className="mt-1 text-[10px] text-gray-400">{t("getApiKey")} <a href="https://resend.com/api-keys" target="_blank" rel="noopener" className="text-blue-500 hover:underline">resend.com/api-keys</a></p>
           </div>
 
           <div>
             <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-              Email remitente (From)
+              {t("senderEmail")}
             </label>
             <input
               type="email"
@@ -177,13 +185,13 @@ export default function EmailConfigPage() {
               placeholder="noreply@tudominio.com"
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
             />
-            <p className="mt-1 text-[10px] text-gray-400">Debe ser un dominio verificado en Resend</p>
+            <p className="mt-1 text-[10px] text-gray-400">{t("verifiedDomain")}</p>
           </div>
 
           <label className="flex items-center justify-between rounded-md border px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
             <div>
-              <span className="text-sm font-medium text-gray-700">Email habilitado</span>
-              <p className="text-[10px] text-gray-400">Si está apagado, los códigos 2FA se muestran en consola del servidor</p>
+              <span className="text-sm font-medium text-gray-700">{t("emailEnabled")}</span>
+              <p className="text-[10px] text-gray-400">{t("emailDisabledHelp")}</p>
             </div>
             <input
               type="checkbox"
@@ -198,12 +206,12 @@ export default function EmailConfigPage() {
             disabled={saving}
             className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {saving ? "Guardando..." : "Guardar configuración"}
+            {saving ? t("saving") : t("saveConfiguration")}
           </button>
         </div>
 
         <div className="mt-6 rounded-lg border bg-white p-6" style={{ borderColor: "var(--border)" }}>
-          <h2 className="mb-3 text-sm font-bold text-gray-900">Enviar email de prueba</h2>
+          <h2 className="mb-3 text-sm font-bold text-gray-900">{t("sendTestEmail")}</h2>
           <div className="flex gap-2">
             <input
               type="email"
@@ -217,7 +225,7 @@ export default function EmailConfigPage() {
               disabled={testing}
               className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
             >
-              {testing ? "Enviando..." : "Probar"}
+              {testing ? t("sending") : t("test")}
             </button>
           </div>
         </div>

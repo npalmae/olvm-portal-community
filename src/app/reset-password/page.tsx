@@ -5,12 +5,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 import { usePortalBranding } from "@/components/usePortalBranding";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useTranslations } from "@/components/LocaleProvider";
+import { authMessages } from "@/i18n/auth";
 
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
   const { branding } = usePortalBranding();
+  const t = useTranslations(authMessages);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,11 +27,11 @@ function ResetPasswordContent() {
     e.preventDefault();
     setError(null);
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+      setError("reset.tooShort");
       return;
     }
     if (mismatch) {
-      setError("Las contraseñas no coinciden");
+      setError("reset.mismatch");
       return;
     }
     setLoading(true);
@@ -38,7 +42,7 @@ function ResetPasswordContent() {
         body: JSON.stringify({ token, password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Error al restablecer");
+      if (!res.ok) throw new Error(data?.error || "reset.error");
       setSuccess(true);
       setTimeout(() => router.push("/login"), 3000);
     } catch (err) {
@@ -51,6 +55,7 @@ function ResetPasswordContent() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-sm">
+        <div className="mb-2 flex justify-end"><LanguageSelector /></div>
         <div className="mb-6 text-center">
           <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
             {branding.hasLogo && branding.logoUrl ? (
@@ -60,29 +65,31 @@ function ResetPasswordContent() {
               <SixmanagerMark subtitle="OLVM Portal" />
             )}
           </div>
-          <h1 className="text-lg font-bold text-gray-900">Restablecer contraseña</h1>
+          <h1 className="text-lg font-bold text-gray-900">{t("reset.title")}</h1>
           <p className="mt-0.5 text-xs text-gray-500">
-            {success ? "Contraseña actualizada" : "Ingresa tu nueva contraseña"}
+            {success ? t("reset.updated") : t("reset.description")}
           </p>
         </div>
 
         <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
           {error && (
-            <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+            <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error in authMessages ? t(error) : error}
+            </div>
           )}
           {success ? (
             <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-              Contraseña actualizada correctamente. Redirigiendo al login...
+              {t("reset.success")}
             </div>
           ) : !token ? (
             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Token inválido. Solicita un nuevo enlace de recuperación.
+              {t("reset.invalidToken")}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Nueva contraseña
+                  {t("reset.newPassword")}
                 </label>
                 <input
                   type="password" value={password}
@@ -94,7 +101,7 @@ function ResetPasswordContent() {
               </div>
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
-                  Confirmar contraseña
+                  {t("reset.confirmPassword")}
                 </label>
                 <input
                   type="password" value={confirm}
@@ -110,14 +117,14 @@ function ResetPasswordContent() {
                 type="submit" disabled={loading || mismatch}
                 className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
-                {loading ? "Guardando..." : "Restablecer contraseña"}
+                {loading ? t("reset.saving") : t("reset.submit")}
               </button>
             </form>
           )}
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-500">
-          <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">← Volver al login</Link>
+          <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">{t("common.backToLogin")}</Link>
         </p>
       </div>
     </main>

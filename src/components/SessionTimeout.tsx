@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
+import { useTranslations } from "@/components/LocaleProvider";
+import { consoleMessages } from "@/i18n/console";
 
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_AT_MS = 25 * 60 * 1000;
 
 export function SessionTimeout() {
+  const t = useTranslations(consoleMessages);
   const { data: session, status } = useSession();
   const lastActivityRef = useRef(Date.now());
   const signingOutRef = useRef(false);
@@ -68,7 +71,7 @@ export function SessionTimeout() {
 
   return (
     <div className="fixed left-1/2 top-3 z-[100] flex w-[min(92vw,36rem)] -translate-x-1/2 items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-lg">
-      <span>Tu sesión expirará en 5 minutos por inactividad.</span>
+      <span>{t("sessionWarning")}</span>
       <button
         type="button"
         onClick={() => {
@@ -77,7 +80,7 @@ export function SessionTimeout() {
         }}
         className="ml-3 rounded border border-amber-300 px-2 py-1 font-semibold hover:bg-amber-100"
       >
-        Mantener sesión
+        {t("keepSession")}
       </button>
     </div>
   );

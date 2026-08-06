@@ -5,6 +5,9 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { usePortalBranding } from "@/components/usePortalBranding";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useLocale, useTranslations } from "@/components/LocaleProvider";
+import { dashboardMessages } from "@/i18n/dashboard";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -59,26 +62,26 @@ type RfbInstance = any;
 const clampPercent = (v?: number) =>
   v === undefined || Number.isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
 
-const formatNumber = (value?: number, opts: Intl.NumberFormatOptions = {}) => {
+const formatLocaleNumber = (locale: string, value?: number, opts: Intl.NumberFormatOptions = {}) => {
   if (value === undefined || Number.isNaN(value)) return "—";
-  return new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1, ...opts }).format(value);
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1, ...opts }).format(value);
 };
 
-const formatBytes = (value?: number) => {
+const formatLocaleBytes = (locale: string, value?: number) => {
   if (value === undefined || Number.isNaN(value) || value <= 0) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let size = value, ui = 0;
   while (size >= 1024 && ui < units.length - 1) { size /= 1024; ui++; }
-  return `${formatNumber(size, { maximumFractionDigits: size >= 100 ? 0 : 1 })} ${units[ui]}`;
+  return `${formatLocaleNumber(locale, size, { maximumFractionDigits: size >= 100 ? 0 : 1 })} ${units[ui]}`;
 };
 
-const toGB = (mb?: number) => mb ? `${formatNumber(mb / 1024)} GB` : "—";
+const toLocaleGB = (locale: string, mb?: number) => mb ? `${formatLocaleNumber(locale, mb / 1024)} GB` : "—";
 
-const parseJsonSafe = async (res: Response) => {
+const parseJsonSafeResponse = async (res: Response, unexpectedResponse: string) => {
   const text = await res.text();
   const t = text.trim();
   if (t.startsWith("<!DOCTYPE") || t.startsWith("<html"))
-    return { error: "Respuesta inesperada del servidor" };
+    return { error: unexpectedResponse };
   try { return text ? JSON.parse(text) : null; }
   catch { return text ? { error: text } : null; }
 };
@@ -205,6 +208,15 @@ const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-
 
 export default function Home() {
   const { data: session } = useSession();
+  const { locale } = useLocale();
+  const t = useTranslations(dashboardMessages);
+  const formatNumber = (value?: number, opts: Intl.NumberFormatOptions = {}) => formatLocaleNumber(locale, value, opts);
+  const formatBytes = (value?: number) => formatLocaleBytes(locale, value);
+  const toGB = (value?: number) => toLocaleGB(locale, value);
+  const parseJsonSafe = (res: Response) => parseJsonSafeResponse(res, t("unexpectedServerResponse"));
+  const actionLabel = (action: string) => ({
+    start: t("start"), stop: t("stop"), shutdown: t("shutdown"), reboot: t("reboot"),
+  }[action] ?? action);
   const { branding: portalBranding } = usePortalBranding();
   const isSuperadmin =
     session?.user?.globalRole === "superadmin" ||
@@ -326,7 +338,7 @@ export default function Home() {
     if (status === target) {
       if (powerPollRef.current) { clearInterval(powerPollRef.current); powerPollRef.current = null; }
       setPowerTransition(null);
-      setSuccess(powerTransition.action === "stop" ? "VM apagada correctamente" : "VM encendida correctamente");
+      setSuccess(powerTransition.action === "stop" ? t("vmPoweredOff") : t("vmPoweredOn"));
     }
   }, [powerTransition, vms]);
 
@@ -345,15 +357,15 @@ export default function Home() {
       try {
         const res = await fetch("/api/tenants");
         const data = await parseJsonSafe(res);
-        if (!res.ok) throw new Error(data?.error ?? "No se pudieron cargar los tenants");
-        if (!Array.isArray(data) || !data.length) throw new Error("No hay tenants configurados");
+        if (!res.ok) throw new Error(data?.error ?? t("tenantsLoadFailed"));
+        if (!Array.isArray(data) || !data.length) throw new Error(t("noTenants"));
         const s = data.filter((t) => Boolean(t.id));
         setTenants(s);
         // Superadmin arranca en vista "Todos los tenants"
         setSelectedTenant(
           session?.user?.role === "superadmin" && s.length > 1 ? ALL_TENANTS : s[0]?.id ?? "",
         );
-      } catch (err) { setError("No pude cargar los tenants. Revisa las variables OLVM."); }
+      } catch (err) { setError(t("tenantsOlvmError")); }
     })();
   }, [session?.user?.role]);
 
@@ -393,13 +405,13 @@ export default function Home() {
       } else {
         const res = await fetch(`/api/tenants/${tenantId}/vms`);
         const data = await parseJsonSafe(res);
-        if (!res.ok) throw new Error(data?.error ?? "Error cargando VMs");
-        const t = tenants.find((x) => x.id === tenantId);
+        if (!res.ok) throw new Error(data?.error ?? t("vmsLoadFailed"));
+        const tenant = tenants.find((x) => x.id === tenantId);
         setVms(
           (Array.isArray(data) ? (data as Vm[]) : []).map((v) => ({
             ...v,
             tenantId,
-            tenantName: t?.name,
+            tenantName: tenant?.name,
           })),
         );
       }
@@ -571,9 +583,9 @@ export default function Home() {
   const tenantName = useMemo(
     () =>
       selectedTenant === ALL_TENANTS
-        ? "Todos los tenants"
+        ? t("allTenants")
         : (tenants.find((t) => t.id === selectedTenant)?.name ?? ""),
-    [selectedTenant, tenants],
+    [selectedTenant, tenants, locale],
   );
 
   /* ── Actions ── */
@@ -589,8 +601,8 @@ export default function Home() {
         body: JSON.stringify({ action }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error ejecutando acción");
-      setSuccess(`Acción ${action} enviada`);
+      if (!res.ok) throw new Error(data?.error ?? t("actionFailed"));
+      setSuccess(t("actionSent", { action: actionLabel(action) }));
       setActionHistory((p) => p.map((e) => e.vmId === vmId && e.timestamp === ts ? { ...e, status: "ok" } : e));
       refresh();
       if (action === "start" || action === "stop" || action === "reboot") {
@@ -617,8 +629,8 @@ export default function Home() {
     try {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/tag`, { method: assign ? "POST" : "DELETE" });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess(assign ? "Tag asignado" : "Tag removido");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(assign ? t("tagAssigned") : t("tagRemoved"));
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -638,9 +650,9 @@ export default function Home() {
         body: JSON.stringify(isoId ? { isoId } : {}),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
       setMountedIso(isoId);
-      setSuccess(isoId ? "ISO montada" : "ISO desmontada");
+      setSuccess(isoId ? t("isoMounted") : t("isoUnmounted"));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -654,15 +666,15 @@ export default function Home() {
     setActionLoading(`${vmId}-disk`);
     try {
       const sdId = newDiskSd || storageDomains[0]?.id;
-      if (!sdId) throw new Error("No hay storage domains disponibles");
+      if (!sdId) throw new Error(t("noStorageDomains"));
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sizeGB: Number(newDiskSize) || 50, storageDomainId: sdId, interface: newDiskIface }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess(`Disco de ${newDiskSize} GB creado (${newDiskIface})`);
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("diskCreated", { size: newDiskSize, interface: newDiskIface }));
       const res2 = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk`);
       const d2 = await parseJsonSafe(res2);
       if (Array.isArray(d2)) setVmDiskList(d2);
@@ -682,8 +694,8 @@ export default function Home() {
         method: "DELETE",
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess("Disco eliminado");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("diskDeleted"));
       setVmDiskList(vmDiskList.filter((d) => d.attachmentId !== attachmentId));
     } catch (err) {
       setError((err as Error).message);
@@ -703,8 +715,8 @@ export default function Home() {
         body: JSON.stringify({ vnicProfileId }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess("NIC agregada");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("nicAdded"));
       const res2 = await fetch(`/api/tenants/${tid}/vms/${vmId}/nics`);
       const d2 = await parseJsonSafe(res2);
       if (Array.isArray(d2)) setVmNics(d2);
@@ -726,8 +738,8 @@ export default function Home() {
         body: JSON.stringify({ nicId, linked: turnOn }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess(turnOn ? "NIC conectada" : "NIC desconectada");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(turnOn ? t("nicConnected") : t("nicDisconnected"));
       setVmNics(vmNics.map((n) => n.id === nicId ? { ...n, linked: turnOn, plugged: turnOn } : n));
     } catch (err) {
       setError((err as Error).message);
@@ -745,8 +757,8 @@ export default function Home() {
         method: "DELETE",
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess("NIC eliminada");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("nicDeleted"));
       setVmNics(vmNics.filter((n) => n.id !== nicId));
     } catch (err) {
       setError((err as Error).message);
@@ -766,8 +778,8 @@ export default function Home() {
         body: JSON.stringify({ action: "run_once_cd" }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess("VM encendida desde CD");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("vmStartedFromCd"));
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -783,8 +795,8 @@ export default function Home() {
     try {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}`, { method: "DELETE" });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "Error");
-      setSuccess("VM eliminada");
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("vmDeleted"));
       setSelectedVmId("");
       await refresh();
     } catch (err) {
@@ -798,7 +810,7 @@ export default function Home() {
     const tid = selectedTenant;
     if (!tid || tid === ALL_TENANTS) return;
     const sd = storageDomains[0];
-    if (!sd) { setError("No hay storage domains disponibles para subir ISO"); return; }
+    if (!sd) { setError(t("noIsoStorage")); return; }
     setUploadingIso(true);
     setError(null);
     setSuccess(null);
@@ -820,7 +832,7 @@ export default function Home() {
         body: new Uint8Array(0),
       });
       const initData = await parseJsonSafe(initRes);
-      if (!initRes.ok) throw new Error(initData?.error ?? "No se pudo iniciar la subida");
+      if (!initRes.ok) throw new Error(initData?.error ?? t("uploadStartFailed"));
       const sessionId = initData.sessionId;
 
       // 2. Subir chunks
@@ -844,12 +856,12 @@ export default function Home() {
             } else {
               try {
                 const d = JSON.parse(xhr.responseText);
-                reject(new Error(d?.error ?? `Error ${xhr.status} en chunk ${i + 1}`));
-              } catch { reject(new Error(`Error ${xhr.status} en chunk ${i + 1}`)); }
+                reject(new Error(d?.error ?? t("chunkHttpError", { status: xhr.status, chunk: i + 1 })));
+              } catch { reject(new Error(t("chunkHttpError", { status: xhr.status, chunk: i + 1 }))); }
             }
           });
-          xhr.addEventListener("error", () => reject(new Error(`Error de red en chunk ${i + 1}/${totalChunks}`)));
-          xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
+          xhr.addEventListener("error", () => reject(new Error(t("networkChunkError", { chunk: i + 1, total: totalChunks }))));
+          xhr.addEventListener("abort", () => reject(new Error(t("uploadCancelled"))));
           xhr.open("POST", `/api/tenants/${tid}/isos/upload`);
           xhr.setRequestHeader("Content-Type", "application/octet-stream");
           xhr.setRequestHeader("x-chunk-index", String(i));
@@ -865,7 +877,7 @@ export default function Home() {
         }
       }
 
-      setSuccess(`ISO "${file.name}" subida correctamente`);
+      setSuccess(t("isoUploadSuccess", { name: file.name }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -887,7 +899,7 @@ export default function Home() {
         headers: { "x-file-name": encodeURIComponent(file.name), "x-file-size": String(file.size) },
       });
       const init = await parseJsonSafe(initRes);
-      if (!initRes.ok) throw new Error(init?.error ?? "No se pudo iniciar la subida OVA");
+      if (!initRes.ok) throw new Error(init?.error ?? t("ovaUploadStartFailed"));
       let completed: { uploadId?: string; ovf?: string } | null = null;
       for (let i = 0; i < totalChunks; i++) {
         const chunk = file.slice(i * chunkSize, Math.min((i + 1) * chunkSize, file.size));
@@ -896,13 +908,13 @@ export default function Home() {
           headers: { "Content-Type": "application/octet-stream", "x-chunk-index": String(i), "x-session-id": init.sessionId },
         });
         const data = await parseJsonSafe(res);
-        if (!res.ok) throw new Error(data?.error ?? `Error en bloque ${i + 1}`);
+        if (!res.ok) throw new Error(data?.error ?? t("blockError", { block: i + 1 }));
         if (data?.done) completed = data;
         setOvaUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
       }
-      if (!completed?.uploadId || !completed.ovf) throw new Error("El servidor no confirmó el OVA validado");
+      if (!completed?.uploadId || !completed.ovf) throw new Error(t("ovaNotConfirmed"));
       setUploadedOva({ uploadId: completed.uploadId, name: file.name, ovf: completed.ovf });
-      setSuccess(`OVA "${file.name}" subida y validada`);
+      setSuccess(t("ovaUploadSuccess", { name: file.name }));
     } catch (err) { setError((err as Error).message); }
     finally { setUploadingOva(false); setTimeout(() => setOvaUploadProgress(null), 1000); }
   };
@@ -916,7 +928,7 @@ export default function Home() {
     const tid = tenantForVm(cloneWizard.sourceVmId);
     if (!tid) return;
     const cloneName = cloneWizard.newName.trim();
-    if (!cloneName) { setCloneWizard((p) => ({ ...p, error: "Ingresa un nombre para la VM clonada." })); return; }
+    if (!cloneName) { setCloneWizard((p) => ({ ...p, error: t("cloneNameRequired") })); return; }
     setCloneWizard((p) => ({ ...p, submitting: true, error: null }));
     setActionLoading(`${cloneWizard.sourceVmId}-clone`);
     try {
@@ -925,16 +937,16 @@ export default function Home() {
         body: JSON.stringify({ action: "clone", cloneName }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "No se pudo clonar la VM");
+      if (!res.ok) throw new Error(data?.error ?? t("cloneFailed"));
       const pending = data?.cloned?.pending === true;
       setSuccess(
         pending
-          ? `Clon ${cloneName} en curso. La VM aparecerá en el inventario cuando termine (refresca en unos minutos).`
-          : `Clon ${cloneName} creado. Quedó apagado y con red desconectada.`,
+          ? t("clonePending", { name: cloneName })
+          : t("cloneCreated", { name: cloneName }),
       );
       setActionHistory((p) => [{
-        vmId: cloneWizard.sourceVmId, action: `clone → ${cloneName}`,
-        status: "ok", timestamp: Date.now(), message: `Origen: ${cloneWizard.sourceVmName}`,
+        vmId: cloneWizard.sourceVmId, action: `${t("clone")} → ${cloneName}`,
+        status: "ok", timestamp: Date.now(), message: t("source", { name: cloneWizard.sourceVmName }),
       }, ...p.slice(0, 2)]);
       setCloneWizard({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
       refresh();
@@ -949,14 +961,14 @@ export default function Home() {
     setConsoleLoading(vmId); setError(null);
     try {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/console?protocol=${protocol}`);
-      if (!res.ok) { const d = await parseJsonSafe(res); throw new Error(d?.error ?? "No se pudo obtener la consola"); }
+       if (!res.ok) { const d = await parseJsonSafe(res); throw new Error(d?.error ?? t("consoleGetFailed")); }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = `${vmId}-${protocol}.vv`;
       document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(url);
-      setSuccess("Consola descargada. Ábrela con remote-viewer.");
+      setSuccess(t("consoleDownloaded"));
     } catch (err) { setError((err as Error).message); }
     finally { setConsoleLoading(null); }
   };
@@ -965,7 +977,7 @@ export default function Home() {
     const tid = tenantForVm(vmId);
     if (!tid) return;
     const draft = resourceDrafts[vmId];
-    if (!draft?.memoryMB && !draft?.cpuCores) { setError("Ingresa memoria y/o CPU para actualizar."); return; }
+    if (!draft?.memoryMB && !draft?.cpuCores) { setError(t("resourcesRequired")); return; }
     setActionLoading(`${vmId}-update`); setSuccess(null); setError(null);
     try {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}`, {
@@ -977,8 +989,8 @@ export default function Home() {
         }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "No se pudo actualizar");
-      setSuccess("Recursos actualizados");
+      if (!res.ok) throw new Error(data?.error ?? t("updateFailed"));
+      setSuccess(t("resourcesUpdated"));
       refresh();
     } catch (err) { setError((err as Error).message); }
     finally { setActionLoading(null); }
@@ -986,13 +998,13 @@ export default function Home() {
 
   const handleNewVm = async () => {
     if (!selectedTenant || selectedTenant === "undefined" || selectedTenant === ALL_TENANTS) {
-      setError("Selecciona un tenant específico para crear VMs.");
+      setError(t("selectTenantCreate"));
       return;
     }
-    if (!newVm.name || !newVm.clusterId) { setError("Nombre y Cluster ID son obligatorios"); return; }
-    if (newVmSource === "ova" && !uploadedOva) { setError("Sube un archivo OVA antes de crear la VM"); return; }
-    if (newVmSource === "ova" && !ovaStorageDomainId) { setError("Selecciona un storage domain para importar el OVA"); return; }
-    if (newVmSource === "ova" && !ovaHostId) { setError("Selecciona un host para importar el OVA"); return; }
+    if (!newVm.name || !newVm.clusterId) { setError(t("nameClusterRequired")); return; }
+    if (newVmSource === "ova" && !uploadedOva) { setError(t("uploadOvaFirst")); return; }
+    if (newVmSource === "ova" && !ovaStorageDomainId) { setError(t("selectOvaStorage")); return; }
+    if (newVmSource === "ova" && !ovaHostId) { setError(t("selectOvaHost")); return; }
     setActionLoading("create"); setError(null); setSuccess(null);
     const isOva = newVmSource === "ova";
     let progressInterval: ReturnType<typeof setInterval> | null = null;
@@ -1027,12 +1039,12 @@ export default function Home() {
         }),
       });
       const data = await parseJsonSafe(res);
-      if (!res.ok) throw new Error(data?.error ?? "No se pudo crear la VM");
+      if (!res.ok) throw new Error(data?.error ?? t("createFailed"));
       setSuccess(isOva
         ? data?.pending
-          ? "Importación OVA iniciada. La VM aparecerá cuando OLVM termine la conversión."
-          : "OVA importado como VM correctamente"
-        : "VM creada (el aprovisionamiento puede tardar)");
+          ? t("ovaImportPending")
+          : t("ovaImported")
+        : t("vmCreated"));
       setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "" });
       if (isOva) setUploadedOva(null);
       setCloudInit({ ip: "", netmask: "", gateway: "", dns: "" });
@@ -1062,9 +1074,9 @@ export default function Home() {
     for (const vm of vms) {
       const tId = vm.tenantId ?? (isAll ? "sin-tenant" : selectedTenant);
       const tName = vm.tenantName ?? tenants.find((t) => t.id === tId)?.name ?? tId;
-      const clLabel = vm.cluster?.trim() || "Sin cluster";
+      const clLabel = vm.cluster?.trim() || t("noCluster");
       const clKey = `${tId}::${clLabel.toLowerCase()}`;
-      const hLabel = vm.host?.trim() || "Host N/D";
+      const hLabel = vm.host?.trim() || t("unknownHost");
       const hKey = `${clKey}::${hLabel.toLowerCase()}`;
       const cluster = clusters.get(clKey) ?? { key: clKey, label: clLabel, tenantId: tId, tenantName: tName, hosts: new Map(), up: 0, down: 0 };
       const host = cluster.hosts.get(hKey) ?? { key: hKey, label: hLabel, vms: [], up: 0, down: 0 };
@@ -1081,7 +1093,7 @@ export default function Home() {
         .map((h) => ({ ...h, vms: [...h.vms].sort((a, b) => a.name.localeCompare(b.name)) }))
         .sort(byLabel),
     })).sort(byLabel);
-  }, [vms, selectedTenant, tenants]);
+  }, [vms, selectedTenant, tenants, locale]);
 
   // Agrupación por tenant (resource pool) para la vista "Todos"
   const inventoryByTenant = useMemo(() => {
@@ -1236,12 +1248,12 @@ export default function Home() {
   const topMemVms = useMemo(() =>
     [...vms].sort((a, b) => (b.memoryMB ?? 0) - (a.memoryMB ?? 0)).slice(0, 5)
     .map((vm) => ({ id: vm.id, name: vm.name, value: vm.memoryMB ?? 0, label: toGB(vm.memoryMB) })),
-  [vms]);
+  [vms, locale]);
 
   const topCpuVms = useMemo(() =>
     [...vms].sort((a, b) => (b.metrics?.cpuPercent ?? 0) - (a.metrics?.cpuPercent ?? 0)).slice(0, 5)
     .map((vm) => ({ id: vm.id, name: vm.name, value: vm.metrics?.cpuPercent ?? 0, label: `${formatNumber(vm.metrics?.cpuPercent)}%` })),
-  [vms]);
+  [vms, locale]);
 
   // Resumen de recursos por tenant (vista "Todos los tenants")
   const perTenantSummary = useMemo(() => {
@@ -1338,15 +1350,15 @@ export default function Home() {
         { cache: "no-store" },
       );
       const info = await parseJsonSafe(infoRes);
-      if (!infoRes.ok || info?.error) throw new Error(info?.error ?? "No se pudo obtener la consola");
+      if (!infoRes.ok || info?.error) throw new Error(info?.error ?? t("consoleGetFailed"));
       const ticket = info.ticket as string | undefined;
-      if (!ticket) throw new Error("No se recibió el ticket de consola desde OLVM.");
+      if (!ticket) throw new Error(t("consoleTicketMissing"));
       const proxyRes = await fetch(
         `/api/console/proxy?tenantId=${tid}&vmId=${vmId}&protocol=vnc&ticket=${encodeURIComponent(ticket)}&consoleId=${encodeURIComponent(info.consoleId ?? "")}`,
         { cache: "no-store" },
       );
       const proxy = await parseJsonSafe(proxyRes);
-      if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? "No hay websocket disponible");
+      if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? t("websocketUnavailable"));
       const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=1`;
       setEmbeddedConsole({ vmId, status: "connected", error: null, rfb: null, iframeUrl });
     } catch (err) {
@@ -1416,7 +1428,7 @@ export default function Home() {
             onClick={() => setSidebarCollapsed((p) => !p)}
             className="rounded-md p-1.5 transition-colors"
             style={{ color: "var(--sidebar-muted)" }}
-            title={sidebarCollapsed ? "Expandir" : "Contraer"}
+            title={sidebarCollapsed ? t("expand") : t("collapse")}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
               {sidebarCollapsed
@@ -1430,7 +1442,7 @@ export default function Home() {
         {!sidebarCollapsed && (
           <div className="border-b px-3 py-2.5" style={{ borderColor: "var(--sidebar-border)" }}>
             <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5"
-              style={{ color: "var(--sidebar-muted)" }}>Tenant activo</p>
+              style={{ color: "var(--sidebar-muted)" }}>{t("activeTenant")}</p>
             <select
               value={selectedTenant}
               onChange={(e) => setSelectedTenant(e.target.value)}
@@ -1441,7 +1453,7 @@ export default function Home() {
               }}
             >
               {isSuperadmin && tenants.length > 1 && (
-                <option value={ALL_TENANTS} style={{ background: "#1e2535" }}>Todos los tenants</option>
+                <option value={ALL_TENANTS} style={{ background: "#1e2535" }}>{t("allTenants")}</option>
               )}
               {tenants.map((t) => (
                 <option key={t.id} value={t.id} style={{ background: "#1e2535" }}>{t.name}</option>
@@ -1460,13 +1472,13 @@ export default function Home() {
               background: !selectedVm ? "var(--sidebar-active)" : "transparent",
               color: !selectedVm ? "#93c5fd" : "var(--sidebar-text)",
             }}
-            title="Vista general"
+            title={t("overview")}
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
               <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
               <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
             </svg>
-            {!sidebarCollapsed && <span>Vista general</span>}
+            {!sidebarCollapsed && <span>{t("overview")}</span>}
           </button>
 
           {/* Separator + label */}
@@ -1474,7 +1486,7 @@ export default function Home() {
             <div className="px-3 pt-3 pb-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest"
                 style={{ color: "var(--sidebar-muted)" }}>
-                Inventario · {vms.length} VMs
+                {t("inventoryCount", { count: vms.length })}
               </p>
             </div>
           )}
@@ -1484,13 +1496,13 @@ export default function Home() {
             onClick={refresh}
             className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors"
             style={{ color: "var(--sidebar-muted)" }}
-            title="Refrescar inventario"
+            title={t("refreshInventory")}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4"/>
               <path d="M12 4l0.5-2.5 2 1.5M4 12l-0.5 2.5-2-1.5"/>
             </svg>
-            {!sidebarCollapsed && <span>{loading ? "Cargando..." : "Refrescar"}</span>}
+            {!sidebarCollapsed && <span>{loading ? t("loading") : t("refresh")}</span>}
           </button>
 
           {/* Tree */}
@@ -1532,7 +1544,7 @@ export default function Home() {
 
           {vms.length === 0 && !loading && !sidebarCollapsed && (
             <p className="px-4 py-3 text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
-              No hay VMs visibles para este tenant.
+              {t("noVisibleVms")}
             </p>
           )}
         </div>
@@ -1543,7 +1555,7 @@ export default function Home() {
             <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{totals.up} up</span>
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{totals.down} down</span>
-              <span>{totals.total} total</span>
+              <span>{totals.total} {t("total")}</span>
             </div>
           </div>
         )}
@@ -1559,7 +1571,7 @@ export default function Home() {
           <button
             onClick={() => setSidebarCollapsed((p) => !p)}
             className="flex sm:hidden items-center justify-center rounded p-1.5 text-gray-500 hover:bg-gray-100"
-            title="Menú"
+            title={t("menu")}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M2 4h12M2 8h12M2 12h12"/>
@@ -1571,7 +1583,7 @@ export default function Home() {
             <button
               onClick={() => { setSelectedVmId(""); setSelectedTenant(isSuperadmin ? ALL_TENANTS : tenants[0]?.id ?? ""); }}
               className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 hover:text-blue-600"
-              title="Inicio"
+              title={t("home")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
                 <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
@@ -1586,13 +1598,14 @@ export default function Home() {
           <div className="flex shrink-0 items-center gap-2">
             <span className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="max-w-[140px] truncate">{session?.user?.email ?? "desconocido"}</span>
+              <span className="max-w-[140px] truncate">{session?.user?.email ?? t("unknownUser")}</span>
             </span>
+            <LanguageSelector />
             {/* Mobile: right panel toggle */}
             <button
               onClick={() => setRightPanelOpen((p) => !p)}
               className="flex lg:hidden items-center justify-center rounded border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
-              title="Panel de acciones"
+              title={t("actionsPanel")}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <rect x="1" y="1" width="12" height="12" rx="2"/>
@@ -1603,18 +1616,18 @@ export default function Home() {
               <Link
                 href="/admin/users"
                 className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
-                title="Administración de usuarios"
+                title={t("userAdmin")}
               >
-                Usuarios
+                {t("users")}
               </Link>
             )}
             {session?.user?.role === "superadmin" && (
               <Link
                 href="/admin/clusters"
                 className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
-                title="Administración de conexiones OLVM"
+                title={t("olvmConnectionsAdmin")}
               >
-                Configuración
+                {t("settings")}
               </Link>
             )}
             <button
@@ -1622,7 +1635,7 @@ export default function Home() {
               disabled={signingOut}
               className="rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
             >
-              {signingOut ? "..." : "Salir"}
+              {signingOut ? "..." : t("signOut")}
             </button>
           </div>
         </header>
@@ -1637,7 +1650,7 @@ export default function Home() {
             {uploadProgress !== null && (
               <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                 <div className="mb-1 flex items-center justify-between">
-                  <span>{uploadProgress < 100 ? `Subiendo "${uploadFileName}"... ${uploadProgress}%` : `Procesando "${uploadFileName}" en OLVM...`}</span>
+                  <span>{uploadProgress < 100 ? t("uploadingFile", { name: uploadFileName, progress: uploadProgress }) : t("processingFile", { name: uploadFileName })}</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
                   <div className={`h-full rounded-full ${uploadProgress < 100 ? "bg-blue-500" : "bg-blue-400 animate-pulse"} transition-all duration-300`} style={{ width: `${uploadProgress}%` }} />
@@ -1647,13 +1660,13 @@ export default function Home() {
             {error && (
               <div className="mb-3 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 <span>{error}</span>
-                <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-600">✕</button>
+                <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-600" title={t("close")}>✕</button>
               </div>
             )}
             {success && (
               <div className="mb-3 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
                 <span>{success}</span>
-                <button onClick={() => setSuccess(null)} className="ml-3 text-emerald-400 hover:text-emerald-600">✕</button>
+                <button onClick={() => setSuccess(null)} className="ml-3 text-emerald-400 hover:text-emerald-600" title={t("close")}>✕</button>
               </div>
             )}
 
@@ -1661,12 +1674,12 @@ export default function Home() {
             <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <h1 className="truncate text-sm font-bold text-gray-900">
-                  {selectedVm ? selectedVm.name : "Dashboard del tenant"}
+                  {selectedVm ? selectedVm.name : t("tenantDashboard")}
                 </h1>
                 <p className="truncate text-[11px] text-gray-500">
                   {selectedVm
-                    ? `${selectedVm.tenantName ?? tenantName} / ${selectedVm.cluster || "Sin cluster"} / ${selectedVm.host || "Host N/D"}`
-                    : `Resumen consolidado · ${tenantName || "tenant activo"}`}
+                    ? `${selectedVm.tenantName ?? tenantName} / ${selectedVm.cluster || t("noCluster")} / ${selectedVm.host || t("unknownHost")}`
+                    : t("consolidatedSummary", { tenant: tenantName || t("activeTenantFallback") })}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -1677,7 +1690,7 @@ export default function Home() {
                       onClick={() => setSelectedVmId("")}
                       className="rounded border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
                     >
-                      ← Volver
+                      {t("back")}
                     </button>
                   </>
                 )}
@@ -1695,17 +1708,17 @@ export default function Home() {
               <>
                 {/* KPI row */}
                 <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-                  <StatCard label="VMs totales" value={totals.total} />
-                  <StatCard label="Encendidas" value={totals.up} sub="estado UP" accent />
-                  <StatCard label="Apagadas" value={totals.down} sub="estado DOWN" warning />
-                  <StatCard label="CPU provisionada" value={`${totals.total > 0 ? formatNumber(tenantResourceSummary.provisionedCpu, {maximumFractionDigits:0}) : "—"} vCPU`} />
+                  <StatCard label={t("totalVms")} value={totals.total} />
+                  <StatCard label={t("poweredOn")} value={totals.up} sub={t("stateUp")} accent />
+                  <StatCard label={t("poweredOff")} value={totals.down} sub={t("stateDown")} warning />
+                  <StatCard label={t("provisionedCpu")} value={`${totals.total > 0 ? formatNumber(tenantResourceSummary.provisionedCpu, {maximumFractionDigits:0}) : "—"} vCPU`} />
                 </div>
 
                 {/* Donut metrics row */}
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-3">
                 {/* CPU */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">CPU Total</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">{t("totalCpu")}</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.cpuPct} color="#3b82f6" />
                       <div>
@@ -1713,32 +1726,32 @@ export default function Home() {
                           {formatNumber(tenantResourceSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU
                         </p>
                         <p className="text-[11px] text-gray-400">
-                          Uso est.: {formatNumber(tenantResourceSummary.estCpu)} vCPU
+                          {t("estimatedUsage", { value: `${formatNumber(tenantResourceSummary.estCpu)} vCPU` })}
                         </p>
                       </div>
                     </div>
                   </div>
                   {/* RAM */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">RAM Total</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">{t("totalRam")}</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.memPct} color="#10b981" />
                       <div>
                         <p className="text-lg font-bold text-gray-900">{toGB(tenantResourceSummary.provisionedMem)}</p>
-                        <p className="text-[11px] text-gray-400">Uso est.: {toGB(tenantResourceSummary.estMem)}</p>
+                        <p className="text-[11px] text-gray-400">{t("estimatedUsage", { value: toGB(tenantResourceSummary.estMem) })}</p>
                       </div>
                     </div>
                   </div>
                   {/* Traffic */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Tráfico activo</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">{t("activeTraffic")}</p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500">Disco (R+W)</span>
+                        <span className="text-[11px] text-gray-500">{t("diskRw")}</span>
                         <span className="text-sm font-semibold text-gray-900">{formatBytes(tenantResourceSummary.disk)}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500">Red</span>
+                        <span className="text-[11px] text-gray-500">{t("network")}</span>
                         <span className="text-sm font-semibold text-gray-900">{formatBytes(tenantResourceSummary.net)}</span>
                       </div>
                       <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
@@ -1758,7 +1771,7 @@ export default function Home() {
                           onClick={() => setShowAllSds((v) => !v)}
                           className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50"
                         >
-                          {showAllSds ? "Solo asignados" : "Ver todos"}
+                          {showAllSds ? t("assignedOnly") : t("viewAll")}
                         </button>
                       )}
                     </div>
@@ -1774,13 +1787,13 @@ export default function Home() {
                               </span>
                             </div>
                             <div className="mb-1.5 flex items-baseline gap-2">
-                              <span className="text-lg font-bold text-gray-900">{sd.availableGB.toFixed(0)} GB</span>
-                              <span className="text-[11px] text-gray-400">libres de {sd.totalGB.toFixed(0)} GB</span>
+                              <span className="text-lg font-bold text-gray-900">{formatNumber(sd.availableGB, { maximumFractionDigits: 0 })} GB</span>
+                              <span className="text-[11px] text-gray-400">{t("freeOf", { total: formatNumber(sd.totalGB, { maximumFractionDigits: 0 }) })}</span>
                             </div>
                             <div className="mb-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
                               <div className={`h-full rounded-full ${usedPct > 80 ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${Math.min(100, usedPct)}%` }} />
                             </div>
-                            <p className="text-[10px] text-gray-400">{sd.usedGB.toFixed(0)} GB en uso ({Math.round(usedPct)}%)</p>
+                            <p className="text-[10px] text-gray-400">{t("inUse", { used: formatNumber(sd.usedGB, { maximumFractionDigits: 0 }), percent: formatNumber(usedPct, { maximumFractionDigits: 0 }) })}</p>
                           </div>
                         );
                       })}
@@ -1791,30 +1804,30 @@ export default function Home() {
                 {/* Per-tenant summary (only in "Todos los tenants" mode) */}
                 {selectedTenant === ALL_TENANTS && perTenantSummary.length > 1 && (
                   <div className="mb-4">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Resumen por tenant</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("tenantSummary")}</p>
                     <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {perTenantSummary.map((t) => {
-                        const cpuPct = t.provisionedCpu > 0 ? (t.estCpu / t.provisionedCpu) * 100 : 0;
-                        const memPct = t.provisionedMem > 0 ? (t.estMem / t.provisionedMem) * 100 : 0;
+                      {perTenantSummary.map((tenantSummary) => {
+                        const cpuPct = tenantSummary.provisionedCpu > 0 ? (tenantSummary.estCpu / tenantSummary.provisionedCpu) * 100 : 0;
+                        const memPct = tenantSummary.provisionedMem > 0 ? (tenantSummary.estMem / tenantSummary.provisionedMem) * 100 : 0;
                         return (
                           <button
-                            key={t.id}
-                            onClick={() => setSelectedTenant(t.id)}
+                            key={tenantSummary.id}
+                            onClick={() => setSelectedTenant(tenantSummary.id)}
                             className="rounded-lg border bg-white p-3 text-left transition hover:border-blue-300 hover:shadow-sm"
                             style={{ borderColor: "var(--border)" }}
                           >
                             <div className="mb-2 flex items-center justify-between">
-                              <span className="truncate text-sm font-bold text-gray-900">{t.name}</span>
+                              <span className="truncate text-sm font-bold text-gray-900">{tenantSummary.name}</span>
                               <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                                style={{ background: t.down > 0 ? "#fef3c7" : "#d1fae5", color: t.down > 0 ? "#92400e" : "#065f46" }}>
-                                {t.up}/{t.total} UP
+                                style={{ background: tenantSummary.down > 0 ? "#fef3c7" : "#d1fae5", color: tenantSummary.down > 0 ? "#92400e" : "#065f46" }}>
+                                {tenantSummary.up}/{tenantSummary.total} UP
                               </span>
                             </div>
                             <div className="space-y-1.5 text-[11px]">
                               <div>
                                 <div className="mb-0.5 flex justify-between">
                                   <span className="text-gray-400">CPU</span>
-                                  <span className="text-gray-700">{formatNumber(t.provisionedCpu, { maximumFractionDigits: 0 })} vCPU · {formatNumber(cpuPct)}%</span>
+                                  <span className="text-gray-700">{formatNumber(tenantSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU · {formatNumber(cpuPct)}%</span>
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
                                   <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(100, cpuPct)}%` }} />
@@ -1823,7 +1836,7 @@ export default function Home() {
                               <div>
                                 <div className="mb-0.5 flex justify-between">
                                   <span className="text-gray-400">RAM</span>
-                                  <span className="text-gray-700">{toGB(t.provisionedMem)} · {formatNumber(memPct)}%</span>
+                                  <span className="text-gray-700">{toGB(tenantSummary.provisionedMem)} · {formatNumber(memPct)}%</span>
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
                                   <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, memPct)}%` }} />
@@ -1831,19 +1844,19 @@ export default function Home() {
                               </div>
                               <div>
                                 {(() => {
-                                  const td = tenantDiskMap[t.id];
+                                  const td = tenantDiskMap[tenantSummary.id];
                                   if (!td) return (
                                     <div className="mb-0.5 flex justify-between">
-                                      <span className="text-gray-400">Disco</span>
-                                      <span className="text-gray-300">Cargando…</span>
+                                      <span className="text-gray-400">{t("disk")}</span>
+                                      <span className="text-gray-300">{t("loadingEllipsis")}</span>
                                     </div>
                                   );
                                   const diskPct = td.totalSizeGB > 0 ? (td.usedGB / td.totalSizeGB) * 100 : 0;
                                   return (
                                     <>
                                       <div className="mb-0.5 flex justify-between">
-                                        <span className="text-gray-400">Disco</span>
-                                        <span className="text-gray-700">{td.totalSizeGB.toFixed(0)} GB · {formatNumber(diskPct)}%</span>
+                                        <span className="text-gray-400">{t("disk")}</span>
+                                        <span className="text-gray-700">{formatNumber(td.totalSizeGB, { maximumFractionDigits: 0 })} GB · {formatNumber(diskPct)}%</span>
                                       </div>
                                       <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
                                         <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, diskPct)}%` }} />
@@ -1864,9 +1877,9 @@ export default function Home() {
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
                   {/* RAM por VM */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Top RAM por VM</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("topRam")}</p>
                     {topMemVms.length === 0
-                      ? <p className="text-[11px] text-gray-400">Sin datos</p>
+                      ? <p className="text-[11px] text-gray-400">{t("noData")}</p>
                       : topMemVms.map((vm) => {
                         const pct = tenantResourceSummary.provisionedMem > 0 ? (vm.value / tenantResourceSummary.provisionedMem) * 100 : 0;
                         return (
@@ -1882,9 +1895,9 @@ export default function Home() {
                   </div>
                   {/* CPU por VM */}
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Top CPU por VM</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("topCpu")}</p>
                     {topCpuVms.length === 0
-                      ? <p className="text-[11px] text-gray-400">Sin datos</p>
+                      ? <p className="text-[11px] text-gray-400">{t("noData")}</p>
                       : topCpuVms.map((vm) => (
                         <div key={vm.id} className="mb-1.5">
                           <div className="mb-0.5 flex items-center justify-between">
@@ -1901,15 +1914,15 @@ export default function Home() {
                 <div className="rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                      Máquinas virtuales · {vms.length}
+                      {t("virtualMachines", { count: vms.length })}
                     </p>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[400px] text-xs">
                       <thead>
                         <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
-                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Estado</th>
-                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Nombre</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("status")}</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("name")}</th>
                           <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Cluster</th>
                           <th className="hidden lg:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Host</th>
                           <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28">CPU</th>
@@ -1920,7 +1933,7 @@ export default function Home() {
                       <tbody>
                         {vms.length === 0 && (
                           <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">
-                            {loading ? "Cargando VMs..." : "No hay VMs en este tenant"}
+                            {loading ? t("loadingVms") : t("noTenantVms")}
                           </td></tr>
                         )}
                         {vms.map((vm) => (
@@ -1951,15 +1964,15 @@ export default function Home() {
                 {/* Action history */}
                 {actionHistory.length > 0 && (
                   <div className="mt-3 rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Acciones recientes</p>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("recentActions")}</p>
                     <div className="space-y-1">
                       {actionHistory.map((entry) => (
                         <div key={`${entry.vmId}-${entry.timestamp}`}
                           className="flex items-center justify-between gap-3 text-[11px]">
-                          <span className="text-gray-600">{entry.action} · <span className="text-gray-400">{entry.vmId}</span></span>
-                          <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                          <span className="text-gray-600">{actionLabel(entry.action)} · <span className="text-gray-400">{entry.vmId}</span></span>
+                          <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString(locale)}</span>
                           <span className={entry.status === "ok" ? "text-emerald-600" : entry.status === "pending" ? "text-amber-500" : "text-red-500"}>
-                            {entry.status}
+                            {entry.status === "pending" ? t("actionPending") : entry.status === "ok" ? t("actionOk") : t("actionError")}
                           </span>
                         </div>
                       ))}
@@ -1974,13 +1987,13 @@ export default function Home() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {/* Identity */}
                 <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Identidad</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("identity")}</p>
                   <dl className="space-y-1 text-xs">
                     {[
-                      ["Sistema operativo", selectedVm.os ?? "N/D"],
-                      ["Template", selectedVm.template ?? "N/D"],
-                      ["Cluster", selectedVm.cluster ?? "N/D"],
-                      ["Host", selectedVm.host ?? "N/D"],
+                      [t("operatingSystem"), selectedVm.os ?? t("notAvailable")],
+                      ["Template", selectedVm.template ?? t("notAvailable")],
+                      ["Cluster", selectedVm.cluster ?? t("notAvailable")],
+                      ["Host", selectedVm.host ?? t("notAvailable")],
                     ].map(([k, v]) => (
                       <div key={k} className="flex gap-2">
                         <dt className="w-32 shrink-0 text-gray-400">{k}</dt>
@@ -1997,7 +2010,7 @@ export default function Home() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-gray-300">sin tags</span>
+                          <span className="text-gray-300">{t("noTags")}</span>
                         )}
                       </dd>
                     </div>
@@ -2010,14 +2023,14 @@ export default function Home() {
                 {/* Consola */}
                 {canOperate && selectedVm.status === "up" && (
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Consola</p>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("console")}</p>
                     <div className="relative mb-2 overflow-hidden rounded-md border bg-black" style={{ aspectRatio: "16/9", borderColor: "var(--border)" }}>
                       {consolePreviewLoading ? (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
                         </div>
                       ) : consolePreviewIframe ? (
-                        <iframe src={consolePreviewIframe} className="h-full w-full border-0" title="Console preview" style={{ pointerEvents: "none" }} />
+                        <iframe src={consolePreviewIframe} className="h-full w-full border-0" title={t("consolePreview")} style={{ pointerEvents: "none" }} />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-white/40">
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2031,20 +2044,20 @@ export default function Home() {
                       disabled={consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"}
                       className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                     >
-                      {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting" ? "Conectando..." : "Abrir Consola"}
+                      {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting" ? t("connecting") : t("openConsole")}
                     </button>
                   </div>
                 )}
                 {/* Red */}
                 <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Red</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("network")}</p>
                   <div className="space-y-1.5">
                     {vmNics.filter(n => n.linked && n.plugged).length > 0 ? (
                       vmNics.filter(n => n.linked && n.plugged).map((n) => (
                         <div key={n.id} className="flex flex-col gap-0.5">
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-500">{n.networkName || n.name}</span>
-                            <span className="font-semibold text-gray-800">{n.ipv4 ?? "Sin IP (guest agent requerido)"}</span>
+                            <span className="font-semibold text-gray-800">{n.ipv4 ?? t("noIp")}</span>
                           </div>
                           <div className="flex justify-between text-[9px] text-gray-400">
                             <span>{n.interface}</span>
@@ -2053,7 +2066,7 @@ export default function Home() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-[11px] text-gray-400">Sin NICs activas</p>
+                      <p className="text-[11px] text-gray-400">{t("noActiveNics")}</p>
                     )}
                   </div>
                 </div>
@@ -2064,20 +2077,20 @@ export default function Home() {
                     <DonutRing value={selectedVm.metrics?.cpuPercent} color="#3b82f6" />
                     <div>
                       <p className="text-lg font-bold text-gray-900">{formatNumber(selectedVm.metrics?.cpuPercent)}%</p>
-                      <p className="text-[11px] text-gray-400">{selectedVm.cpuCores ?? "—"} vCPU · {selectedVm.sockets ?? "—"} sockets</p>
+                      <p className="text-[11px] text-gray-400">{selectedVm.cpuCores ?? "—"} vCPU · {t("socketsCount", { count: selectedVm.sockets ?? "—" })}</p>
                     </div>
                   </div>
                 </div>
                 {/* RAM */}
                 <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Memoria</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("memory")}</p>
                   <div className="flex items-center gap-3">
                     <DonutRing value={selectedVm.metrics?.memoryPercent} color="#10b981" />
                     <div>
                       <p className="text-lg font-bold text-gray-900">{toGB(selectedVm.memoryMB)}</p>
                       <p className="text-[11px] text-gray-400">
-                        Uso est.: {toGB(selectedVm.memoryMB && selectedVm.metrics?.memoryPercent
-                          ? selectedVm.memoryMB * (selectedVm.metrics.memoryPercent / 100) : undefined)}
+                         {t("estimatedUsage", { value: toGB(selectedVm.memoryMB && selectedVm.metrics?.memoryPercent
+                           ? selectedVm.memoryMB * (selectedVm.metrics.memoryPercent / 100) : undefined) })}
                       </p>
                     </div>
                   </div>
@@ -2087,44 +2100,44 @@ export default function Home() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">I/O</p>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Disco R</span>
+                       <span className="text-gray-500">{t("diskRead")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskReadBytes)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Disco W</span>
+                       <span className="text-gray-500">{t("diskWrite")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskWriteBytes)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Red</span>
+                       <span className="text-gray-500">{t("network")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.networkBytes)}</span>
                     </div>
                   </div>
                 </div>
                 {/* Storage */}
                 <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Disco</p>
+                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("disk")}</p>
                   {vmDisks ? (
                     <div className="space-y-2 text-xs">
                       <div className="flex items-center gap-3">
                         <DonutRing value={vmDisks.totalSizeGB > 0 ? (vmDisks.usedGB / vmDisks.totalSizeGB) * 100 : undefined} color="#f59e0b" />
                         <div>
-                          <p className="text-lg font-bold text-gray-900">{vmDisks.totalSizeGB.toFixed(1)} GB</p>
-                          <p className="text-[11px] text-gray-400">{vmDisks.count} disco(s) · {vmDisks.usedGB.toFixed(1)} GB usado</p>
+                           <p className="text-lg font-bold text-gray-900">{formatNumber(vmDisks.totalSizeGB)} GB</p>
+                           <p className="text-[11px] text-gray-400">{t("diskCountUsed", { count: vmDisks.count, used: formatNumber(vmDisks.usedGB) })}</p>
                         </div>
                       </div>
                       {vmDisks.disks.length > 0 && (
                         <div className="space-y-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
                           {vmDisks.disks.map((d, i) => (
                             <div key={i} className="flex justify-between">
-                              <span className="truncate text-gray-500" title={d.name}>{d.name ?? `Disco ${i + 1}`}</span>
-                              <span className="shrink-0 font-semibold">{d.sizeGB.toFixed(1)} GB{d.usedGB != null ? ` (${d.usedGB.toFixed(1)})` : ""}</span>
+                               <span className="truncate text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
+                               <span className="shrink-0 font-semibold">{formatNumber(d.sizeGB)} GB{d.usedGB != null ? ` (${formatNumber(d.usedGB)})` : ""}</span>
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400">Cargando…</p>
+                     <p className="text-xs text-gray-400">{t("loadingEllipsis")}</p>
                   )}
                 </div>
               </div>
@@ -2165,7 +2178,7 @@ export default function Home() {
                       boxShadow: detailTab === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
                     }}
                   >
-                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:canAdmin ? "Nuevo" : "Catálogo",console:"Consola"}[tab]}
+                     {{overview:t("detail"),actions:t("actions"),resources:t("resources"),provisioning:canAdmin ? t("new") : t("catalog"),console:t("console")}[tab]}
                   </button>
                 ))}
               </div>
@@ -2175,15 +2188,15 @@ export default function Home() {
                 selectedVm ? (
                   <div className="space-y-2">
                     <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[10px] text-gray-400 mb-1">Estado</p>
+                       <p className="text-[10px] text-gray-400 mb-1">{t("status")}</p>
                       <StatusBadge status={selectedVm.status} />
                     </div>
                     <div className="rounded-md border p-2.5 space-y-1.5" style={{ borderColor: "var(--border)" }}>
                       {[
-                        ["Cluster", selectedVm.cluster ?? "N/D"],
-                        ["Host", selectedVm.host ?? "N/D"],
+                        ["Cluster", selectedVm.cluster ?? t("notAvailable")],
+                        ["Host", selectedVm.host ?? t("notAvailable")],
                         ["RAM", toGB(selectedVm.memoryMB)],
-                        ["vCPU", `${selectedVm.cpuCores ?? "—"} cores`],
+                        ["vCPU", t("coresCount", { count: selectedVm.cpuCores ?? "—" })],
                       ].map(([k, v]) => (
                         <div key={k} className="flex justify-between text-[11px]">
                           <span className="text-gray-400">{k}</span>
@@ -2193,16 +2206,16 @@ export default function Home() {
                     </div>
                     {/* Disk usage */}
                     <div className="rounded-md border p-2.5 space-y-2" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Almacenamiento</p>
+                       <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("storage")}</p>
                       {vmDisks ? (
                         vmDisks.count === 0 ? (
-                          <p className="text-[11px] text-gray-400">Sin discos</p>
+                           <p className="text-[11px] text-gray-400">{t("noDisks")}</p>
                         ) : (
                           <>
                             {/* Usage bar */}
                             <div>
                               <div className="mb-1 flex justify-between text-[11px]">
-                                <span className="text-gray-400">{vmDisks.usedGB.toFixed(1)} / {vmDisks.totalSizeGB.toFixed(1)} GB</span>
+                                <span className="text-gray-400">{formatNumber(vmDisks.usedGB)} / {formatNumber(vmDisks.totalSizeGB)} GB</span>
                                 <span className="font-semibold text-gray-700">{vmDisks.totalSizeGB > 0 ? Math.round((vmDisks.usedGB / vmDisks.totalSizeGB) * 100) : 0}%</span>
                               </div>
                               <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
@@ -2216,8 +2229,8 @@ export default function Home() {
                             {vmDisks.disks.map((d, i) => (
                               <div key={i} className="space-y-0.5">
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="truncate text-gray-500" title={d.name}>{d.name ?? `Disco ${i + 1}`}</span>
-                                  <span className="shrink-0 font-medium text-gray-700">{d.sizeGB.toFixed(0)} GB</span>
+                                   <span className="truncate text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
+                                  <span className="shrink-0 font-medium text-gray-700">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })} GB</span>
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
                                   <div
@@ -2230,19 +2243,19 @@ export default function Home() {
                           </>
                         )
                       ) : (
-                        <p className="text-[11px] text-gray-400">Cargando…</p>
+                         <p className="text-[11px] text-gray-400">{t("loadingEllipsis")}</p>
                       )}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-[11px] text-gray-500">Selecciona una VM del inventario o de la tabla para ver su detalle.</p>
+                       <p className="text-[11px] text-gray-500">{t("selectVmDetail")}</p>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">
                       <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
                         <p className="text-base font-bold text-gray-900">{totals.total}</p>
-                        <p className="text-[10px] text-gray-400">Total</p>
+                        <p className="text-[10px] text-gray-400">{t("total")}</p>
                       </div>
                       <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-center">
                         <p className="text-base font-bold text-emerald-700">{totals.up}</p>
@@ -2264,7 +2277,7 @@ export default function Home() {
                     {powerTransition?.vmId === selectedVm.id && (() => {
                       const status = selectedVm.status?.toLowerCase() ?? "";
                       const isStop = powerTransition.action === "stop";
-                      const phases = isStop ? ["Enviando", "Apagando", "Listo"] : ["Enviando", "Encendiendo", "Listo"];
+                       const phases = isStop ? [t("sending"), t("poweringOff"), t("ready")] : [t("sending"), t("poweringOn"), t("ready")];
                       const step = status === "wait_for_launch" ? 0
                         : status === "powering_up" || status === "powering_down" || status === "reboot_in_progress" ? 1
                         : (isStop ? status === "down" : status === "up") ? 2 : 0;
@@ -2286,15 +2299,15 @@ export default function Home() {
                             <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-1000"
                               style={{ width: `${((step + 1) / 3) * 100}%` }} />
                           </div>
-                          <p className="text-[10px] text-blue-600">Estado actual: {selectedVm.status}</p>
+                           <p className="text-[10px] text-blue-600">{t("currentStatus", { status: selectedVm.status })}</p>
                         </div>
                       );
                     })()}
                     {[
-                      { label: "Start", action: "start" },
-                      { label: "Stop", action: "stop" },
-                      { label: "Shutdown", action: "shutdown" },
-                      { label: "Reboot", action: "reboot" },
+                       { label: t("start"), action: "start" },
+                       { label: t("stop"), action: "stop" },
+                       { label: t("shutdown"), action: "shutdown" },
+                       { label: t("reboot"), action: "reboot" },
                     ].map(({ label, action }) => (
                       <ActionButton
                         key={action} label={label}
@@ -2305,19 +2318,19 @@ export default function Home() {
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                     {canAdmin && (
                       <ActionButton
-                        label="Clonar VM"
+                         label={t("cloneVm")}
                         onClick={() => openCloneWizard(selectedVm)}
                         loading={actionLoading === `${selectedVm.id}-clone`}
                       />
                     )}
                     <ActionButton
-                      label="Consola VNC"
+                       label={t("vncConsole")}
                       onClick={() => downloadConsole(selectedVm.id, "vnc")}
                       loading={consoleLoading === selectedVm.id}
                     />
                     {showExperimentalConsole && (
                       <ActionButton
-                        label="Consola embebida"
+                         label={t("embeddedConsole")}
                         onClick={() => openEmbeddedConsole(selectedVm.id)}
                         loading={consoleLoading === selectedVm.id}
                         disabled={(selectedVm.status?.toLowerCase?.() ?? "") !== "up"}
@@ -2327,12 +2340,12 @@ export default function Home() {
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                         <ActionButton
-                          label="Asignar tag del tenant"
+                           label={t("assignTenantTag")}
                           onClick={() => toggleTag(selectedVm.id, true)}
                           loading={actionLoading === `${selectedVm.id}-tag`}
                         />
                         <ActionButton
-                          label="Quitar tag del tenant"
+                           label={t("removeTenantTag")}
                           onClick={() => toggleTag(selectedVm.id, false)}
                           loading={actionLoading === `${selectedVm.id}-tag`}
                         />
@@ -2345,18 +2358,18 @@ export default function Home() {
                         {mountedIso && (
                           <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5">
                             <span className="truncate text-[11px] text-amber-800">
-                              {isoList.find((i) => i.id === mountedIso)?.name ?? "ISO montada"}
+                               {isoList.find((i) => i.id === mountedIso)?.name ?? t("mountedIso")}
                             </span>
                             <button
                               onClick={() => {
-                                if (window.confirm("¿Expulsar la ISO montada?")) {
+                                 if (window.confirm(t("ejectIsoConfirm"))) {
                                   handleMountIso(selectedVm.id, null);
                                 }
                               }}
                               disabled={actionLoading === `${selectedVm.id}-iso`}
                               className="ml-2 shrink-0 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                             >
-                              Expulsar
+                               {t("eject")}
                             </button>
                           </div>
                         )}
@@ -2374,7 +2387,7 @@ export default function Home() {
                           className={`w-full rounded-md border px-2 py-1.5 text-[11px] ${actionLoading === `${selectedVm.id}-iso}` ? "opacity-50" : ""}`}
                           style={{ borderColor: "var(--border)" }}
                         >
-                          <option value="">{actionLoading === `${selectedVm.id}-iso` ? "Montando..." : "Montar ISO..."}</option>
+                           <option value="">{actionLoading === `${selectedVm.id}-iso` ? t("mounting") : t("mountIso")}</option>
                           {isoList.filter((i) => i.id !== mountedIso).map((iso) => (
                             <option key={iso.id} value={iso.id}>
                               {iso.name}{iso.storageDomainName ? ` (${iso.storageDomainName})` : ""}
@@ -2383,7 +2396,7 @@ export default function Home() {
                         </select>
                         {isSuperadmin && (
                           <label className={`flex w-full cursor-pointer items-center justify-center rounded-md border border-dashed border-gray-300 py-1.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 ${uploadingIso ? "opacity-50 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
-                            {uploadingIso ? "Subiendo ISO..." : "↑ Subir ISO al storage domain"}
+                             {uploadingIso ? t("uploadingIso") : t("uploadIso")}
                             <input
                               type="file"
                               accept=".iso"
@@ -2402,25 +2415,25 @@ export default function Home() {
                     {selectedTenant !== ALL_TENANTS && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Discos</p>
+                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("disks")}</p>
                         {vmDiskList.length > 0 && (
                           <div className="space-y-1">
                             {vmDiskList.map((d) => (
                               <div key={d.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1" style={{ borderColor: "var(--border)" }}>
                                 <span className="flex-1 truncate text-[10px] text-gray-600">{d.name}</span>
-                                <span className="shrink-0 text-[10px] text-gray-400">{d.sizeGB.toFixed(0)}GB</span>
+                                <span className="shrink-0 text-[10px] text-gray-400">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })}GB</span>
                                 <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{d.interface || "?"}</span>
                                 {d.bootable && <span className="shrink-0 rounded bg-blue-50 px-1 py-0.5 text-[9px] text-blue-600">boot</span>}
                                 <button
                                   onClick={() => {
-                                    if (window.confirm(`¿Eliminar el disco "${d.name}" (${d.sizeGB.toFixed(0)}GB)? Esta acción no se puede deshacer.`)) {
+                                     if (window.confirm(t("deleteDiskConfirm", { name: d.name, size: formatNumber(d.sizeGB, { maximumFractionDigits: 0 }) }))) {
                                       handleDeleteDisk(selectedVm.id, d.attachmentId, d.diskId);
                                     }
                                   }}
                                   disabled={actionLoading === `${selectedVm.id}-del-disk`}
                                   className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
                                 >
-                                  Del
+                                   {t("deleteShort")}
                                 </button>
                               </div>
                             ))}
@@ -2441,7 +2454,7 @@ export default function Home() {
                             className="rounded-md border px-2 py-1.5 text-[11px]"
                             style={{ borderColor: "var(--border)" }}
                           >
-                            <option value="">SD automático</option>
+                             <option value="">{t("automaticSd")}</option>
                             {storageDomains.map((sd) => (
                               <option key={sd.id} value={sd.id}>{sd.name}</option>
                             ))}
@@ -2455,15 +2468,15 @@ export default function Home() {
                         >
                           <option value="virtio_scsi">VirtIO SCSI (Linux)</option>
                           <option value="sata">SATA (Windows)</option>
-                          <option value="ide">IDE (compatibilidad)</option>
+                           <option value="ide">IDE ({t("compatibility")})</option>
                         </select>
                         <ActionButton
-                          label="Agregar disco"
+                           label={t("addDisk")}
                           onClick={() => handleAddDisk(selectedVm.id)}
                           loading={actionLoading === `${selectedVm.id}-disk`}
                         />
                         <ActionButton
-                          label="Encender desde CD"
+                           label={t("startFromCd")}
                           onClick={() => handleRunOnceCd(selectedVm.id)}
                           loading={actionLoading === `${selectedVm.id}-run_once`}
                         />
@@ -2471,9 +2484,9 @@ export default function Home() {
                     )}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                     <ActionButton
-                      label="Eliminar VM"
+                       label={t("deleteVm")}
                       onClick={() => {
-                        if (window.confirm(`¿Eliminar la VM "${selectedVm.name}"?\nLos discos asociados también se eliminarán.\nEsta acción no se puede deshacer.`)) {
+                         if (window.confirm(t("deleteVmConfirm", { name: selectedVm.name }))) {
                           handleDeleteVm(selectedVm.id);
                         }
                       }}
@@ -2483,11 +2496,11 @@ export default function Home() {
                       onClick={() => setSelectedVmId("")}
                       className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50"
                     >
-                      ← Volver a dashboard
+                       {t("backDashboard")}
                     </button>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-gray-400">Selecciona una VM para habilitar acciones.</p>
+                   <p className="text-[11px] text-gray-400">{t("selectVmActions")}</p>
                 )
               )}
 
@@ -2497,7 +2510,7 @@ export default function Home() {
                   <div className="space-y-2.5">
                     {canAdmin ? (
                       <>
-                        <Field label="Memoria (MB)">
+                         <Field label={t("memoryMb")}>
                           <input
                             type="number" min={512}
                             value={resourceDrafts[selectedVm.id]?.memoryMB ?? ""}
@@ -2514,7 +2527,7 @@ export default function Home() {
                               className={inputCls} placeholder={String(selectedVm.cpuCores ?? "")}
                             />
                           </Field>
-                          <Field label="Sockets">
+                          <Field label={t("sockets")}>
                             <input
                               type="number" min={1}
                               value={resourceDrafts[selectedVm.id]?.sockets ?? ""}
@@ -2525,13 +2538,13 @@ export default function Home() {
                         </div>
                         {selectedVm.status?.toLowerCase?.() === "up" ? (
                           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                            La VM debe estar apagada para cambiar recursos (RAM/CPU).
+                             {t("vmMustBeOff")}
                             <button
                               onClick={() => runAction(selectedVm.id, "shutdown")}
                               disabled={actionLoading === `${selectedVm.id}-shutdown`}
                               className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                             >
-                              Apagar ahora
+                               {t("shutDownNow")}
                             </button>
                           </div>
                         ) : (
@@ -2540,7 +2553,7 @@ export default function Home() {
                             disabled={actionLoading === `${selectedVm.id}-update`}
                             className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                           >
-                            {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
+                             {actionLoading === `${selectedVm.id}-update` ? t("updating") : t("updateResources")}
                           </button>
                         )}
                       </>
@@ -2556,7 +2569,7 @@ export default function Home() {
                         </div>
                         <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
                           <p className="text-sm font-bold text-gray-800">{selectedVm.sockets ?? "—"}</p>
-                          <p className="text-[9px] text-gray-400">Sockets</p>
+                          <p className="text-[9px] text-gray-400">{t("sockets")}</p>
                         </div>
                       </div>
                     )}
@@ -2564,12 +2577,12 @@ export default function Home() {
                     {vmDiskList.length > 0 && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Discos</p>
+                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("disks")}</p>
                         <div className="space-y-1">
                           {vmDiskList.map((disk) => (
                             <div key={disk.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
                               <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{disk.name}</span>
-                              <span className="text-[10px] text-gray-500">{disk.sizeGB.toFixed(0)} GB</span>
+                              <span className="text-[10px] text-gray-500">{formatNumber(disk.sizeGB, { maximumFractionDigits: 0 })} GB</span>
                               <span className="rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{disk.interface || "?"}</span>
                             </div>
                           ))}
@@ -2580,14 +2593,14 @@ export default function Home() {
                     {/* Redes */}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                     <div className="flex items-center justify-between">
-                      <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Redes</p>
+                       <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("networks")}</p>
                       {canAdmin && vmNics.some(n => !n.plugged) && (
                         <button
                           onClick={() => vmNics.filter(n => !n.plugged).forEach(n => handleToggleNic(selectedVm.id, n.id, true))}
                           disabled={actionLoading === `${selectedVm.id}-nic`}
                           className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50"
                         >
-                          Conectar todas
+                           {t("connectAll")}
                         </button>
                       )}
                     </div>
@@ -2598,7 +2611,7 @@ export default function Home() {
                           return (
                           <div key={n.id} className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
                             <div className="flex items-center gap-1.5">
-                              <span className={`h-2 w-2 shrink-0 rounded-full ${isOn ? "bg-emerald-500" : n.plugged ? "bg-amber-400" : "bg-gray-300"}`} title={isOn ? "Conectada" : n.plugged ? "Plugged pero sin link" : "Desconectada"} />
+                               <span className={`h-2 w-2 shrink-0 rounded-full ${isOn ? "bg-emerald-500" : n.plugged ? "bg-amber-400" : "bg-gray-300"}`} title={isOn ? t("connected") : n.plugged ? t("pluggedNoLink") : t("disconnected")} />
                               <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{n.name}</span>
                               <span className="shrink-0 text-[10px] text-gray-500">{n.networkName || "?"}</span>
                               {n.ipv4 && (
@@ -2614,11 +2627,11 @@ export default function Home() {
                                     {isOn ? "Off" : "On"}
                                   </button>
                                   <button
-                                    onClick={() => { if (window.confirm(`¿Eliminar la NIC "${n.name}"?`)) handleDeleteNic(selectedVm.id, n.id); }}
+                                     onClick={() => { if (window.confirm(t("deleteNicConfirm", { name: n.name }))) handleDeleteNic(selectedVm.id, n.id); }}
                                     disabled={actionLoading === `${selectedVm.id}-nic`}
                                     className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
                                   >
-                                    Del
+                                     {t("deleteShort")}
                                   </button>
                                 </>
                               )}
@@ -2626,7 +2639,7 @@ export default function Home() {
                             <div className="mt-0.5 flex gap-2 pl-3.5 text-[9px] text-gray-400">
                               <span>{n.mac?.slice(0, 17)}</span>
                               <span>{n.interface}</span>
-                              <span className={isOn ? "text-emerald-500" : "text-gray-400"}>{isOn ? "● Activa" : n.plugged ? "◐ Plugged" : "○ Desconectada"}</span>
+                               <span className={isOn ? "text-emerald-500" : "text-gray-400"}>{isOn ? `● ${t("active")}` : n.plugged ? "◐ Plugged" : `○ ${t("disconnected")}`}</span>
                             </div>
                           </div>
                           );
@@ -2641,7 +2654,7 @@ export default function Home() {
                         className="flex-1 rounded-md border px-2 py-1.5 text-[11px] disabled:opacity-50"
                         style={{ borderColor: "var(--border)" }}
                       >
-                        <option value="">{actionLoading === `${selectedVm.id}-nic` ? "Agregando..." : "Agregar NIC..."}</option>
+                         <option value="">{actionLoading === `${selectedVm.id}-nic` ? t("adding") : t("addNic")}</option>
                         {provVnicProfiles.map((p) => (
                           <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
                         ))}
@@ -2649,7 +2662,7 @@ export default function Home() {
                     </div>}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-gray-400">Selecciona una VM para editar recursos.</p>
+                   <p className="text-[11px] text-gray-400">{t("selectVmResources")}</p>
                 )
               )}
 
@@ -2664,44 +2677,44 @@ export default function Home() {
                           <span className="truncate font-medium text-gray-700">{domain.name}</span>
                           <span className="text-gray-400">{domain.status ?? domain.type}</span>
                         </div>
-                        <p className="mt-1 text-[10px] text-gray-500">{domain.usedGB.toFixed(1)} / {domain.totalGB.toFixed(1)} GB usados</p>
+                         <p className="mt-1 text-[10px] text-gray-500">{t("usedGb", { used: formatNumber(domain.usedGB), total: formatNumber(domain.totalGB) })}</p>
                       </div>
-                    )) : <p className="text-[11px] text-gray-400">Sin storage domains visibles.</p>}
+                     )) : <p className="text-[11px] text-gray-400">{t("noVisibleStorage")}</p>}
 
                     <div className="border-t" style={{ borderColor: "var(--border)" }} />
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">ISOs</p>
                     {isoList.length > 0 ? isoList.map((iso) => (
                       <div key={iso.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
                         <p className="truncate text-[11px] font-medium text-gray-700">{iso.name}</p>
-                        <p className="mt-0.5 text-[10px] text-gray-400">{iso.storageDomainName || "Storage sin nombre"} · {iso.sizeGB.toFixed(1)} GB</p>
+                         <p className="mt-0.5 text-[10px] text-gray-400">{iso.storageDomainName || t("unnamedStorage")} · {formatNumber(iso.sizeGB)} GB</p>
                       </div>
-                    )) : <p className="text-[11px] text-gray-400">Sin ISOs disponibles.</p>}
+                     )) : <p className="text-[11px] text-gray-400">{t("noIsos")}</p>}
 
                     <div className="border-t" style={{ borderColor: "var(--border)" }} />
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Catálogo OVA</p>
+                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("ovaCatalog")}</p>
                     {ovaLibrary.length > 0 ? ovaLibrary.map((ova) => (
                       <div key={ova.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
                         <p className="truncate text-[11px] font-medium text-gray-700">{ova.name}</p>
-                        <p className="mt-0.5 text-[10px] text-gray-400">{ova.storageDomainName || "Storage sin nombre"} · {Math.round(ova.size / 1024 / 1024)} MB</p>
+                         <p className="mt-0.5 text-[10px] text-gray-400">{ova.storageDomainName || t("unnamedStorage")} · {formatNumber(ova.size / 1024 / 1024, { maximumFractionDigits: 0 })} MB</p>
                       </div>
-                    )) : <p className="text-[11px] text-gray-400">Sin OVAs disponibles.</p>}
+                     )) : <p className="text-[11px] text-gray-400">{t("noOvas")}</p>}
                   </div>
                 ) : (
                 <div className="space-y-4">
                   <div>
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">1. Origen</p>
-                    <Field label="Tipo de VM">
+                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{t("originStep")}</p>
+                     <Field label={t("vmType")}>
                       <select value={newVmSource} onChange={(e) => { setNewVmSource(e.target.value as "blank" | "template" | "ova"); setUploadedOva(null); }} className={inputCls}>
-                        <option value="blank">Nueva VM (Blank)</option>
-                        <option value="template">Template existente</option>
-                        <option value="ova">Importar desde OVA</option>
+                         <option value="blank">{t("blankVm")}</option>
+                         <option value="template">{t("existingTemplate")}</option>
+                         <option value="ova">{t("importOva")}</option>
                       </select>
                     </Field>
                   </div>
 
                   {newVmSource === "ova" && (
                     <div>
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">2. Seleccionar OVA</p>
+                       <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{t("selectOvaStep")}</p>
                       {uploadedOva ? (
                         <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
                           <div className="flex items-start justify-between">
@@ -2709,7 +2722,7 @@ export default function Home() {
                               <p className="text-[11px] font-bold text-emerald-800">{uploadedOva.name}</p>
                               <p className="mt-0.5 truncate text-[10px] text-emerald-600">{uploadedOva.ovf}</p>
                             </div>
-                            <button onClick={() => setUploadedOva(null)} className="ml-2 shrink-0 text-[10px] text-emerald-700 underline">Cambiar</button>
+                             <button onClick={() => setUploadedOva(null)} className="ml-2 shrink-0 text-[10px] text-emerald-700 underline">{t("change")}</button>
                           </div>
                         </div>
                       ) : ovaLibrary.length > 0 ? (
@@ -2722,24 +2735,24 @@ export default function Home() {
                             }}
                             className={inputCls}
                           >
-                            <option value="">Catálogo ({ovaLibrary.length} OVAs)…</option>
+                             <option value="">{t("catalogCount", { count: ovaLibrary.length })}</option>
                             {ovaLibrary.map((o) => (
                               <option key={o.id} value={o.id}>{o.name} — {Math.round(o.size / 1024 / 1024)} MB</option>
                             ))}
                           </select>
                           {ovaUploadProgress !== null && (
                             <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] text-blue-700">
-                              <div className="mb-1 flex justify-between"><span>Subiendo…</span><span>{ovaUploadProgress}%</span></div>
+                               <div className="mb-1 flex justify-between"><span>{t("uploading")}</span><span>{ovaUploadProgress}%</span></div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
                           <div className="flex items-center gap-2 py-0.5">
                             <div className="h-px flex-1 bg-gray-200" />
-                            <span className="text-[9px] text-gray-400">subir nuevo</span>
+                             <span className="text-[9px] text-gray-400">{t("uploadNew")}</span>
                             <div className="h-px flex-1 bg-gray-200" />
                           </div>
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
-                            {uploadingOva ? "Subiendo…" : "Seleccionar archivo .ova"}
+                             {uploadingOva ? t("uploading") : t("selectOvaFile")}
                             <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
                         </div>
@@ -2747,12 +2760,12 @@ export default function Home() {
                         <div className="space-y-2">
                           {ovaUploadProgress !== null && (
                             <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] text-blue-700">
-                              <div className="mb-1 flex justify-between"><span>Subiendo…</span><span>{ovaUploadProgress}%</span></div>
+                               <div className="mb-1 flex justify-between"><span>{t("uploading")}</span><span>{ovaUploadProgress}%</span></div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-3 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
-                            {uploadingOva ? "Subiendo…" : "Seleccionar archivo .ova"}
+                             {uploadingOva ? t("uploading") : t("selectOvaFile")}
                             <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
                         </div>
@@ -2761,13 +2774,13 @@ export default function Home() {
                   )}
 
                   <div>
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{newVmSource === "ova" ? "3. Configuración" : "2. Configuración"}</p>
+                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{newVmSource === "ova" ? t("configurationStep3") : t("configurationStep2")}</p>
                     <div className="space-y-2.5">
-                      <Field label="Nombre *">
+                       <Field label={t("nameRequired")}>
                         <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
                           className={inputCls} placeholder="vm-app-01" />
                       </Field>
-                      {newVmSource !== "ova" && <Field label="OS a instalar">
+                       {newVmSource !== "ova" && <Field label={t("osToInstall")}>
                         <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
                           className={inputCls}>
                           <option value="linux">Linux (virtio)</option>
@@ -2777,7 +2790,7 @@ export default function Home() {
                       <Field label="Cluster *">
                         <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
                           className={inputCls}>
-                          <option value="">Selecciona un cluster…</option>
+                           <option value="">{t("selectCluster")}</option>
                           {provClusters.map((c) => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                           ))}
@@ -2786,7 +2799,7 @@ export default function Home() {
                       {newVmSource === "template" && <Field label="Template">
                         <select value={newVm.templateId} onChange={(e) => setNewVm((v) => ({ ...v, templateId: e.target.value }))}
                           className={inputCls}>
-                          <option value="">Sin template (blank)</option>
+                           <option value="">{t("noTemplate")}</option>
                           {provTemplates.map((t) => (
                             <option key={t.id} value={t.id}>{t.name}</option>
                           ))}
@@ -2794,24 +2807,24 @@ export default function Home() {
                       </Field>}
                       {newVmSource === "ova" && <Field label="Storage domain *">
                         <select value={ovaStorageDomainId} onChange={(e) => setOvaStorageDomainId(e.target.value)} className={inputCls}>
-                          <option value="">Selecciona…</option>
+                           <option value="">{t("select")}</option>
                           {storageDomains.filter((sd) => sd.type === "data").map((sd) => (
                             <option key={sd.id} value={sd.id}>{sd.name}{sd.status ? ` (${sd.status})` : ""}</option>
                           ))}
                         </select>
                       </Field>}
-                      {newVmSource === "ova" && <Field label="Host de importación *">
+                       {newVmSource === "ova" && <Field label={t("importHost")}>
                         <select value={ovaHostId} onChange={(e) => setOvaHostId(e.target.value)} className={inputCls}>
-                          <option value="">Selecciona…</option>
+                           <option value="">{t("select")}</option>
                           {provHosts.map((h) => (
                             <option key={h.id} value={h.id}>{h.name}{h.address ? ` (${h.address})` : ""}</option>
                           ))}
                         </select>
                       </Field>}
-                      {newVmSource !== "ova" && <Field label="Red *">
+                       {newVmSource !== "ova" && <Field label={t("networkRequired")}>
                         <select value={newVm.vnicProfileId} onChange={(e) => setNewVm((v) => ({ ...v, vnicProfileId: e.target.value }))}
                           className={inputCls}>
-                          <option value="">Selecciona red…</option>
+                           <option value="">{t("selectNetwork")}</option>
                           {provVnicProfiles.map((p) => (
                             <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
                           ))}
@@ -2820,7 +2833,7 @@ export default function Home() {
                       {newVmSource !== "ova" && newVm.vnicProfileId && (
                         <label className="flex items-center gap-2 text-[10px] text-gray-500">
                           <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
-                          Configurar IP automática (cloud-init)
+                           {t("configureAutomaticIp")}
                         </label>
                       )}
                       {newVmSource !== "ova" && useCloudInit && (
@@ -2830,7 +2843,7 @@ export default function Home() {
                               onChange={(e) => setCloudInit((v) => ({ ...v, ip: e.target.value }))}
                               className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.prefix ? `${netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""].prefix}.100` : "192.168.1.100"} />
                           </Field>
-                          <Field label="Máscara">
+                           <Field label={t("netmask")}>
                             <input value={cloudInit.netmask}
                               onChange={(e) => setCloudInit((v) => ({ ...v, netmask: e.target.value }))}
                               className={inputCls} placeholder={netConfig[provVnicProfiles.find(p => p.id === newVm.vnicProfileId)?.networkName ?? ""]?.mask ?? "255.255.255.0"} />
@@ -2860,15 +2873,15 @@ export default function Home() {
                               className={inputCls} placeholder="2" />
                           </Field>
                         </div>
-                        <Field label="Sockets">
+                        <Field label={t("sockets")}>
                           <input type="number" min={1} value={newVm.sockets}
                             onChange={(e) => setNewVm((v) => ({ ...v, sockets: e.target.value }))}
                             className={inputCls} placeholder="1" />
                         </Field>
-                        <Field label="Comentario">
+                         <Field label={t("comment")}>
                           <textarea value={newVm.comment}
                             onChange={(e) => setNewVm((v) => ({ ...v, comment: e.target.value }))}
-                            className={`${inputCls} resize-none`} placeholder="Propósito, ticket..." rows={2} />
+                             className={`${inputCls} resize-none`} placeholder={t("commentPlaceholder")} rows={2} />
                         </Field>
                       </>}
                     </div>
@@ -2877,7 +2890,7 @@ export default function Home() {
                   {ovaImportProgress !== null && (
                     <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] text-blue-700">
                       <div className="mb-1.5 flex justify-between font-medium">
-                        <span>{ovaImportProgress < 40 ? "Copiando OVA al host…" : ovaImportProgress < 75 ? "Importando en OLVM…" : "Esperando conversión…"}</span>
+                         <span>{ovaImportProgress < 40 ? t("copyingOva") : ovaImportProgress < 75 ? t("importingOlvm") : t("waitingConversion")}</span>
                         <span>{Math.round(ovaImportProgress)}%</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-blue-100">
@@ -2890,7 +2903,7 @@ export default function Home() {
                     disabled={actionLoading === "create"}
                     className="w-full rounded-md bg-blue-600 py-2 text-[12px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                   >
-                    {actionLoading === "create" ? (newVmSource === "ova" ? "Importando OVA..." : "Creando...") : "Crear VM"}
+                     {actionLoading === "create" ? (newVmSource === "ova" ? t("importingOva") : t("creating")) : t("createVm")}
                   </button>
                 </div>
                 )
@@ -2899,7 +2912,7 @@ export default function Home() {
               {/* ── Console tab ── */}
               {detailTab === "console" && (
                 <div className="space-y-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Consola</p>
+                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("console")}</p>
                   {selectedVm ? (
                     <>
                       <div className="rounded-md border overflow-hidden" style={{ borderColor: "var(--border)" }}>
@@ -2907,13 +2920,13 @@ export default function Home() {
                           {consolePreviewLoading ? (
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50">
                               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
-                              <p className="mt-1.5 text-[10px]">Generando preview...</p>
+                               <p className="mt-1.5 text-[10px]">{t("generatingPreview")}</p>
                             </div>
                           ) : selectedVm.status === "up" && consolePreviewIframe ? (
                             <iframe
                               src={consolePreviewIframe}
                               className="h-full w-full border-0 opacity-90"
-                              title={`Preview ${selectedVm.id}`}
+                              title={`${t("consolePreview")} ${selectedVm.id}`}
                               style={{ pointerEvents: "none" }}
                             />
                           ) : (
@@ -2923,7 +2936,7 @@ export default function Home() {
                                 <path d="M8 21h8M12 17v4"/>
                               </svg>
                               <p className="mt-1.5 text-xs">
-                                {selectedVm.status === "up" ? "Preview no disponible" : "VM apagada"}
+                                 {selectedVm.status === "up" ? t("previewUnavailable") : t("vmOff")}
                               </p>
                             </div>
                           )}
@@ -2939,7 +2952,7 @@ export default function Home() {
                           <div>
                             <p className="text-xs font-medium text-gray-900">{selectedVm.name}</p>
                             <p className="text-[10px] text-gray-500">
-                              {selectedVm.status === "up" ? "En ejecución" : selectedVm.status}
+                               {selectedVm.status === "up" ? t("running") : selectedVm.status}
                             </p>
                           </div>
                           <StatusBadge status={selectedVm.status} />
@@ -2950,7 +2963,7 @@ export default function Home() {
                           onClick={() => generateConsolePreview(selectedVm.id)}
                           className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
                         >
-                          Generar Preview
+                           {t("generatePreview")}
                         </button>
                       )}
                       {selectedVm.status === "up" ? (
@@ -2960,17 +2973,17 @@ export default function Home() {
                           className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
                         >
                           {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"
-                            ? "Conectando..."
-                            : "Abrir Consola Completa"}
+                             ? t("connecting")
+                             : t("openFullConsole")}
                         </button>
                       ) : (
                         <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[10px] text-amber-700">
-                          Inicia la VM para acceder a la consola.
+                           {t("startForConsole")}
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="text-xs text-gray-400">Selecciona una VM para ver la consola.</p>
+                     <p className="text-xs text-gray-400">{t("selectVmConsole")}</p>
                   )}
                 </div>
               )}
@@ -2984,11 +2997,11 @@ export default function Home() {
       {canAdmin && cloneWizard.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border bg-white p-5 shadow-xl" style={{ borderColor: "var(--border)" }}>
-            <h2 className="text-sm font-bold text-gray-900">Clonar VM</h2>
+             <h2 className="text-sm font-bold text-gray-900">{t("cloneVm")}</h2>
             <p className="mt-0.5 text-[11px] text-gray-500">
-              Origen: <strong>{cloneWizard.sourceVmName}</strong>. El clon quedará apagado con red desconectada.
+               {t("cloneSourceDescription", { name: cloneWizard.sourceVmName })}
             </p>
-            <Field label="Nuevo nombre">
+             <Field label={t("newName")}>
               <input
                 value={cloneWizard.newName}
                 onChange={(e) => setCloneWizard((p) => ({ ...p, newName: e.target.value, error: null }))}
@@ -3004,12 +3017,12 @@ export default function Home() {
                 onClick={closeCloneWizard}
                 disabled={cloneWizard.submitting}
                 className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >Cancelar</button>
+               >{t("cancel")}</button>
               <button
                 onClick={submitCloneWizard}
                 disabled={cloneWizard.submitting}
                 className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-              >{cloneWizard.submitting ? "Clonando..." : "Clonar"}</button>
+               >{cloneWizard.submitting ? t("cloning") : t("clone")}</button>
             </div>
           </div>
         </div>
@@ -3021,29 +3034,29 @@ export default function Home() {
             <div className="flex flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", width: "min(88vw, calc((78vh - 54px) * 16 / 9))", maxHeight: "78vh" }}>
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
-                <p className="text-[11px] text-gray-500">Consola embebida</p>
+                 <p className="text-[11px] text-gray-500">{t("embeddedConsole")}</p>
                 <p className="text-sm font-semibold text-gray-900">{selectedVm?.name ?? embeddedConsole.vmId}</p>
               </div>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
                   <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)} className="h-3 w-3" />
-                  Proxy WS local
+                   {t("localWsProxy")}
                 </label>
                 <button
                   onClick={closeEmbeddedConsole}
                   className="rounded-md border border-gray-200 px-2.5 py-1 text-[11px] font-medium hover:bg-gray-50"
-                >Cerrar</button>
+                 >{t("close")}</button>
               </div>
             </div>
             <div className="relative overflow-hidden rounded-b-xl bg-black" style={{ aspectRatio: "16 / 9" }}>
               {embeddedConsole.iframeUrl && (
-                <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`Consola ${embeddedConsole.vmId}`} />
+                <iframe src={embeddedConsole.iframeUrl} className="h-full w-full border-0" title={`${t("console")} ${embeddedConsole.vmId}`} />
               )}
               {embeddedConsole.status === "connecting" && !embeddedConsole.iframeUrl && (
-                <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">Conectando...</div>
+                 <div className="absolute inset-0 flex items-center justify-center text-sm text-white/60">{t("connecting")}</div>
               )}
               {embeddedConsole.status === "error" && (
-                <div className="absolute inset-0 flex items-center justify-center text-sm text-red-300">{embeddedConsole.error ?? "Error de consola"}</div>
+                 <div className="absolute inset-0 flex items-center justify-center text-sm text-red-300">{embeddedConsole.error ?? t("consoleError")}</div>
               )}
             </div>
           </div>
