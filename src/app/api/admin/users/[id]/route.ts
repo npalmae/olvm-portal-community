@@ -78,7 +78,13 @@ export async function PATCH(request: Request, context: Params) {
       updates.globalRole = body.globalRole === "superadmin" ? "superadmin" : null;
     }
     if (Array.isArray(body.memberships)) {
-      updates.memberships = body.memberships as TenantMembership[];
+      const memberships = body.memberships as Array<Record<string, unknown>>;
+      if (memberships.some((membership) =>
+        typeof membership.tenantId !== "string" ||
+        !["operator", "user", "admin"].includes(String(membership.role)))) {
+        return NextResponse.json({ error: "Membresía inválida" }, { status: 400 });
+      }
+      updates.memberships = memberships as TenantMembership[];
     }
     if (typeof body.defaultTenantId === "string") {
       updates.defaultTenantId = body.defaultTenantId;
@@ -88,7 +94,10 @@ export async function PATCH(request: Request, context: Params) {
     }
   } else if (body.membershipRole !== undefined) {
     // Tenant admin: solo ajusta el rol dentro de su tenant
-    const role = body.membershipRole === "admin" ? "admin" : "user";
+    if (!["operator", "user", "admin"].includes(String(body.membershipRole))) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    }
+    const role = body.membershipRole as TenantMembership["role"];
     updates.memberships = target.memberships.map((membership) =>
       membership.tenantId === adminTenantId
         ? { tenantId: membership.tenantId, role }

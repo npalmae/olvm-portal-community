@@ -9,6 +9,7 @@ import { SixmanagerMark } from "@/components/SixmanagerMark";
 /* ── Types ────────────────────────────────────────────────────────────── */
 
 type Tenant = { id: string; name: string; baseUrl: string; brandName?: string; brandLogoUrl?: string };
+type MembershipRole = "operator" | "user" | "admin";
 
 type Vm = {
   id: string;
@@ -210,47 +211,6 @@ export default function Home() {
     session?.user?.role === "superadmin";
   const showExperimentalConsole = true;
 
-  // Detección de inactividad: logout automático tras 30 min sin actividad
-  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutos
-  const WARNING_AT = 12 * 60 * 1000; // avisar a los 12 min
-  const lastActivityRef = useRef(Date.now());
-  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
-
-  useEffect(() => {
-    const resetActivity = () => {
-      lastActivityRef.current = Date.now();
-      setShowInactivityWarning(false);
-    };
-    const events = ["mousedown", "keydown", "mousemove", "click", "scroll", "touchstart"];
-    events.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }));
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - lastActivityRef.current;
-      if (elapsed >= INACTIVITY_LIMIT) {
-        signOut({ redirect: false }).finally(() => {
-          window.location.href = "/login?reason=inactivity";
-        });
-      } else if (elapsed >= WARNING_AT) {
-        setShowInactivityWarning(true);
-      }
-    }, 10000);
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, resetActivity));
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Verificar si la sesión expiró
-  useEffect(() => {
-    if (session?.expires) {
-      const expiresAt = new Date(session.expires).getTime();
-      if (Date.now() >= expiresAt) {
-        signOut({ redirect: false }).finally(() => {
-          window.location.href = "/login?reason=expired";
-        });
-      }
-    }
-  }, [session?.expires]);
-
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [vms, setVms] = useState<Vm[]>([]);
@@ -333,6 +293,28 @@ export default function Home() {
     Object.assign(div.style, { width: "100%", height: "100%", position: "relative", overflow: "hidden" });
     return div;
   }, []);
+
+  const capabilityTenantId = selectedTenant === ALL_TENANTS
+    ? vms.find((vm) => vm.id === selectedVmId)?.tenantId ?? ""
+    : selectedTenant;
+  const activeTenantRole = session?.user?.memberships?.find(
+    (membership) => membership.tenantId === capabilityTenantId,
+  )?.role as MembershipRole | undefined;
+  const activeRoleRank = activeTenantRole === "admin" ? 2 : activeTenantRole === "user" ? 1 : 0;
+  const canRead = isSuperadmin || Boolean(activeTenantRole);
+  const canOperate = isSuperadmin || activeRoleRank >= 1;
+  const canAdmin = isSuperadmin || activeRoleRank >= 2;
+
+  useEffect(() => {
+    const authorized = detailTab === "overview"
+      || ((detailTab === "actions" || detailTab === "console") && canOperate)
+      || ((detailTab === "resources" || detailTab === "provisioning") && canRead);
+    if (!authorized) setDetailTab("overview");
+    if (!canOperate) {
+      setConsolePreviewIframe(null);
+      setConsolePreviewLoading(false);
+    }
+  }, [canOperate, canRead, detailTab, capabilityTenantId]);
 
   /* ── Stop power transition polling when VM stabilizes ── */
   useEffect(() => {
@@ -1189,13 +1171,13 @@ export default function Home() {
   const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
   useEffect(() => {
-    if (selectedVm?.status === "up" && selectedVm.id) {
+    if (canOperate && selectedVm?.status === "up" && selectedVm.id) {
       generateConsolePreview(selectedVm.id);
     } else {
       setConsolePreviewIframe(null);
       setConsolePreviewLoading(false);
     }
-  }, [selectedVm?.id, selectedVm?.status]);
+  }, [canOperate, selectedVm?.id, selectedVm?.status]);
 
   // Carga los discos de la VM seleccionada
   useEffect(() => {
@@ -1587,7 +1569,7 @@ export default function Home() {
           {/* Breadcrumb — truncates gracefully */}
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 overflow-hidden">
             <button
-              onClick={() => { setSelectedVmId(""); setSelectedTenant(ALL_TENANTS); }}
+              onClick={() => { setSelectedVmId(""); setSelectedTenant(isSuperadmin ? ALL_TENANTS : tenants[0]?.id ?? ""); }}
               className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 hover:text-blue-600"
               title="Inicio"
             >
@@ -1617,8 +1599,7 @@ export default function Home() {
                 <path d="M9 1v12"/>
               </svg>
             </button>
-            {(session?.user?.role === "admin" ||
-              session?.user?.role === "superadmin") && (
+            {canAdmin && (
               <Link
                 href="/admin/users"
                 className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
@@ -1653,13 +1634,6 @@ export default function Home() {
           <main className="flex-1 overflow-y-auto p-4">
 
             {/* Toasts */}
-            {/* Aviso de inactividad */}
-            {showInactivityWarning && (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                <span>Tu sesión expirará en 3 minutos por inactividad. Mueve el mouse para mantenerla activa.</span>
-                <button onClick={() => setShowInactivityWarning(false)} className="ml-3 text-amber-500 hover:text-amber-700">✕</button>
-              </div>
-            )}
             {uploadProgress !== null && (
               <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                 <div className="mb-1 flex items-center justify-between">
@@ -2034,7 +2008,7 @@ export default function Home() {
                   </dl>
                 </div>
                 {/* Consola */}
-                {selectedVm.status === "up" && (
+                {canOperate && selectedVm.status === "up" && (
                   <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Consola</p>
                     <div className="relative mb-2 overflow-hidden rounded-md border bg-black" style={{ aspectRatio: "16/9", borderColor: "var(--border)" }}>
@@ -2176,7 +2150,11 @@ export default function Home() {
             <div className="p-3">
               {/* Tabs */}
               <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
-                {(["overview","actions","resources","provisioning","console"] as const).map((tab) => (
+                {(["overview","actions","resources","provisioning","console"] as const)
+                  .filter((tab) => tab === "overview"
+                    || ((tab === "actions" || tab === "console") && canOperate)
+                    || ((tab === "resources" || tab === "provisioning") && canRead))
+                  .map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
@@ -2187,7 +2165,7 @@ export default function Home() {
                       boxShadow: detailTab === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
                     }}
                   >
-                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:"Nuevo",console:"Consola"}[tab]}
+                    {{overview:"Detalle",actions:"Acciones",resources:"Recursos",provisioning:canAdmin ? "Nuevo" : "Catálogo",console:"Consola"}[tab]}
                   </button>
                 ))}
               </div>
@@ -2325,11 +2303,13 @@ export default function Home() {
                       />
                     ))}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                    <ActionButton
-                      label="Clonar VM"
-                      onClick={() => openCloneWizard(selectedVm)}
-                      loading={actionLoading === `${selectedVm.id}-clone`}
-                    />
+                    {canAdmin && (
+                      <ActionButton
+                        label="Clonar VM"
+                        onClick={() => openCloneWizard(selectedVm)}
+                        loading={actionLoading === `${selectedVm.id}-clone`}
+                      />
+                    )}
                     <ActionButton
                       label="Consola VNC"
                       onClick={() => downloadConsole(selectedVm.id, "vnc")}
@@ -2515,58 +2495,93 @@ export default function Home() {
               {detailTab === "resources" && (
                 selectedVm ? (
                   <div className="space-y-2.5">
-                    <Field label="Memoria (MB)">
-                      <input
-                        type="number" min={512}
-                        value={resourceDrafts[selectedVm.id]?.memoryMB ?? ""}
-                        onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], memoryMB: e.target.value } }))}
-                        className={inputCls} placeholder={String(selectedVm.memoryMB ?? "")}
-                      />
-                    </Field>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label="vCPU">
-                        <input
-                          type="number" min={1}
-                          value={resourceDrafts[selectedVm.id]?.cpuCores ?? ""}
-                          onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], cpuCores: e.target.value } }))}
-                          className={inputCls} placeholder={String(selectedVm.cpuCores ?? "")}
-                        />
-                      </Field>
-                      <Field label="Sockets">
-                        <input
-                          type="number" min={1}
-                          value={resourceDrafts[selectedVm.id]?.sockets ?? ""}
-                          onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], sockets: e.target.value } }))}
-                          className={inputCls} placeholder={String(selectedVm.sockets ?? "")}
-                        />
-                      </Field>
-                    </div>
-                    {selectedVm.status?.toLowerCase?.() === "up" ? (
-                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                        La VM debe estar apagada para cambiar recursos (RAM/CPU).
-                        <button
-                          onClick={() => runAction(selectedVm.id, "shutdown")}
-                          disabled={actionLoading === `${selectedVm.id}-shutdown`}
-                          className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-                        >
-                          Apagar ahora
-                        </button>
-                      </div>
+                    {canAdmin ? (
+                      <>
+                        <Field label="Memoria (MB)">
+                          <input
+                            type="number" min={512}
+                            value={resourceDrafts[selectedVm.id]?.memoryMB ?? ""}
+                            onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], memoryMB: e.target.value } }))}
+                            className={inputCls} placeholder={String(selectedVm.memoryMB ?? "")}
+                          />
+                        </Field>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Field label="vCPU">
+                            <input
+                              type="number" min={1}
+                              value={resourceDrafts[selectedVm.id]?.cpuCores ?? ""}
+                              onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], cpuCores: e.target.value } }))}
+                              className={inputCls} placeholder={String(selectedVm.cpuCores ?? "")}
+                            />
+                          </Field>
+                          <Field label="Sockets">
+                            <input
+                              type="number" min={1}
+                              value={resourceDrafts[selectedVm.id]?.sockets ?? ""}
+                              onChange={(e) => setResourceDrafts((p) => ({ ...p, [selectedVm.id]: { ...p[selectedVm.id], sockets: e.target.value } }))}
+                              className={inputCls} placeholder={String(selectedVm.sockets ?? "")}
+                            />
+                          </Field>
+                        </div>
+                        {selectedVm.status?.toLowerCase?.() === "up" ? (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                            La VM debe estar apagada para cambiar recursos (RAM/CPU).
+                            <button
+                              onClick={() => runAction(selectedVm.id, "shutdown")}
+                              disabled={actionLoading === `${selectedVm.id}-shutdown`}
+                              className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              Apagar ahora
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => updateResources(selectedVm.id)}
+                            disabled={actionLoading === `${selectedVm.id}-update`}
+                            className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                          >
+                            {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
+                          </button>
+                        )}
+                      </>
                     ) : (
-                      <button
-                        onClick={() => updateResources(selectedVm.id)}
-                        disabled={actionLoading === `${selectedVm.id}-update`}
-                        className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                      >
-                        {actionLoading === `${selectedVm.id}-update` ? "Actualizando..." : "Actualizar recursos"}
-                      </button>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
+                          <p className="text-sm font-bold text-gray-800">{selectedVm.memoryMB ?? "—"}</p>
+                          <p className="text-[9px] text-gray-400">RAM MB</p>
+                        </div>
+                        <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
+                          <p className="text-sm font-bold text-gray-800">{selectedVm.cpuCores ?? "—"}</p>
+                          <p className="text-[9px] text-gray-400">vCPU</p>
+                        </div>
+                        <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
+                          <p className="text-sm font-bold text-gray-800">{selectedVm.sockets ?? "—"}</p>
+                          <p className="text-[9px] text-gray-400">Sockets</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {vmDiskList.length > 0 && (
+                      <>
+                        <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
+                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Discos</p>
+                        <div className="space-y-1">
+                          {vmDiskList.map((disk) => (
+                            <div key={disk.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
+                              <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{disk.name}</span>
+                              <span className="text-[10px] text-gray-500">{disk.sizeGB.toFixed(0)} GB</span>
+                              <span className="rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{disk.interface || "?"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
 
                     {/* Redes */}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                     <div className="flex items-center justify-between">
                       <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Redes</p>
-                      {vmNics.some(n => !n.plugged) && (
+                      {canAdmin && vmNics.some(n => !n.plugged) && (
                         <button
                           onClick={() => vmNics.filter(n => !n.plugged).forEach(n => handleToggleNic(selectedVm.id, n.id, true))}
                           disabled={actionLoading === `${selectedVm.id}-nic`}
@@ -2589,20 +2604,24 @@ export default function Home() {
                               {n.ipv4 && (
                                 <span className="shrink-0 rounded bg-blue-50 px-1 text-[9px] font-medium text-blue-600">{n.ipv4}</span>
                               )}
-                              <button
-                                onClick={() => handleToggleNic(selectedVm.id, n.id, !isOn)}
-                                disabled={actionLoading === `${selectedVm.id}-nic`}
-                                className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${isOn ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}
-                              >
-                                {isOn ? "Off" : "On"}
-                              </button>
-                              <button
-                                onClick={() => { if (window.confirm(`¿Eliminar la NIC "${n.name}"?`)) handleDeleteNic(selectedVm.id, n.id); }}
-                                disabled={actionLoading === `${selectedVm.id}-nic`}
-                                className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
-                              >
-                                Del
-                              </button>
+                              {canAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => handleToggleNic(selectedVm.id, n.id, !isOn)}
+                                    disabled={actionLoading === `${selectedVm.id}-nic`}
+                                    className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${isOn ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}
+                                  >
+                                    {isOn ? "Off" : "On"}
+                                  </button>
+                                  <button
+                                    onClick={() => { if (window.confirm(`¿Eliminar la NIC "${n.name}"?`)) handleDeleteNic(selectedVm.id, n.id); }}
+                                    disabled={actionLoading === `${selectedVm.id}-nic`}
+                                    className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                  >
+                                    Del
+                                  </button>
+                                </>
+                              )}
                             </div>
                             <div className="mt-0.5 flex gap-2 pl-3.5 text-[9px] text-gray-400">
                               <span>{n.mac?.slice(0, 17)}</span>
@@ -2614,7 +2633,7 @@ export default function Home() {
                         })}
                       </div>
                     )}
-                    <div className="flex gap-1.5">
+                    {canAdmin && <div className="flex gap-1.5">
                       <select
                         value=""
                         onChange={(e) => e.target.value && handleAddNic(selectedVm.id, e.target.value)}
@@ -2627,7 +2646,7 @@ export default function Home() {
                           <option key={p.id} value={p.id}>{p.networkName} ({p.name}){netConfig[p.networkName]?.prefix ? ` — ${netConfig[p.networkName].prefix}.x / ${netConfig[p.networkName].mask}` : ""}</option>
                         ))}
                       </select>
-                    </div>
+                    </div>}
                   </div>
                 ) : (
                   <p className="text-[11px] text-gray-400">Selecciona una VM para editar recursos.</p>
@@ -2636,6 +2655,38 @@ export default function Home() {
 
               {/* ── Provisioning tab ── */}
               {detailTab === "provisioning" && (
+                !canAdmin ? (
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Storage domains</p>
+                    {storageDomains.length > 0 ? storageDomains.map((domain) => (
+                      <div key={domain.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
+                        <div className="flex justify-between gap-2 text-[11px]">
+                          <span className="truncate font-medium text-gray-700">{domain.name}</span>
+                          <span className="text-gray-400">{domain.status ?? domain.type}</span>
+                        </div>
+                        <p className="mt-1 text-[10px] text-gray-500">{domain.usedGB.toFixed(1)} / {domain.totalGB.toFixed(1)} GB usados</p>
+                      </div>
+                    )) : <p className="text-[11px] text-gray-400">Sin storage domains visibles.</p>}
+
+                    <div className="border-t" style={{ borderColor: "var(--border)" }} />
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">ISOs</p>
+                    {isoList.length > 0 ? isoList.map((iso) => (
+                      <div key={iso.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="truncate text-[11px] font-medium text-gray-700">{iso.name}</p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">{iso.storageDomainName || "Storage sin nombre"} · {iso.sizeGB.toFixed(1)} GB</p>
+                      </div>
+                    )) : <p className="text-[11px] text-gray-400">Sin ISOs disponibles.</p>}
+
+                    <div className="border-t" style={{ borderColor: "var(--border)" }} />
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Catálogo OVA</p>
+                    {ovaLibrary.length > 0 ? ovaLibrary.map((ova) => (
+                      <div key={ova.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="truncate text-[11px] font-medium text-gray-700">{ova.name}</p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">{ova.storageDomainName || "Storage sin nombre"} · {Math.round(ova.size / 1024 / 1024)} MB</p>
+                      </div>
+                    )) : <p className="text-[11px] text-gray-400">Sin OVAs disponibles.</p>}
+                  </div>
+                ) : (
                 <div className="space-y-4">
                   <div>
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">1. Origen</p>
@@ -2842,6 +2893,7 @@ export default function Home() {
                     {actionLoading === "create" ? (newVmSource === "ova" ? "Importando OVA..." : "Creando...") : "Crear VM"}
                   </button>
                 </div>
+                )
               )}
 
               {/* ── Console tab ── */}
@@ -2929,7 +2981,7 @@ export default function Home() {
       </div>
 
       {/* ── Clone wizard modal ─────────────────────────────────────────── */}
-      {cloneWizard.open && (
+      {canAdmin && cloneWizard.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border bg-white p-5 shadow-xl" style={{ borderColor: "var(--border)" }}>
             <h2 className="text-sm font-bold text-gray-900">Clonar VM</h2>
@@ -2964,7 +3016,7 @@ export default function Home() {
       )}
 
       {/* ── Embedded console modal ─────────────────────────────────────── */}
-      {showExperimentalConsole && embeddedConsole.status !== "idle" && (
+      {canOperate && showExperimentalConsole && embeddedConsole.status !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="flex flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", width: "min(88vw, calc((78vh - 54px) * 16 / 9))", maxHeight: "78vh" }}>
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>

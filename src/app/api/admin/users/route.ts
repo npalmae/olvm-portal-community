@@ -57,6 +57,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, password, name, tenantId, role } = body;
+    if (role !== undefined && !["operator", "user", "admin", "superadmin"].includes(role)) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    }
     
     if (!email || !password || !name || !(tenantId || adminTenantId)) {
       return NextResponse.json(
@@ -95,7 +98,7 @@ export async function POST(request: Request) {
       password,
       name,
       tenantId: targetTenantId,
-      role: (isSuperadmin ? role : "user") as UserRole,
+      role: (isSuperadmin ? role : role === "operator" ? "operator" : "user") as UserRole,
       twoFactorEnabled:
         isSuperadmin && body.twoFactorEnabled === false ? false : true,
     });

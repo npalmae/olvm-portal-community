@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
     if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
     const nics = await fetchVmNics(tenantId, vmId);
     return NextResponse.json(nics);

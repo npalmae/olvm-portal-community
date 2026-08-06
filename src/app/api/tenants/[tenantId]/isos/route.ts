@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
     const isos = await fetchIsos(tenantId);
     return NextResponse.json(isos);
   } catch (error) {

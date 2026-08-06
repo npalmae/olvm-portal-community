@@ -23,7 +23,7 @@ export async function GET(request: Request, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "user");
     if (!isPlatformSuperadmin(session.user)) {
       await enforceVmTagPolicy(tenantId, vmId);
     }

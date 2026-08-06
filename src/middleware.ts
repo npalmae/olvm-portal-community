@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { baseAuth as auth } from "@/auth-base";
-import { getAccessibleTenantIds, isPlatformSuperadmin } from "@/lib/authz";
+import { getAccessibleTenantIds, hasTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -19,6 +19,13 @@ export default auth((req) => {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname === "/console") {
+    const tenantId = req.nextUrl.searchParams.get("tenantId") ?? "";
+    if (!tenantId || !hasTenantAccess(user, tenantId, "user")) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
   }
 
   // Restringe aislamiento de tenant para usuarios no superadmin
@@ -47,5 +54,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/", "/api/:path*"],
+  matcher: ["/", "/console/:path*", "/api/:path*"],
 };

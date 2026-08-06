@@ -8,7 +8,7 @@ declare module "next-auth" {
       id: string;
       tenantId: string;
       defaultTenantId: string;
-      role: "user" | "admin" | "superadmin";
+      role: "operator" | "user" | "admin" | "superadmin";
       globalRole: "superadmin" | null;
       memberships: TenantMembership[];
     };
@@ -18,7 +18,7 @@ declare module "next-auth" {
     id: string;
     tenantId: string;
     defaultTenantId: string;
-    role: "user" | "admin" | "superadmin";
+    role: "operator" | "user" | "admin" | "superadmin";
     globalRole: "superadmin" | null;
     memberships: TenantMembership[];
   }
@@ -29,7 +29,7 @@ declare module "next-auth/jwt" {
     id: string;
     tenantId: string;
     defaultTenantId: string;
-    role: "user" | "admin" | "superadmin";
+    role: "operator" | "user" | "admin" | "superadmin";
     globalRole: "superadmin" | null;
     memberships: TenantMembership[];
   }

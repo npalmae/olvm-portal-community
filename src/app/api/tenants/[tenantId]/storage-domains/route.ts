@@ -16,7 +16,7 @@ export async function GET(request: Request, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
 
     const { searchParams } = new URL(request.url);
     const showAll = searchParams.get("all") === "1";

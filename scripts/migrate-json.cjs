@@ -70,7 +70,7 @@ async function migrate() {
   }
 
   for (const u of readJson("users.json", [])) {
-    const memberships = u.memberships || (u.tenantId && u.tenantId !== "default" ? [{ tenantId: u.tenantId, role: u.role === "admin" ? "admin" : "user" }] : []);
+    const memberships = u.memberships || (u.tenantId && u.tenantId !== "default" ? [{ tenantId: u.tenantId, role: u.role === "operator" ? "operator" : u.role === "admin" ? "admin" : "user" }] : []);
     const validMemberships = [];
     for (const membership of memberships) {
       if (await prisma.tenant.findUnique({ where: { id: membership.tenantId } })) validMemberships.push(membership);
@@ -88,7 +88,7 @@ async function migrate() {
       ...(tenantIds.length ? { tenantId: { notIn: tenantIds } } : {}),
     } });
     for (const membership of validMemberships) {
-      const role = membership.role === "admin" ? "admin" : "user";
+      const role = membership.role === "operator" ? "operator" : membership.role === "admin" ? "admin" : "user";
       await prisma.membership.upsert({
         where: { userId_tenantId: { userId: u.id, tenantId: membership.tenantId } },
         create: { userId: u.id, tenantId: membership.tenantId, role },

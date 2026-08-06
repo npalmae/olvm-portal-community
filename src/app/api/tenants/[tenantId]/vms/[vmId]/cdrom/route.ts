@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
     if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
     const isoId = await fetchCurrentIso(tenantId, vmId);
     return NextResponse.json({ isoId });
@@ -28,7 +28,7 @@ export async function PUT(req: NextRequest, context: Params) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "user");
     if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
 
     const body = await req.json().catch(() => ({}));

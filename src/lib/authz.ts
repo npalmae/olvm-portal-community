@@ -2,6 +2,7 @@ import type { Session } from "next-auth";
 import type { MembershipRole, TenantMembership } from "@/lib/userStore";
 
 const roleRank: Record<MembershipRole, number> = {
+  operator: 0,
   user: 1,
   admin: 2,
 };

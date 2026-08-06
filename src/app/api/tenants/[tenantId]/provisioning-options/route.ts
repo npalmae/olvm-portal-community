@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ tenantId: 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
 
     const [clusters, templates, networks, vnicProfiles, hosts] = await Promise.all([
       fetchClusters(tenantId).catch(() => []),

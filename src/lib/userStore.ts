@@ -2,9 +2,12 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "./prisma";
 
-export type UserRole = "user" | "admin" | "superadmin";
+export type UserRole = "operator" | "user" | "admin" | "superadmin";
 export type MembershipRole = Exclude<UserRole, "superadmin">;
 export type TenantMembership = { tenantId: string; role: MembershipRole };
+
+export const normalizeMembershipRole = (role: unknown): MembershipRole =>
+  role === "operator" || role === "admin" ? role : "user";
 
 export type StoredUser = {
   id: string; email: string; password: string; name: string; tenantId?: string;
@@ -35,7 +38,7 @@ const findUserByEmail = (email: string) => prisma.user.findUnique({
 
 const toPublicUser = (user: NonNullable<UserWithMemberships>): PublicUser => {
   const memberships = user.memberships.map((m) => ({
-    tenantId: m.tenantId, role: m.role === "admin" ? "admin" as const : "user" as const,
+    tenantId: m.tenantId, role: normalizeMembershipRole(m.role),
   }));
   const defaultTenantId = user.defaultTenantId ?? memberships[0]?.tenantId ?? "";
   const membership = memberships.find((m) => m.tenantId === defaultTenantId) ?? memberships[0];
@@ -55,14 +58,14 @@ export const getUserByEmail = async (email: string): Promise<PublicUser | null> 
 export const createUser = async (input: NewUserInput): Promise<PublicUser> => {
   const email = input.email.trim().toLowerCase();
   if (await findUserByEmail(email)) throw new Error("El usuario ya existe");
-  const role: UserRole = input.role === "admin" || input.role === "superadmin" ? input.role : "user";
+  const role: UserRole = input.role === "superadmin" ? "superadmin" : normalizeMembershipRole(input.role);
   const tenantId = input.tenantId.trim();
   const user = await prisma.user.create({
     data: {
       id: crypto.randomUUID(), email, password: await bcrypt.hash(input.password, 10), name: input.name.trim(),
       defaultTenantId: tenantId || null, globalRole: role === "superadmin" ? "superadmin" : null,
       twoFactorEnabled: input.twoFactorEnabled !== false,
-      memberships: tenantId ? { create: [{ tenantId, role: role === "admin" ? "admin" : "user" }] } : undefined,
+      memberships: tenantId ? { create: [{ tenantId, role: normalizeMembershipRole(role) }] } : undefined,
     },
     include: { memberships: true },
   });
@@ -100,7 +103,7 @@ export const updateUser = async (id: string, updates: UserUpdateInput): Promise<
     if (updates.memberships !== undefined) {
       await tx.membership.deleteMany({ where: { userId: id } });
       const unique = [...new Map(updates.memberships.filter((m) => m.tenantId.trim()).map((m) => [m.tenantId.trim(), m])).values()];
-      if (unique.length) await tx.membership.createMany({ data: unique.map((m) => ({ userId: id, tenantId: m.tenantId.trim(), role: m.role === "admin" ? "admin" : "user" })) });
+      if (unique.length) await tx.membership.createMany({ data: unique.map((m) => ({ userId: id, tenantId: m.tenantId.trim(), role: normalizeMembershipRole(m.role) })) });
     }
     return tx.user.update({
       where: { id },

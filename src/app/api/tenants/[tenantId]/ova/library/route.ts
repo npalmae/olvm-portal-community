@@ -10,7 +10,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ tenantId: string 
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
     const ovas = await fetchOvaDisks(tenantId);
     return NextResponse.json(ovas);
   } catch (error) {

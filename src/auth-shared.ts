@@ -7,7 +7,7 @@ import type { UserRole } from "@/lib/userStore";
 // Mantener aquí los callbacks jwt/session evita que las dos configuraciones
 // deriven y produzcan tokens distintos según qué runtime valida la sesión.
 export const sharedAuthConfig = {
-  session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8 horas máximo
+  session: { strategy: "jwt", maxAge: 30 * 60 },
   pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user }) {

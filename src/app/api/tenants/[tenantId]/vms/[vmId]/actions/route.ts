@@ -22,7 +22,7 @@ export async function POST(request: Request, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "user");
     if (!isPlatformSuperadmin(session.user)) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
@@ -37,6 +37,7 @@ export async function POST(request: Request, context: Params) {
     }
 
     if (action === "clone") {
+      assertTenantAccess(session.user, tenantId, "admin");
       const cloneName =
         typeof body?.cloneName === "string" ? body.cloneName.trim() : "";
       if (!cloneName) {

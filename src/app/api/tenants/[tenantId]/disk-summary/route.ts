@@ -16,7 +16,7 @@ export async function GET(_: Request, context: Params) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    assertTenantAccess(session.user, tenantId);
+    assertTenantAccess(session.user, tenantId, "operator");
 
     const summary = await fetchTenantDiskSummary(tenantId);
     return NextResponse.json(summary);

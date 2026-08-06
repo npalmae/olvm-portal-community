@@ -84,13 +84,13 @@ export const migrateJsonToPostgres = async (): Promise<number> => {
     const memberships = Array.isArray(user.memberships)
       ? user.memberships as JsonRecord[]
       : user.tenantId && user.tenantId !== "default"
-        ? [{ tenantId: user.tenantId, role: user.role === "admin" ? "admin" : "user" }]
+        ? [{ tenantId: user.tenantId, role: user.role === "operator" ? "operator" : user.role === "admin" ? "admin" : "user" }]
         : [];
     const validMemberships: Array<{ tenantId: string; role: string }> = [];
     for (const membership of memberships) {
       const tenantId = String(membership.tenantId);
       if (await prisma.tenant.findUnique({ where: { id: tenantId } })) {
-        validMemberships.push({ tenantId, role: membership.role === "admin" ? "admin" : "user" });
+        validMemberships.push({ tenantId, role: membership.role === "operator" ? "operator" : membership.role === "admin" ? "admin" : "user" });
       }
     }
     const data = {

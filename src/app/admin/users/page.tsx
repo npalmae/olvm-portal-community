@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 type Membership = {
   tenantId: string;
-  role: "user" | "admin";
+  role: "operator" | "user" | "admin";
 };
 
 type User = {
@@ -15,7 +15,7 @@ type User = {
   name: string;
   tenantId: string;
   defaultTenantId: string;
-  role: "user" | "admin" | "superadmin";
+  role: "operator" | "user" | "admin" | "superadmin";
   globalRole: "superadmin" | null;
   memberships: Membership[];
   twoFactorEnabled: boolean;
@@ -58,6 +58,8 @@ const roleBadge = (role: string) => {
     return "bg-amber-100 text-amber-800 border-amber-300";
   if (role === "admin")
     return "bg-blue-100 text-blue-800 border-blue-300";
+  if (role === "operator")
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
   return "bg-gray-100 text-gray-600 border-gray-200";
 };
 
@@ -398,6 +400,7 @@ export default function AdminUsersPage() {
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
                 >
+                  <option value="operator">operator</option>
                   <option value="user">user</option>
                   <option value="admin">admin</option>
                   {isSuperadmin && <option value="superadmin">superadmin</option>}
@@ -455,6 +458,8 @@ export default function AdminUsersPage() {
                           className={`px-2 py-1 rounded text-xs border ${
                             m.role === "admin"
                               ? "bg-blue-100 text-blue-700 border-blue-300"
+                              : m.role === "operator"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-gray-100 text-gray-700 border-gray-200"
                           }`}
                           title={`${tenantName(m.tenantId)} (${m.role})`}
@@ -597,7 +602,7 @@ function EditModal({
   const tenantAdminMembership = memberships.find(
     (m) => m.tenantId === adminTenantId,
   );
-  const [tenantRole, setTenantRole] = useState<"user" | "admin">(
+  const [tenantRole, setTenantRole] = useState<Membership["role"]>(
     tenantAdminMembership?.role ?? "user",
   );
 
@@ -670,7 +675,7 @@ function EditModal({
     );
   };
 
-  const setMembershipRole = (index: number, role: "user" | "admin") => {
+  const setMembershipRole = (index: number, role: Membership["role"]) => {
     setMemberships(
       memberships.map((m, i) => (i === index ? { ...m, role } : m)),
     );
@@ -779,11 +784,12 @@ function EditModal({
                       onChange={(e) =>
                         setMembershipRole(
                           i,
-                          e.target.value === "admin" ? "admin" : "user",
+                          e.target.value as Membership["role"],
                         )
                       }
                       className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
                     >
+                      <option value="operator">operator</option>
                       <option value="user">user</option>
                       <option value="admin">admin</option>
                     </select>
@@ -837,11 +843,10 @@ function EditModal({
             Rol en tu tenant ({adminTenantId})
             <select
               value={tenantRole}
-              onChange={(e) =>
-                setTenantRole(e.target.value === "admin" ? "admin" : "user")
-              }
+              onChange={(e) => setTenantRole(e.target.value as Membership["role"])}
               className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             >
+              <option value="operator">operator</option>
               <option value="user">user</option>
               <option value="admin">admin</option>
             </select>

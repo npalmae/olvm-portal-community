@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { SessionProvider } from "next-auth/react";
+import { SessionTimeout } from "@/components/SessionTimeout";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,7 +31,10 @@ export default function RootLayout({
             `}
           </Script>
         ) : null}
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider refetchInterval={5 * 60} refetchOnWindowFocus>
+          <SessionTimeout />
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
