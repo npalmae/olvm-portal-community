@@ -18,8 +18,8 @@ type Params = {
   params: Promise<{ id: string }>;
 };
 
-const toPublic = (c: ClusterConnection) => {
-  const engine = getEngineById(c.engineId);
+const toPublic = async (c: ClusterConnection) => {
+  const engine = await getEngineById(c.engineId);
   return {
     id: c.id,
     name: c.name,
@@ -48,7 +48,7 @@ export async function PATCH(request: Request, context: Params) {
   const { denied } = await requireSuperadmin();
   if (denied) return NextResponse.json({ error: denied.message }, { status: denied.status });
 
-  const existing = getClusterById(id);
+  const existing = await getClusterById(id);
   if (!existing) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
   let body: Record<string, unknown>;
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, context: Params) {
   }
 
   try {
-    const updated = updateCluster(id, {
+    const updated = await updateCluster(id, {
       name: typeof body.name === "string" ? body.name : existing.name,
       engineId: typeof body.engineId === "string" ? body.engineId : existing.engineId,
       tag: typeof body.tag === "string" ? body.tag : existing.tag,
@@ -74,7 +74,7 @@ export async function PATCH(request: Request, context: Params) {
         : existing.networkConfig,
     });
     invalidateDispatcherCache(id);
-    return NextResponse.json(toPublic(updated));
+    return NextResponse.json(await toPublic(updated));
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   }
@@ -85,7 +85,7 @@ export async function DELETE(_: Request, context: Params) {
   const { denied } = await requireSuperadmin();
   if (denied) return NextResponse.json({ error: denied.message }, { status: denied.status });
 
-  if (!getClusterById(id)) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
+  if (!await getClusterById(id)) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
   const affected = (await listUsers()).filter((u) =>
     u.memberships.some((m) => m.tenantId === id),
@@ -100,7 +100,7 @@ export async function DELETE(_: Request, context: Params) {
     );
   }
 
-  deleteCluster(id);
+  await deleteCluster(id);
   invalidateDispatcherCache(id);
   return NextResponse.json({ ok: true });
 }

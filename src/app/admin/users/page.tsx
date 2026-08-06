@@ -37,7 +37,7 @@ type ModalState =
 type ApiKeyEntry = {
   id: string;
   name: string;
-  key: string;
+  key?: string;
   keyPreview: string;
   createdAt: string;
   active: boolean;
@@ -629,7 +629,13 @@ function EditModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Error");
       setNewKeyName("");
-      await loadUserKeys();
+      setUserApiKeys((current) => [
+        {
+          ...data,
+          keyPreview: `${data.key.slice(0, 8)}...`,
+        },
+        ...current.filter((key) => key.id !== data.id),
+      ]);
       setRevealedKeyId(data.id);
     } catch { /* noop */ }
     finally { setCreatingKey(false); }
@@ -896,13 +902,13 @@ function EditModal({
                       <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">Elim.</button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-2">
-                      {revealedKeyId === k.id ? (
+                      {revealedKeyId === k.id && k.key ? (
                         <>
                           <code className="flex-1 text-[11px] text-gray-600 bg-gray-50 rounded px-2 py-1 break-all">{k.key}</code>
                           <button
                             onClick={() => {
                               const ta = document.createElement("textarea");
-                              ta.value = k.key;
+                              ta.value = k.key ?? "";
                               ta.style.cssText = "position:fixed;opacity:0";
                               document.body.appendChild(ta);
                               ta.select();
@@ -916,11 +922,13 @@ function EditModal({
                       ) : (
                         <>
                           <code className="text-[11px] text-gray-400 font-mono">{k.keyPreview}</code>
-                          <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-blue-600 hover:text-blue-800">Mostrar</button>
+                          {k.key && (
+                            <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-blue-600 hover:text-blue-800">Mostrar</button>
+                          )}
                         </>
                       )}
                     </div>
-                    {revealedKeyId === k.id && (
+                    {revealedKeyId === k.id && k.key && (
                       <div className="mt-1.5 rounded bg-gray-50 border border-gray-200 px-2.5 py-1.5">
                         <p className="text-[9px] font-semibold text-gray-400 uppercase mb-0.5">Uso</p>
                         <code className="text-[10px] text-gray-600 break-all">curl -H "X-API-Key: {k.key}" http://10.176.160.124:3000/api/v1/vms</code>

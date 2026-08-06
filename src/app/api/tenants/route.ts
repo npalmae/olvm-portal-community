@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const tenants = getTenants().map((tenant) => ({
+  const tenants = (await getTenants()).map((tenant) => ({
     id: tenant.id,
     name: tenant.name,
     baseUrl: tenant.baseUrl,

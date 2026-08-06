@@ -21,11 +21,11 @@ export async function GET(_: Request, context: Params) {
   if (!isPlatformSuperadmin(session.user))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const engine = getEngineById(id);
+  const engine = await getEngineById(id);
   if (!engine) return NextResponse.json({ error: "Engine no encontrado" }, { status: 404 });
 
   // Buscar un tenant que use este engine para resolver la conexion
-  const tenant = listClusters().find((c) => c.engineId === id);
+  const tenant = (await listClusters()).find((c) => c.engineId === id);
   if (!tenant) return NextResponse.json({ error: "No hay tenants asignados a este engine" }, { status: 400 });
 
   try {

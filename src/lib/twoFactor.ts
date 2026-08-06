@@ -1,99 +1,59 @@
 import crypto from "crypto";
-import fs from "fs/promises";
-import path from "path";
+import { prisma } from "./prisma";
+import { hashShortLivedSecret, safeEqualHash } from "./crypto";
 
 const CODE_TTL_MS = 5 * 60 * 1000;
 const envCooldown = Number(process.env.TWO_FACTOR_COOLDOWN_MS);
-const COOLDOWN_MS =
-  Number.isFinite(envCooldown) && envCooldown >= 0 ? envCooldown : 30 * 1000;
+const COOLDOWN_MS = Number.isFinite(envCooldown) && envCooldown >= 0 ? envCooldown : 30 * 1000;
 const MAX_ATTEMPTS = 5;
-const storePath =
-  process.env.TWO_FACTOR_STORE_PATH ||
-  path.join(process.cwd(), "data", "two-factor-challenges.json");
-
-type Challenge = {
-  code: string;
-  expiresAt: number;
-  attempts: number;
-  createdAt: number;
-};
-
-type ChallengeStore = Record<string, Challenge>;
-
+const testCodes = new Map<string, string>();
 const normalize = (email: string) => email.trim().toLowerCase();
 
-const readChallenges = async (): Promise<ChallengeStore> => {
-  try {
-    const parsed = JSON.parse(await fs.readFile(storePath, "utf8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed as ChallengeStore
-      : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeChallenges = async (challenges: ChallengeStore) => {
-  await fs.mkdir(path.dirname(storePath), { recursive: true });
-  await fs.writeFile(storePath, JSON.stringify(challenges), "utf8");
-};
-
-const purgeExpired = (challenges: ChallengeStore) => {
-  const now = Date.now();
-  for (const [email, challenge] of Object.entries(challenges)) {
-    if (challenge.expiresAt < now) delete challenges[email];
-  }
-};
-
-const generateCode = () => crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
-
 export const canRequestChallenge = async (email: string): Promise<boolean> => {
-  const challenge = (await readChallenges())[normalize(email)];
-  return !challenge || Date.now() - challenge.createdAt >= COOLDOWN_MS;
+  const challenge = await prisma.twoFactorChallenge.findUnique({ where: { email: normalize(email) } });
+  return !challenge || Date.now() - challenge.createdAt.getTime() >= COOLDOWN_MS;
 };
 
 export const msUntilCanResend = async (email: string): Promise<number> => {
-  const challenge = (await readChallenges())[normalize(email)];
-  if (!challenge) return 0;
-  return Math.max(0, COOLDOWN_MS - (Date.now() - challenge.createdAt));
+  const challenge = await prisma.twoFactorChallenge.findUnique({ where: { email: normalize(email) } });
+  return challenge ? Math.max(0, COOLDOWN_MS - (Date.now() - challenge.createdAt.getTime())) : 0;
 };
 
 export const createChallenge = async (email: string): Promise<string> => {
-  const challenges = await readChallenges();
-  purgeExpired(challenges);
-  const code = generateCode();
-  challenges[normalize(email)] = {
-    code,
-    expiresAt: Date.now() + CODE_TTL_MS,
-    attempts: 0,
-    createdAt: Date.now(),
-  };
-  await writeChallenges(challenges);
+  const normalized = normalize(email);
+  const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const now = new Date();
+  await prisma.twoFactorChallenge.upsert({
+    where: { email: normalized },
+    create: { email: normalized, codeHash: hashShortLivedSecret(`${normalized}:${code}`), expiresAt: new Date(now.getTime() + CODE_TTL_MS), createdAt: now },
+    update: { codeHash: hashShortLivedSecret(`${normalized}:${code}`), expiresAt: new Date(now.getTime() + CODE_TTL_MS), attempts: 0, createdAt: now },
+  });
+  if (process.env.E2E_TEST_MODE === "1") testCodes.set(normalized, code);
   return code;
 };
 
 export const getPendingCode = async (email: string): Promise<string | null> => {
-  const challenges = await readChallenges();
-  purgeExpired(challenges);
-  const challenge = challenges[normalize(email)];
-  return challenge?.code ?? null;
+  if (process.env.E2E_TEST_MODE !== "1") return null;
+  const normalized = normalize(email);
+  const challenge = await prisma.twoFactorChallenge.findUnique({ where: { email: normalized } });
+  if (!challenge || challenge.expiresAt.getTime() < Date.now()) return null;
+  return testCodes.get(normalized) ?? null;
 };
 
 export const verifyChallenge = async (email: string, code: string): Promise<boolean> => {
-  const challenges = await readChallenges();
-  purgeExpired(challenges);
-  const key = normalize(email);
-  const challenge = challenges[key];
-  if (!challenge || !code.trim()) return false;
-
-  if (challenge.code === code.trim()) {
-    delete challenges[key];
-    await writeChallenges(challenges);
+  const normalized = normalize(email);
+  const challenge = await prisma.twoFactorChallenge.findUnique({ where: { email: normalized } });
+  if (!challenge || challenge.expiresAt.getTime() < Date.now() || !code.trim()) {
+    if (challenge) await prisma.twoFactorChallenge.deleteMany({ where: { email: normalized } });
+    return false;
+  }
+  const valid = safeEqualHash(challenge.codeHash, hashShortLivedSecret(`${normalized}:${code.trim()}`));
+  if (valid) {
+    await prisma.twoFactorChallenge.delete({ where: { email: normalized } });
+    testCodes.delete(normalized);
     return true;
   }
-
-  challenge.attempts += 1;
-  if (challenge.attempts >= MAX_ATTEMPTS) delete challenges[key];
-  await writeChallenges(challenges);
+  if (challenge.attempts + 1 >= MAX_ATTEMPTS) await prisma.twoFactorChallenge.delete({ where: { email: normalized } });
+  else await prisma.twoFactorChallenge.update({ where: { email: normalized }, data: { attempts: { increment: 1 } } });
   return false;
 };

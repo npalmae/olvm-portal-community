@@ -18,7 +18,7 @@ export async function POST(request: Request, context: Params) {
   if (!isPlatformSuperadmin(session.user))
     return NextResponse.json({ error: "Forbidden: solo superadmin" }, { status: 403 });
 
-  const existing = getEngineById(id);
+  const existing = await getEngineById(id);
   if (!existing) return NextResponse.json({ error: "Engine no encontrado" }, { status: 404 });
 
   let body: Record<string, unknown> = {};

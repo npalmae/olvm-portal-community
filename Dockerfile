@@ -31,13 +31,13 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/src ./src
-COPY --from=builder /app/data ./data
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
+COPY scripts/migrate-json.cjs ./scripts/migrate-json.cjs
 COPY proxy-server.js ./proxy-server.js
 COPY start.sh ./start.sh
-RUN chmod +x start.sh
+RUN mkdir -p data && chmod +x start.sh
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-client sshpass && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 3000

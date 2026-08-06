@@ -9,51 +9,56 @@ datasource db {
 }
 
 model Engine {
-  id                  String   @id
-  name                String
-  baseUrl             String
-  username            String?
-  password            String?
-  token               String?
-  allowInsecure       Boolean  @default(false)
-  caCert              String?
+  id                   String   @id
+  name                 String
+  baseUrl              String
+  username             String?
+  password             String?
+  token                String?
+  allowInsecure        Boolean  @default(false)
+  caCert               String?
   sharedStorageDomains String[]
-  brandName           String?
-  brandLogoUrl        String?
-  createdAt           DateTime @default(now())
-  tenants             Tenant[]
+  brandName            String?
+  brandLogoUrl         String?
+  createdAt            DateTime @default(now())
+  tenants              Tenant[]
 }
 
 model Tenant {
-  id            String   @id
-  name          String
-  engineId      String
-  engine        Engine   @relation(fields: [engineId], references: [id])
-  tag           String?
+  id             String       @id
+  name           String
+  engineId       String
+  engine         Engine       @relation(fields: [engineId], references: [id])
+  tag            String?
   storageDomains String[]
-  createdAt     DateTime @default(now())
-  memberships   Membership[]
+  networks       String[]
+  networkConfig  Json?
+  createdAt      DateTime     @default(now())
+  memberships    Membership[]
+
+  @@unique([engineId, tag])
 }
 
 model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
+  id               String       @id @default(uuid())
+  email            String       @unique
   password         String
   name             String
   globalRole       String?
   defaultTenantId  String?
-  twoFactorEnabled Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  twoFactorEnabled Boolean      @default(true)
+  createdAt        DateTime     @default(now())
   memberships      Membership[]
+  apiKeys          ApiKey[]
 }
 
 model Membership {
-  id       String   @id @default(uuid())
+  id       String @id @default(uuid())
   userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenantId String
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  role     String   @default("user")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role     String @default("user")
 
   @@unique([userId, tenantId])
 }
@@ -67,14 +72,56 @@ model EmailConfig {
   updatedAt   DateTime @updatedAt
 }
 
+model ApiKey {
+  id        String    @id
+  keyHash   String    @unique
+  keyPrefix String
+  name      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  lastUsed  DateTime?
+
+  @@index([userId])
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model TwoFactorChallenge {
+  email     String   @id
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model SystemSecret {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 /// Singleton (id=1): branding global del portal (login, register, etc.)
 model PortalBranding {
-  id          Int      @id @default(1)
-  brandName   String?
-  logoData    Bytes?
-  logoMime    String?
-  logoWidth   Int?
-  logoHeight  Int?
-  logoSize    Int?
-  updatedAt   DateTime @updatedAt
+  id         Int      @id @default(1)
+  brandName  String?
+  logoData   Bytes?
+  logoMime   String?
+  logoWidth  Int?
+  logoHeight Int?
+  logoSize   Int?
+  updatedAt  DateTime @updatedAt
 }

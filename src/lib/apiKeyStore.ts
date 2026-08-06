@@ -1,100 +1,56 @@
-import fs from "fs/promises";
-import path from "path";
 import crypto from "crypto";
+import { prisma } from "./prisma";
+import { hashToken, safeEqualHash } from "./crypto";
+import { getSystemSecretWithEnvFallback, SYSTEM_SECRET_KEYS } from "./systemSecretStore";
 
 export type ApiKey = {
-  id: string;
-  key: string;
-  name: string;
-  userId: string;
-  userEmail: string;
-  createdAt: string;
-  active: boolean;
-  lastUsed?: string;
+  id: string; key: string; name: string; userId: string; userEmail: string;
+  createdAt: string; active: boolean; lastUsed?: string;
 };
 
-const STORE_PATH = () =>
-  process.env.API_KEY_STORE_PATH?.trim() ||
-  path.join(process.cwd(), "data", "api-keys.json");
+const toApiKey = (row: Awaited<ReturnType<typeof prisma.apiKey.findFirst>> extends infer T ? NonNullable<T> : never): ApiKey => ({
+  id: row.id, key: row.keyPrefix, name: row.name, userId: row.userId, userEmail: row.userEmail,
+  createdAt: row.createdAt.toISOString(), active: row.active, lastUsed: row.lastUsed?.toISOString(),
+});
 
-export const listApiKeys = async (): Promise<ApiKey[]> => {
-  try {
-    const raw = await fs.readFile(STORE_PATH(), "utf8");
-    return JSON.parse(raw) as ApiKey[];
-  } catch {
-    return [];
-  }
-};
+export const listApiKeys = async (): Promise<ApiKey[]> =>
+  (await prisma.apiKey.findMany({ orderBy: { createdAt: "asc" } })).map(toApiKey);
 
-const saveKeys = async (keys: ApiKey[]) => {
-  const file = STORE_PATH();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(keys, null, 2), { mode: 0o600 });
-};
-
-export const listKeysByUser = async (userId: string): Promise<ApiKey[]> => {
-  return (await listApiKeys()).filter((k) => k.userId === userId);
-};
+export const listKeysByUser = async (userId: string): Promise<ApiKey[]> =>
+  (await prisma.apiKey.findMany({ where: { userId }, orderBy: { createdAt: "asc" } })).map(toApiKey);
 
 export const createApiKey = async (name: string, userId: string, userEmail: string): Promise<ApiKey> => {
-  const keys = await listApiKeys();
-  const newKey: ApiKey = {
-    id: crypto.randomUUID(),
-    key: crypto.randomBytes(24).toString("hex"),
-    name: name.trim() || "Unnamed",
-    userId,
-    userEmail,
-    createdAt: new Date().toISOString(),
-    active: true,
-  };
-  keys.push(newKey);
-  await saveKeys(keys);
-  return newKey;
+  const key = crypto.randomBytes(24).toString("hex");
+  const row = await prisma.apiKey.create({ data: {
+    id: crypto.randomUUID(), keyHash: hashToken(key), keyPrefix: key.slice(0, 8),
+    name: name.trim() || "Unnamed", userId, userEmail, active: true,
+  } });
+  return { ...toApiKey(row), key };
 };
 
 export const deleteApiKey = async (id: string): Promise<void> => {
-  const keys = await listApiKeys();
-  await saveKeys(keys.filter((k) => k.id !== id));
+  await prisma.apiKey.deleteMany({ where: { id } });
 };
 
 export const toggleApiKey = async (id: string): Promise<void> => {
-  const keys = await listApiKeys();
-  const key = keys.find((k) => k.id === id);
-  if (key) {
-    key.active = !key.active;
-    await saveKeys(keys);
-  }
+  const row = await prisma.apiKey.findUnique({ where: { id } });
+  if (row) await prisma.apiKey.update({ where: { id }, data: { active: !row.active } });
 };
 
-export type ApiKeyContext = {
-  userId: string;
-  userEmail: string;
-  globalRole: string | null;
-  tenantIds: string[];
-};
+export type ApiKeyContext = { userId: string; userEmail: string; globalRole: string | null; tenantIds: string[] };
 
 export const validateApiKey = async (providedKey: string): Promise<ApiKeyContext | null> => {
-  const envKey = process.env.API_READ_KEY?.trim();
-  if (envKey && providedKey === envKey) {
-    return { userId: "env", userEmail: "env-key", globalRole: "superadmin", tenantIds: [] };
+  const bootstrapKey = await getSystemSecretWithEnvFallback(SYSTEM_SECRET_KEYS.apiReadKey);
+  if (bootstrapKey) {
+    const providedHash = hashToken(providedKey);
+    if (safeEqualHash(providedHash, hashToken(bootstrapKey))) return { userId: "system", userEmail: "system-key", globalRole: "superadmin", tenantIds: [] };
   }
-  const keys = await listApiKeys();
-  const match = keys.find((k) => k.active && k.key === providedKey);
-  if (!match) return null;
-
-  match.lastUsed = new Date().toISOString();
-  await saveKeys(keys).catch(() => undefined);
-
-  const { listUsers } = await import("./userStore");
-  const users = await listUsers();
-  const user = users.find((u) => u.id === match.userId);
-  if (!user) return null;
-
-  const tenantIds = (user.memberships ?? []).map((m) => m.tenantId);
+  const keyHash = hashToken(providedKey);
+  const match = await prisma.apiKey.findUnique({ where: { keyHash }, include: { user: { include: { memberships: true } } } });
+  if (!match?.active || !safeEqualHash(keyHash, match.keyHash)) return null;
+  await prisma.apiKey.update({ where: { id: match.id }, data: { lastUsed: new Date() } }).catch(() => undefined);
   return {
-    userId: user.id,
-    userEmail: user.email,
-    globalRole: user.globalRole ?? null,
-    tenantIds,
+    userId: match.user.id, userEmail: match.user.email, globalRole: match.user.globalRole,
+    tenantIds: match.user.memberships.map((membership) => membership.tenantId),
   };
 };

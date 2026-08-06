@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   if (!ctx) return unauthorizedResponse();
 
   try {
-    const allTenants = getTenants();
+    const allTenants = await getTenants();
     const allowed = ctx.globalRole === "superadmin"
       ? allTenants
       : allTenants.filter((t) => ctx.tenantIds.includes(t.id));

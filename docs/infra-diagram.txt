@@ -128,7 +128,7 @@
 │  └── olvm-portal-postgres.sql.gz     (15 KB)   dump PostgreSQL  │
 │                                                                 │
 │  Credenciales:                                                  │
-│    Access Key: 25VB21V207WC5NPG15VS                             │
+│    Credenciales: ~/.aws/credentials (fuera del repositorio)     │
 │    Endpoint:   s3.us-central-1.wasabisys.com                    │
 │    Region:     us-central-1                                     │
 │                                                                 │

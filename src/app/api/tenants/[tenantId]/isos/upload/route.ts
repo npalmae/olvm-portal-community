@@ -13,7 +13,7 @@ const CHUNK_SIZE = 50 * 1024 * 1024;
 
 // Sesiones en memoria del proceso
 const sessions = new Map<string, {
-  tenant: ReturnType<typeof resolveTenant>;
+  tenant: Awaited<ReturnType<typeof resolveTenant>>;
   diskId: string;
   transferId: string;
   uploadUrl: string;
@@ -23,7 +23,7 @@ const sessions = new Map<string, {
   dispatcher: UndiciAgent;
 }>();
 
-const olvmRaw = async (tenant: ReturnType<typeof resolveTenant>, path: string, options?: RequestInit) => {
+const olvmRaw = async (tenant: Awaited<ReturnType<typeof resolveTenant>>, path: string, options?: RequestInit) => {
   const url = `${tenant.baseUrl}${path}`;
   const auth = tenant.token
     ? `Bearer ${tenant.token}`
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       if (!fileName || !fileSize || !storageDomainId)
         return NextResponse.json({ error: "Faltan headers" }, { status: 400 });
 
-      const tenant = resolveTenant(tenantId);
+      const tenant = await resolveTenant(tenantId);
       const name = decodeURIComponent(fileName);
       const size = Number(fileSize);
 

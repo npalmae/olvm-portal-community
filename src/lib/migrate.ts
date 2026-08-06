@@ -1,151 +1,179 @@
 import fs from "fs";
 import path from "path";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
+import { encryptField, hashShortLivedSecret, hashToken, isEncrypted } from "./crypto";
+import { setSystemSecret } from "./systemSecretStore";
 
-type LegacyUser = {
-  id: string;
-  email: string;
-  password: string;
-  name: string;
-  tenantId?: string;
-  role?: string;
-  globalRole?: string | null;
-  defaultTenantId?: string;
-  memberships?: { tenantId: string; role: string }[];
-  twoFactorEnabled?: boolean;
-  createdAt?: string;
+type JsonRecord = Record<string, unknown>;
+
+const readJson = <T>(dataDir: string, file: string, fallback: T): T => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8")) as T;
+  } catch {
+    return fallback;
+  }
 };
 
-type LegacyEngine = {
-  id: string;
-  name: string;
-  baseUrl: string;
-  username?: string;
-  password?: string;
-  token?: string;
-  allowInsecure?: boolean;
-  caCert?: string;
-  sharedStorageDomains?: string[];
-  brandName?: string;
-  brandLogoUrl?: string;
-  createdAt?: string;
-};
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.map(String) : [];
 
-type LegacyTenant = {
-  id: string;
-  name: string;
-  engineId: string;
-  tag?: string;
-  storageDomains?: string[];
-  createdAt?: string;
-};
-
-export const migrateJsonToPostgres = async () => {
+export const migrateJsonToPostgres = async (): Promise<number> => {
   const dataDir = path.join(process.cwd(), "data");
-  let migrated = 0;
+  let reconciled = 0;
 
-  // Migrar engines
-  try {
-    const enginesPath = path.join(dataDir, "engines.json");
-    if (fs.existsSync(enginesPath)) {
-      const engines = JSON.parse(fs.readFileSync(enginesPath, "utf8")) as LegacyEngine[];
-      for (const e of engines) {
-        const exists = await prisma.engine.findUnique({ where: { id: e.id } });
-        if (!exists) {
-          await prisma.engine.create({
-            data: {
-              id: e.id,
-              name: e.name,
-              baseUrl: e.baseUrl,
-              username: e.username,
-              password: e.password,
-              token: e.token,
-              allowInsecure: e.allowInsecure ?? false,
-              caCert: e.caCert,
-              sharedStorageDomains: e.sharedStorageDomains ?? [],
-              brandName: e.brandName,
-              brandLogoUrl: e.brandLogoUrl,
-            },
-          });
-          migrated++;
-        }
-      }
-      if (migrated > 0) console.log(`[migrate] ${migrated} engines migrados`);
+  for (const engine of readJson<JsonRecord[]>(dataDir, "engines.json", [])) {
+    const id = String(engine.id);
+    const data = {
+      id,
+      name: String(engine.name),
+      baseUrl: String(engine.baseUrl).replace(/\/$/, ""),
+      username: engine.username ? String(engine.username) : null,
+      password: encryptField(engine.password ? String(engine.password) : null),
+      token: encryptField(engine.token ? String(engine.token) : null),
+      allowInsecure: engine.allowInsecure === true,
+      caCert: encryptField(engine.caCert ? String(engine.caCert) : null),
+      sharedStorageDomains: strings(engine.sharedStorageDomains),
+      brandName: engine.brandName ? String(engine.brandName) : null,
+      brandLogoUrl: engine.brandLogoUrl ? String(engine.brandLogoUrl) : null,
+      createdAt: engine.createdAt ? new Date(String(engine.createdAt)) : undefined,
+    };
+    await prisma.engine.upsert({ where: { id }, create: data, update: data });
+    reconciled++;
+  }
+
+  for (const tenant of readJson<JsonRecord[]>(dataDir, "clusters.json", [])) {
+    let engineId = tenant.engineId ? String(tenant.engineId) : "";
+    if (!engineId && tenant.baseUrl) {
+      const baseUrl = String(tenant.baseUrl).replace(/\/$/, "");
+      const username = tenant.username ? String(tenant.username) : null;
+      const existing = await prisma.engine.findFirst({ where: { baseUrl, username } });
+      engineId = existing?.id ?? `engine-${baseUrl.replace(/[^a-zA-Z0-9]/g, "").slice(-12)}`;
+      const engineData = {
+        id: engineId,
+        name: `Engine ${new URL(baseUrl).host}`,
+        baseUrl,
+        username,
+        password: encryptField(tenant.password ? String(tenant.password) : null),
+        token: encryptField(tenant.token ? String(tenant.token) : null),
+        allowInsecure: tenant.allowInsecure === true,
+        caCert: encryptField(tenant.caCert ? String(tenant.caCert) : null),
+        sharedStorageDomains: [] as string[],
+      };
+      await prisma.engine.upsert({ where: { id: engineId }, create: engineData, update: engineData });
     }
-  } catch (e) {
-    console.error("[migrate] Error migrando engines:", (e as Error).message);
+    if (!engineId) continue;
+    const id = String(tenant.id);
+    const data = {
+      id,
+      name: String(tenant.name),
+      engineId,
+      tag: tenant.tag ? String(tenant.tag) : null,
+      storageDomains: strings(tenant.storageDomains),
+      networks: strings(tenant.networks),
+      networkConfig: Array.isArray(tenant.networkConfig) ? tenant.networkConfig as Prisma.InputJsonValue : Prisma.JsonNull,
+      createdAt: tenant.createdAt ? new Date(String(tenant.createdAt)) : undefined,
+    };
+    await prisma.tenant.upsert({ where: { id }, create: data, update: data });
+    reconciled++;
   }
 
-  // Migrar tenants
-  let tenantsMigrated = 0;
-  try {
-    const tenantsPath = path.join(dataDir, "clusters.json");
-    if (fs.existsSync(tenantsPath)) {
-      const tenants = JSON.parse(fs.readFileSync(tenantsPath, "utf8")) as LegacyTenant[];
-      for (const t of tenants) {
-        const exists = await prisma.tenant.findUnique({ where: { id: t.id } });
-        if (!exists) {
-          await prisma.tenant.create({
-            data: {
-              id: t.id,
-              name: t.name,
-              engineId: t.engineId,
-              tag: t.tag,
-              storageDomains: t.storageDomains ?? [],
-            },
-          });
-          tenantsMigrated++;
-        }
+  for (const user of readJson<JsonRecord[]>(dataDir, "users.json", [])) {
+    const id = String(user.id);
+    const email = String(user.email).toLowerCase();
+    const memberships = Array.isArray(user.memberships)
+      ? user.memberships as JsonRecord[]
+      : user.tenantId && user.tenantId !== "default"
+        ? [{ tenantId: user.tenantId, role: user.role === "admin" ? "admin" : "user" }]
+        : [];
+    const validMemberships: Array<{ tenantId: string; role: string }> = [];
+    for (const membership of memberships) {
+      const tenantId = String(membership.tenantId);
+      if (await prisma.tenant.findUnique({ where: { id: tenantId } })) {
+        validMemberships.push({ tenantId, role: membership.role === "admin" ? "admin" : "user" });
       }
-      if (tenantsMigrated > 0) console.log(`[migrate] ${tenantsMigrated} tenants migrados`);
     }
-  } catch (e) {
-    console.error("[migrate] Error migrando tenants:", (e as Error).message);
-  }
-
-  // Migrar users
-  let usersMigrated = 0;
-  try {
-    const usersPath = path.join(dataDir, "users.json");
-    if (fs.existsSync(usersPath)) {
-      const users = JSON.parse(fs.readFileSync(usersPath, "utf8")) as LegacyUser[];
-      for (const u of users) {
-        const exists = await prisma.user.findUnique({ where: { email: u.email } });
-        if (!exists) {
-          const globalRole = u.globalRole ?? (u.role === "superadmin" ? "superadmin" : null);
-          const memberships = u.memberships ?? (u.tenantId && u.tenantId !== "default" ? [{ tenantId: u.tenantId, role: u.role === "admin" ? "admin" : "user" }] : []);
-
-          const created = await prisma.user.create({
-            data: {
-              id: u.id,
-              email: u.email,
-              password: u.password,
-              name: u.name,
-              globalRole,
-              defaultTenantId: u.defaultTenantId && u.defaultTenantId !== "default" ? u.defaultTenantId : null,
-              twoFactorEnabled: u.twoFactorEnabled !== false,
-              memberships: {
-                create: memberships.map((m) => ({
-                  tenantId: m.tenantId,
-                  role: m.role,
-                })),
-              },
-            },
-          });
-          usersMigrated++;
-        }
-      }
-      if (usersMigrated > 0) console.log(`[migrate] ${usersMigrated} usuarios migrados`);
+    const data = {
+      id,
+      email,
+      password: String(user.password),
+      name: String(user.name),
+      globalRole: user.globalRole === "superadmin" || user.role === "superadmin" ? "superadmin" : null,
+      defaultTenantId: user.defaultTenantId && user.defaultTenantId !== "default" ? String(user.defaultTenantId) : null,
+      twoFactorEnabled: user.twoFactorEnabled !== false,
+      createdAt: user.createdAt ? new Date(String(user.createdAt)) : undefined,
+    };
+    await prisma.user.upsert({ where: { id }, create: data, update: data });
+    const tenantIds = validMemberships.map((membership) => membership.tenantId);
+    await prisma.membership.deleteMany({
+      where: { userId: id, ...(tenantIds.length ? { tenantId: { notIn: tenantIds } } : {}) },
+    });
+    for (const membership of validMemberships) {
+      await prisma.membership.upsert({
+        where: { userId_tenantId: { userId: id, tenantId: membership.tenantId } },
+        create: { userId: id, ...membership },
+        update: { role: membership.role },
+      });
     }
-  } catch (e) {
-    console.error("[migrate] Error migrando users:", (e as Error).message);
+    reconciled++;
   }
 
-  const total = migrated + tenantsMigrated + usersMigrated;
-  if (total > 0) {
-    console.log(`[migrate] Migracion completa: ${total} registros`);
-  } else {
-    console.log("[migrate] No habia datos JSON para migrar (o ya estaban migrados)");
+  for (const key of readJson<JsonRecord[]>(dataDir, "api-keys.json", [])) {
+    if (!key.key || !key.userId || !await prisma.user.findUnique({ where: { id: String(key.userId) } })) continue;
+    const raw = String(key.key);
+    const data = {
+      id: String(key.id), keyHash: hashToken(raw), keyPrefix: raw.slice(0, 8),
+      name: String(key.name ?? "Unnamed"), userId: String(key.userId), userEmail: String(key.userEmail ?? ""),
+      active: key.active !== false, createdAt: key.createdAt ? new Date(String(key.createdAt)) : undefined,
+      lastUsed: key.lastUsed ? new Date(String(key.lastUsed)) : null,
+    };
+    await prisma.apiKey.upsert({ where: { keyHash: data.keyHash }, create: data, update: data });
   }
-  return total;
+
+  for (const token of readJson<JsonRecord[]>(dataDir, "reset-tokens.json", [])) {
+    if (!token.token) continue;
+    const tokenHash = hashToken(String(token.token));
+    const data = { tokenHash, email: String(token.email).toLowerCase(), expiresAt: new Date(Number(token.expiresAt)), used: token.used === true };
+    await prisma.resetToken.upsert({ where: { tokenHash }, create: data, update: data });
+  }
+
+  const challenges = readJson<Record<string, JsonRecord>>(dataDir, "two-factor-challenges.json", {});
+  for (const [email, challenge] of Object.entries(challenges)) {
+    const normalized = email.toLowerCase();
+    const data = {
+      email: normalized,
+      codeHash: hashShortLivedSecret(`${normalized}:${String(challenge.code)}`),
+      expiresAt: new Date(Number(challenge.expiresAt)), attempts: Number(challenge.attempts) || 0,
+      createdAt: new Date(Number(challenge.createdAt)),
+    };
+    await prisma.twoFactorChallenge.upsert({ where: { email: normalized }, create: data, update: data });
+  }
+
+  for (const engine of await prisma.engine.findMany()) {
+    const data: { password?: string; token?: string; caCert?: string } = {};
+    if (engine.password && !isEncrypted(engine.password)) data.password = encryptField(engine.password)!;
+    if (engine.token && !isEncrypted(engine.token)) data.token = encryptField(engine.token)!;
+    if (engine.caCert && !isEncrypted(engine.caCert)) data.caCert = encryptField(engine.caCert)!;
+    if (Object.keys(data).length) await prisma.engine.update({ where: { id: engine.id }, data });
+  }
+
+  const email = await prisma.emailConfig.findUnique({ where: { id: 1 } });
+  const resendKey = email?.apiKey && !isEncrypted(email.apiKey)
+    ? email.apiKey
+    : !email?.apiKey ? process.env.RESEND_API_KEY?.trim() : null;
+  if (!email && resendKey) {
+    await prisma.emailConfig.create({ data: {
+      id: 1, provider: "resend", apiKey: encryptField(resendKey),
+      fromAddress: process.env.RESEND_FROM ?? null, enabled: true,
+    } });
+  } else if (email && resendKey) {
+    await prisma.emailConfig.update({ where: { id: 1 }, data: { apiKey: encryptField(resendKey) } });
+  }
+
+  for (const key of ["OLVM_HOST_SSH_USER", "OLVM_HOST_SSH_PASSWORD", "API_READ_KEY"]) {
+    const value = process.env[key]?.trim();
+    if (value) await setSystemSecret(key, value);
+  }
+
+  return reconciled;
 };

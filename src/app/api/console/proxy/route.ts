@@ -108,7 +108,7 @@ export async function GET(request: Request) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
 
-    const tenant = getTenantById(tenantId);
+    const tenant = await getTenantById(tenantId);
     const providedTicket = url.searchParams.get("ticket") ?? undefined;
     const consoleId = url.searchParams.get("consoleId") ?? undefined;
     const info = await fetchVmConsoleInfo(tenantId, vmId, protocol, {

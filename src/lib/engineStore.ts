@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import { prisma } from "./prisma";
+import { decryptField, encryptField } from "./crypto";
 
 export type OlvmEngine = {
   id: string;
@@ -21,265 +21,111 @@ export type EngineInput = Partial<Omit<OlvmEngine, "createdAt">> & {
   baseUrl?: string;
 };
 
-const storePath =
-  process.env.ENGINE_STORE_PATH ||
-  path.join(process.cwd(), "data", "engines.json");
-
-let cache: OlvmEngine[] | null = null;
+type EngineRow = Awaited<ReturnType<typeof prisma.engine.findFirst>>;
 
 const sanitizeBaseUrl = (url: string) => {
   const trimmed = url.trim();
   return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
 };
 
-const persist = () => {
-  fs.mkdirSync(path.dirname(storePath), { recursive: true });
-  fs.writeFileSync(storePath, JSON.stringify(cache, null, 2), "utf8");
-};
-
-const readCaFile = (filePath?: string): string | undefined => {
-  if (!filePath) return undefined;
-  try {
-    const resolved = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(process.cwd(), filePath);
-    return fs.readFileSync(resolved, "utf8");
-  } catch {
-    return undefined;
-  }
-};
-
-// Seed desde OLVM_TENANTS o variables individuales (OLVM_BASE_URL etc).
-// Se ejecuta cuando no existe engines.json.
-const seedEnginesFromEnv = (): OlvmEngine[] => {
-  const now = new Date().toISOString();
-  const engines: OlvmEngine[] = [];
-  const seen = new Set<string>();
-
-  const makeEngine = (
-    baseUrl: string,
-    username?: string,
-    password?: string,
-    token?: string,
-    allowInsecure?: boolean,
-    caCert?: string,
-  ): OlvmEngine => {
-    const normalized = baseUrl.replace(/\/$/, "");
-    const key = `${normalized}::${username ?? ""}`;
-    if (seen.has(key)) return engines.find((e) => `${e.baseUrl}::${e.username ?? ""}` === key)!;
-    seen.add(key);
-    const host = normalized.split("//")[1]?.split("/")[0] ?? "engine";
-    const engine: OlvmEngine = {
-      id: `engine-${normalized.replace(/[^a-zA-Z0-9]/g, "").slice(-12)}`,
-      name: `Engine ${host}`,
-      baseUrl: normalized,
-      username, password, token,
-      allowInsecure: allowInsecure === true,
-      caCert,
-      createdAt: now,
-    };
-    engines.push(engine);
-    return engine;
-  };
-
-  if (process.env.OLVM_TENANTS) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(process.env.OLVM_TENANTS);
-    } catch {
-      try {
-        parsed = Function(`"use strict"; return (${process.env.OLVM_TENANTS});`)();
-      } catch {
-        parsed = [];
-      }
-    }
-    if (Array.isArray(parsed)) {
-      for (const t of parsed as Record<string, unknown>[]) {
-        const baseUrl = sanitizeBaseUrl(String(t.baseUrl ?? ""));
-        if (!baseUrl) continue;
-        makeEngine(
-          baseUrl,
-          t.username ? String(t.username) : undefined,
-          t.password ? String(t.password) : undefined,
-          t.token ? String(t.token) : undefined,
-          t.allowInsecure === true,
-          t.caCert ? String(t.caCert) : readCaFile(t.caFile as string | undefined),
-        );
-      }
-    }
-  } else {
-    const baseUrl = process.env.OLVM_BASE_URL;
-    if (baseUrl && (process.env.OLVM_USERNAME || process.env.OLVM_TOKEN)) {
-      makeEngine(
-        baseUrl,
-        process.env.OLVM_USERNAME,
-        process.env.OLVM_PASSWORD,
-        process.env.OLVM_TOKEN,
-        process.env.OLVM_ALLOW_INSECURE === "true",
-        readCaFile(process.env.OLVM_CA_FILE),
-      );
-    }
-  }
-
-  return engines;
-};
-
-export const loadEngines = (): OlvmEngine[] => {
-  if (cache) return cache;
-  try {
-    const parsed = JSON.parse(fs.readFileSync(storePath, "utf8"));
-    cache = Array.isArray(parsed) ? (parsed as OlvmEngine[]) : [];
-  } catch {
-    cache = seedEnginesFromEnv();
-    if (cache.length) persist();
-  }
-
-  // Aplicar shared SDs desde env var (siempre, para persistir config runtime)
-  const envSharedSds = process.env.OLVM_SHARED_SDS;
-  if (envSharedSds && cache.length) {
-    try {
-      const sharedSds = JSON.parse(envSharedSds) as string[];
-      if (Array.isArray(sharedSds) && sharedSds.length) {
-        let changed = false;
-        cache = cache.map((e) => {
-          const current = e.sharedStorageDomains ?? [];
-          const merged = [...new Set([...current, ...sharedSds])];
-          if (merged.length !== current.length) {
-            changed = true;
-            return { ...e, sharedStorageDomains: merged };
-          }
-          return e;
-        });
-        if (changed) persist();
-      }
-    } catch { /* noop */ }
-  }
-
-  return cache;
-};
-
-export const listEngines = (): OlvmEngine[] =>
-  loadEngines().map((e) => ({ ...e }));
-
-export const getEngineById = (id: string): OlvmEngine | null => {
-  const found = loadEngines().find((e) => e.id === id);
-  return found ? { ...found } : null;
-};
+const toEngine = (row: NonNullable<EngineRow>): OlvmEngine => ({
+  id: row.id,
+  name: row.name,
+  baseUrl: row.baseUrl,
+  username: row.username ?? undefined,
+  password: decryptField(row.password),
+  token: decryptField(row.token),
+  allowInsecure: row.allowInsecure,
+  caCert: decryptField(row.caCert),
+  sharedStorageDomains: row.sharedStorageDomains.length ? row.sharedStorageDomains : undefined,
+  brandName: row.brandName ?? undefined,
+  brandLogoUrl: row.brandLogoUrl ?? undefined,
+  createdAt: row.createdAt.toISOString(),
+});
 
 const validate = (input: EngineInput) => {
   if (!input.name?.trim()) throw new Error("El nombre es obligatorio");
   if (!input.baseUrl?.trim()) throw new Error("La URL del engine es obligatoria");
-  if (!input.username && !input.token) {
-    throw new Error("Debe definir usuario+contraseña o un token");
-  }
-  if (input.username && !input.password) {
-    throw new Error("La contraseña es obligatoria cuando se usa usuario");
-  }
+  if (!input.username && !input.token) throw new Error("Debe definir usuario+contraseña o un token");
+  if (input.username && !input.password) throw new Error("La contraseña es obligatoria cuando se usa usuario");
 };
 
-export const createEngine = (input: EngineInput): OlvmEngine => {
+export const loadEngines = async (): Promise<OlvmEngine[]> => listEngines();
+
+export const listEngines = async (): Promise<OlvmEngine[]> =>
+  (await prisma.engine.findMany({ orderBy: { createdAt: "asc" } })).map(toEngine);
+
+export const getEngineById = async (id: string): Promise<OlvmEngine | null> => {
+  const row = await prisma.engine.findUnique({ where: { id } });
+  return row ? toEngine(row) : null;
+};
+
+export const createEngine = async (input: EngineInput): Promise<OlvmEngine> => {
   validate(input);
-  const list = loadEngines();
   const id = input.id?.trim() || `engine-${Date.now()}`;
-  if (list.some((e) => e.id === id)) {
-    throw new Error(`Ya existe un engine con id "${id}"`);
-  }
-  const engine: OlvmEngine = {
-    id,
-    name: input.name!.trim(),
-    baseUrl: sanitizeBaseUrl(input.baseUrl!),
-    username: input.username?.trim() || undefined,
-    password: input.password || undefined,
-    token: input.token || undefined,
-    allowInsecure: input.allowInsecure === true,
-    caCert: input.caCert || undefined,
-    sharedStorageDomains: Array.isArray(input.sharedStorageDomains)
-      ? input.sharedStorageDomains.filter(Boolean)
-      : undefined,
-    brandName: input.brandName?.trim() || undefined,
-    brandLogoUrl: input.brandLogoUrl?.trim() || undefined,
-    createdAt: new Date().toISOString(),
-  };
-  list.push(engine);
-  cache = list;
-  persist();
-  return { ...engine };
+  if (await prisma.engine.findUnique({ where: { id } })) throw new Error(`Ya existe un engine con id "${id}"`);
+  const row = await prisma.engine.create({
+    data: {
+      id,
+      name: input.name!.trim(),
+      baseUrl: sanitizeBaseUrl(input.baseUrl!),
+      username: input.username?.trim() || null,
+      password: encryptField(input.password),
+      token: encryptField(input.token),
+      allowInsecure: input.allowInsecure === true,
+      caCert: encryptField(input.caCert),
+      sharedStorageDomains: input.sharedStorageDomains?.filter(Boolean) ?? [],
+      brandName: input.brandName?.trim() || null,
+      brandLogoUrl: input.brandLogoUrl?.trim() || null,
+    },
+  });
+  return toEngine(row);
 };
 
-export const updateEngine = (
-  id: string,
-  input: EngineInput,
-): OlvmEngine => {
-  const list = loadEngines();
-  const index = list.findIndex((e) => e.id === id);
-  if (index === -1) throw new Error("Engine no encontrado");
-  const current = list[index];
-
-  const merged: EngineInput = {
-    name: input.name ?? current.name,
-    baseUrl: input.baseUrl ?? current.baseUrl,
-    username: input.username ?? current.username,
-    password: input.password ?? current.password,
-    token: input.token ?? current.token,
-    allowInsecure: input.allowInsecure ?? current.allowInsecure,
-    caCert: input.caCert ?? current.caCert,
-    sharedStorageDomains: input.sharedStorageDomains ?? current.sharedStorageDomains,
-    brandName: input.brandName ?? current.brandName,
-    brandLogoUrl: input.brandLogoUrl ?? current.brandLogoUrl,
-  };
-
-  // Solo validar si hay cambios sustanciales
-  if (input.name || input.baseUrl) {
-    validate(merged);
-  }
-
-  const next: OlvmEngine = {
-    ...current,
-    name: (merged.name ?? current.name).trim(),
-    baseUrl: sanitizeBaseUrl(merged.baseUrl ?? current.baseUrl),
-    username: merged.username?.trim() || undefined,
-    password: merged.password || undefined,
-    token: merged.token || undefined,
-    allowInsecure: merged.allowInsecure === true,
-    caCert: merged.caCert || undefined,
-    sharedStorageDomains: Array.isArray(merged.sharedStorageDomains)
-      ? merged.sharedStorageDomains.filter(Boolean)
-      : undefined,
-    brandName: merged.brandName?.trim() || undefined,
-    brandLogoUrl: merged.brandLogoUrl?.trim() || undefined,
-  };
-  list[index] = next;
-  cache = list;
-  persist();
-  return { ...next };
+export const updateEngine = async (id: string, input: EngineInput): Promise<OlvmEngine> => {
+  const current = await getEngineById(id);
+  if (!current) throw new Error("Engine no encontrado");
+  const merged = { ...current, ...input };
+  if (input.name !== undefined || input.baseUrl !== undefined) validate(merged);
+  const row = await prisma.engine.update({
+    where: { id },
+    data: {
+      name: merged.name.trim(),
+      baseUrl: sanitizeBaseUrl(merged.baseUrl),
+      username: merged.username?.trim() || null,
+      password: encryptField(merged.password),
+      token: encryptField(merged.token),
+      allowInsecure: merged.allowInsecure === true,
+      caCert: encryptField(merged.caCert),
+      sharedStorageDomains: merged.sharedStorageDomains?.filter(Boolean) ?? [],
+      brandName: merged.brandName?.trim() || null,
+      brandLogoUrl: merged.brandLogoUrl?.trim() || null,
+    },
+  });
+  return toEngine(row);
 };
 
-export const deleteEngine = (id: string): void => {
-  const list = loadEngines().filter((e) => e.id !== id);
-  cache = list;
-  persist();
+export const deleteEngine = async (id: string): Promise<void> => {
+  await prisma.engine.delete({ where: { id } });
 };
 
-// Usado por la migracion automatica desde clusters.json viejo.
-export const seedEngine = (engine: OlvmEngine): void => {
-  const list = loadEngines();
-  if (!list.some((e) => e.id === engine.id)) {
-    list.push(engine);
-    cache = list;
-    persist();
-  }
+export const seedEngine = async (engine: OlvmEngine): Promise<void> => {
+  await prisma.engine.upsert({
+    where: { id: engine.id },
+    create: {
+      id: engine.id, name: engine.name, baseUrl: sanitizeBaseUrl(engine.baseUrl),
+      username: engine.username, password: encryptField(engine.password), token: encryptField(engine.token),
+      allowInsecure: engine.allowInsecure ?? false, caCert: encryptField(engine.caCert),
+      sharedStorageDomains: engine.sharedStorageDomains ?? [], brandName: engine.brandName,
+      brandLogoUrl: engine.brandLogoUrl, createdAt: new Date(engine.createdAt),
+    },
+    update: {},
+  });
 };
 
-export const findEngineByConnection = (
-  baseUrl: string,
-  username?: string,
-): OlvmEngine | null => {
-  const normalized = baseUrl.replace(/\/$/, "");
-  return (
-    loadEngines().find(
-      (e) =>
-        e.baseUrl === normalized &&
-        (e.username ?? "") === (username ?? ""),
-    ) ?? null
-  );
+export const findEngineByConnection = async (baseUrl: string, username?: string): Promise<OlvmEngine | null> => {
+  const row = await prisma.engine.findFirst({
+    where: { baseUrl: sanitizeBaseUrl(baseUrl), username: username ?? null },
+  });
+  return row ? toEngine(row) : null;
 };

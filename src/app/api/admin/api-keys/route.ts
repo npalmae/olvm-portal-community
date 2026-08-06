@@ -16,8 +16,7 @@ export async function GET(request: Request) {
   const keys = userId ? await listKeysByUser(userId) : await listApiKeys();
   return NextResponse.json(keys.map((k) => ({
     id: k.id, name: k.name, userId: k.userId, userEmail: k.userEmail,
-    keyPreview: `${k.key.slice(0, 8)}…${k.key.slice(-4)}`,
-    key: k.key,
+    keyPreview: `${k.key.slice(0, 8)}...`,
     createdAt: k.createdAt, active: k.active, lastUsed: k.lastUsed,
   })));
 }

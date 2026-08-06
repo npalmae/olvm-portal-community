@@ -1,77 +1,48 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
-
-const DATA_DIR = join(process.cwd(), "data");
-const CONFIG_PATH = join(DATA_DIR, "branding.json");
-const LOGO_PATH = join(DATA_DIR, "branding-logo.png");
+import { prisma } from "./prisma";
 
 export type BrandingConfig = {
-  brandName: string | null;
-  logoMime: string | null;
-  logoWidth: number | null;
-  logoHeight: number | null;
-  logoSize: number | null;
-  updatedAt: string | null;
+  brandName: string | null; logoMime: string | null; logoWidth: number | null;
+  logoHeight: number | null; logoSize: number | null; updatedAt: string | null;
 };
 
 const DEFAULT: BrandingConfig = {
-  brandName: null,
-  logoMime: null,
-  logoWidth: null,
-  logoHeight: null,
-  logoSize: null,
-  updatedAt: null,
+  brandName: null, logoMime: null, logoWidth: null, logoHeight: null, logoSize: null, updatedAt: null,
 };
 
-export const readBrandingConfig = (): BrandingConfig => {
-  try {
-    if (!existsSync(CONFIG_PATH)) return DEFAULT;
-    const raw = readFileSync(CONFIG_PATH, "utf-8");
-    return { ...DEFAULT, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT;
-  }
+export const readBrandingConfig = async (): Promise<BrandingConfig> => {
+  const row = await prisma.portalBranding.findUnique({ where: { id: 1 } });
+  return row ? {
+    brandName: row.brandName, logoMime: row.logoMime, logoWidth: row.logoWidth,
+    logoHeight: row.logoHeight, logoSize: row.logoSize, updatedAt: row.updatedAt.toISOString(),
+  } : DEFAULT;
 };
 
-export const writeBrandingConfig = (cfg: Partial<BrandingConfig>) => {
-  const current = readBrandingConfig();
-  const updated: BrandingConfig = {
-    ...current,
-    ...cfg,
-    updatedAt: new Date().toISOString(),
+export const writeBrandingConfig = async (cfg: Partial<BrandingConfig>): Promise<BrandingConfig> => {
+  const data = {
+    brandName: cfg.brandName, logoMime: cfg.logoMime, logoWidth: cfg.logoWidth,
+    logoHeight: cfg.logoHeight, logoSize: cfg.logoSize,
   };
-  mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2));
-  return updated;
+  await prisma.portalBranding.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
+  return readBrandingConfig();
 };
 
-export const clearBrandingConfig = () => {
-  writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT, null, 2));
+export const clearBrandingConfig = async (): Promise<void> => {
+  await prisma.portalBranding.upsert({ where: { id: 1 }, create: { id: 1 }, update: {
+    brandName: null, logoData: null, logoMime: null, logoWidth: null, logoHeight: null, logoSize: null,
+  } });
 };
 
-export const writeLogo = (data: Uint8Array) => {
-  mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(LOGO_PATH, data);
+export const writeLogo = async (data: Uint8Array): Promise<void> => {
+  await prisma.portalBranding.upsert({ where: { id: 1 }, create: { id: 1, logoData: Buffer.from(data) }, update: { logoData: Buffer.from(data) } });
 };
 
-export const readLogo = (): Buffer | null => {
-  try {
-    if (!existsSync(LOGO_PATH)) return null;
-    return readFileSync(LOGO_PATH);
-  } catch {
-    return null;
-  }
+export const readLogo = async (): Promise<Buffer | null> => {
+  const row = await prisma.portalBranding.findUnique({ where: { id: 1 }, select: { logoData: true } });
+  return row?.logoData ? Buffer.from(row.logoData) : null;
 };
 
-export const deleteLogo = () => {
-  try {
-    if (existsSync(LOGO_PATH)) {
-      const { unlinkSync } = require("fs");
-      unlinkSync(LOGO_PATH);
-    }
-  } catch {
-    // silent
-  }
+export const deleteLogo = async (): Promise<void> => {
+  await prisma.portalBranding.updateMany({ where: { id: 1 }, data: { logoData: null } });
 };
 
 export const LOGO_URL = "/api/branding/logo";

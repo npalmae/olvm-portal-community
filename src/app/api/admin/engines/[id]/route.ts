@@ -47,7 +47,7 @@ export async function PATCH(request: Request, context: Params) {
   const { denied } = await requireSuperadmin();
   if (denied) return NextResponse.json({ error: denied.message }, { status: denied.status });
 
-  const existing = getEngineById(id);
+  const existing = await getEngineById(id);
   if (!existing) return NextResponse.json({ error: "Engine no encontrado" }, { status: 404 });
 
   let body: Record<string, unknown>;
@@ -67,7 +67,7 @@ export async function PATCH(request: Request, context: Params) {
     : existing.token;
 
   try {
-    const updated = updateEngine(id, {
+    const updated = await updateEngine(id, {
       name: typeof body.name === "string" ? body.name : existing.name,
       baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : existing.baseUrl,
       username: typeof body.username === "string" ? body.username : existing.username,
@@ -96,9 +96,9 @@ export async function DELETE(_: Request, context: Params) {
   const { denied } = await requireSuperadmin();
   if (denied) return NextResponse.json({ error: denied.message }, { status: denied.status });
 
-  if (!getEngineById(id)) return NextResponse.json({ error: "Engine no encontrado" }, { status: 404 });
+  if (!await getEngineById(id)) return NextResponse.json({ error: "Engine no encontrado" }, { status: 404 });
 
-  const dependentTenants = listClusters().filter((c) => c.engineId === id);
+  const dependentTenants = (await listClusters()).filter((c) => c.engineId === id);
   if (dependentTenants.length) {
     return NextResponse.json(
       {
@@ -109,7 +109,7 @@ export async function DELETE(_: Request, context: Params) {
     );
   }
 
-  deleteEngine(id);
+  await deleteEngine(id);
   invalidateDispatcherCache();
   return NextResponse.json({ ok: true });
 }

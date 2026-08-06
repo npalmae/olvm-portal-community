@@ -1,6 +1,8 @@
 node_modules/
 .next/
 data/ova-staging/
+data/*.json
+data/branding-logo.*
 *.ova
 .env
 .env.local

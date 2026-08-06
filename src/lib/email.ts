@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { decryptField } from "./crypto";
 
 type EmailConfigRow = {
   apiKey: string | null;
@@ -15,7 +16,7 @@ const getConfigFromDb = async (): Promise<EmailConfigRow | null> => {
     const row = await prisma.emailConfig.findUnique({ where: { id: 1 } });
     if (!row) return null;
     return {
-      apiKey: row.apiKey,
+      apiKey: decryptField(row.apiKey) ?? null,
       fromAddress: row.fromAddress,
       enabled: row.enabled,
     };
@@ -62,8 +63,7 @@ export const sendVerificationCode = async (
   const fromAddress = config.fromAddress ?? process.env.RESEND_FROM ?? "onboarding@resend.dev";
 
   if (!apiKey || !config.enabled) {
-    console.log(`[2FA dev] Código para ${email}: ${code}`);
-    return { delivered: true, fallback: true };
+    return { delivered: false, fallback: true, error: "Email no configurado" };
   }
 
   try {
@@ -77,9 +77,8 @@ export const sendVerificationCode = async (
     if (error) throw new Error(error.message);
     return { delivered: true, fallback: false };
   } catch (error) {
-    console.warn(`[2FA fallback] No se pudo enviar email a ${email}: ${(error as Error).message}`);
-    console.log(`[2FA fallback] Código para ${email}: ${code}`);
-    return { delivered: true, fallback: true, error: (error as Error).message };
+    console.warn(`[2FA] No se pudo enviar email a ${email}: ${(error as Error).message}`);
+    return { delivered: false, fallback: true, error: (error as Error).message };
   }
 };
 
@@ -119,8 +118,7 @@ export const sendPasswordResetEmail = async (
   const fromAddress = config.fromAddress ?? process.env.RESEND_FROM ?? "onboarding@resend.dev";
 
   if (!apiKey || !config.enabled) {
-    console.log(`[reset dev] Reset link para ${email}: ${resetUrl}`);
-    return { delivered: true, fallback: true };
+    return { delivered: false, fallback: true, error: "Email no configurado" };
   }
 
   try {
@@ -134,8 +132,7 @@ export const sendPasswordResetEmail = async (
     if (error) throw new Error(error.message);
     return { delivered: true, fallback: false };
   } catch (error) {
-    console.warn(`[reset fallback] No se pudo enviar email a ${email}: ${(error as Error).message}`);
-    console.log(`[reset fallback] Reset link: ${resetUrl}`);
-    return { delivered: true, fallback: true, error: (error as Error).message };
+    console.warn(`[reset] No se pudo enviar email a ${email}: ${(error as Error).message}`);
+    return { delivered: false, fallback: true, error: (error as Error).message };
   }
 };

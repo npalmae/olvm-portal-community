@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ tenantId: 
       fetchVnicProfiles(tenantId).catch(() => []),
       fetchHosts(tenantId).catch(() => []),
     ]);
-    const tenant = getTenantById(tenantId);
+    const tenant = await getTenantById(tenantId);
     const networkConfig = tenant?.networkConfig ?? [];
     return NextResponse.json({ clusters, templates, networks, vnicProfiles, hosts, networkConfig });
   } catch (e: unknown) {

@@ -21,7 +21,7 @@ export async function GET() {
   const check = await requireSuperadmin();
   if (check.denied) return JSON_RESP({ error: "Solo superadmin" }, check.status);
 
-  const cfg = readBrandingConfig();
+  const cfg = await readBrandingConfig();
   return NextResponse.json({
     brandName: cfg.brandName ?? "",
     hasLogo: Boolean(cfg.logoMime),
@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  writeLogo(reencoded.data);
-  const cfg = writeBrandingConfig({
+  await writeLogo(reencoded.data);
+  const cfg = await writeBrandingConfig({
     brandName,
     logoMime: reencoded.mime,
     logoWidth: reencoded.width,
@@ -101,8 +101,8 @@ export async function DELETE() {
   const check = await requireSuperadmin();
   if (check.denied) return JSON_RESP({ error: "Solo superadmin" }, check.status);
 
-  deleteLogo();
-  clearBrandingConfig();
+  await deleteLogo();
+  await clearBrandingConfig();
 
   return NextResponse.json({ ok: true });
 }

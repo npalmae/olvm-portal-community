@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { isPlatformSuperadmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { invalidateEmailConfigCache, sendTestEmail } from "@/lib/email";
+import { decryptField, encryptField } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function GET() {
       data: {
         id: 1,
         provider: "resend",
-        apiKey: process.env.RESEND_API_KEY ?? null,
+        apiKey: encryptField(process.env.RESEND_API_KEY),
         fromAddress: process.env.RESEND_FROM ?? null,
         enabled: true,
       },
@@ -34,7 +35,7 @@ export async function GET() {
   return NextResponse.json({
     provider: row.provider,
     hasApiKey: Boolean(row.apiKey),
-    apiKeyHint: row.apiKey ? `${row.apiKey.slice(0, 6)}...${row.apiKey.slice(-4)}` : "",
+    apiKeyHint: row.apiKey ? "configured" : "",
     fromAddress: row.fromAddress ?? "",
     enabled: row.enabled,
   });
@@ -47,9 +48,10 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
 
   const existing = await prisma.emailConfig.findUnique({ where: { id: 1 } });
+  const currentApiKey = existing?.apiKey ? decryptField(existing.apiKey) : undefined;
   const data = {
     provider: "resend",
-    apiKey: typeof body.apiKey === "string" && body.apiKey ? body.apiKey : existing?.apiKey ?? null,
+    apiKey: encryptField(typeof body.apiKey === "string" && body.apiKey ? body.apiKey : currentApiKey),
     fromAddress: typeof body.fromAddress === "string" ? body.fromAddress : existing?.fromAddress ?? null,
     enabled: typeof body.enabled === "boolean" ? body.enabled : existing?.enabled ?? true,
   };
@@ -65,7 +67,7 @@ export async function PUT(req: NextRequest) {
   return NextResponse.json({
     provider: row.provider,
     hasApiKey: Boolean(row.apiKey),
-    apiKeyHint: row.apiKey ? `${row.apiKey.slice(0, 6)}...${row.apiKey.slice(-4)}` : "",
+    apiKeyHint: row.apiKey ? "configured" : "",
     fromAddress: row.fromAddress ?? "",
     enabled: row.enabled,
   });

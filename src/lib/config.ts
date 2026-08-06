@@ -24,8 +24,8 @@ export type TenantConfig = {
   engineId: string;
 };
 
-const toTenant = (cluster: ClusterConnection): TenantConfig => {
-  const engine = getEngineById(cluster.engineId);
+const toTenant = async (cluster: ClusterConnection): Promise<TenantConfig> => {
+  const engine = await getEngineById(cluster.engineId);
   if (!engine) {
     throw new Error(
       `Engine "${cluster.engineId}" no encontrado para tenant "${cluster.id}". Configura un engine en /admin/clusters`,
@@ -51,28 +51,28 @@ const toTenant = (cluster: ClusterConnection): TenantConfig => {
   };
 };
 
-export const getTenants = (): TenantConfig[] =>
-  listClusters().map((c) => {
+export const getTenants = async (): Promise<TenantConfig[]> =>
+  (await Promise.all((await listClusters()).map(async (c) => {
     try {
-      return toTenant(c);
+      return await toTenant(c);
     } catch {
       return null;
     }
-  }).filter((t): t is TenantConfig => t !== null);
+  }))).filter((t): t is TenantConfig => t !== null);
 
-export const resolveTenant = (tenantId?: string): TenantConfig => {
+export const resolveTenant = async (tenantId?: string): Promise<TenantConfig> => {
   const sanitized =
     tenantId && tenantId !== "undefined" ? tenantId.trim() : undefined;
 
   if (sanitized) {
-    const tenant = getTenants().find((t) => t.id === sanitized);
+    const tenant = (await getTenants()).find((t) => t.id === sanitized);
     if (!tenant) {
       throw new Error(`Tenant ${sanitized} not found. Check clusters config`);
     }
     return tenant;
   }
 
-  const tenants = getTenants();
+  const tenants = await getTenants();
   if (tenants.length === 1) {
     return tenants[0];
   }

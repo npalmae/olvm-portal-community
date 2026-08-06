@@ -1,11 +1,5 @@
-import fs from "fs";
-import path from "path";
-import {
-  loadEngines,
-  seedEngine,
-  findEngineByConnection,
-  type OlvmEngine,
-} from "./engineStore";
+import { Prisma } from "@prisma/client";
+import { prisma } from "./prisma";
 
 export type NetworkConfig = { name: string; prefix: string; mask: string };
 
@@ -25,196 +19,18 @@ export type ClusterInput = Partial<Omit<ClusterConnection, "createdAt">> & {
   engineId?: string;
 };
 
-const storePath =
-  process.env.CLUSTER_STORE_PATH ||
-  path.join(process.cwd(), "data", "clusters.json");
+type TenantRow = Awaited<ReturnType<typeof prisma.tenant.findFirst>>;
 
-let cache: ClusterConnection[] | null = null;
-
-const sanitizeBaseUrl = (url: string) => {
-  const trimmed = url.trim();
-  return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
-};
-
-const readCaFile = (filePath?: string): string | undefined => {
-  if (!filePath) return undefined;
-  try {
-    const resolved = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(process.cwd(), filePath);
-    return fs.readFileSync(resolved, "utf8");
-  } catch {
-    return undefined;
-  }
-};
-
-// Migracion automatica: si clusters.json tiene entradas con baseUrl (formato viejo),
-// extrae los engines y convierte a { id, name, engineId, tag }.
-const migrateOldFormat = (
-  raw: unknown,
-): ClusterConnection[] => {
-  if (!Array.isArray(raw)) return [];
-  const oldEntries = raw as Record<string, unknown>[];
-  const hasLegacy = oldEntries.some((e) => typeof e.baseUrl === "string");
-  if (!hasLegacy) return oldEntries as unknown as ClusterConnection[];
-
-  const now = new Date().toISOString();
-  const tenants: ClusterConnection[] = [];
-
-  for (const entry of oldEntries) {
-    const baseUrl = sanitizeBaseUrl(String(entry.baseUrl ?? ""));
-    const username = entry.username ? String(entry.username) : undefined;
-
-    let engine = baseUrl ? findEngineByConnection(baseUrl, username) : null;
-    if (!engine && baseUrl) {
-      const engineId = `engine-${baseUrl.replace(/[^a-zA-Z0-9]/g, "").slice(-12)}`;
-      engine = {
-        id: engineId,
-        name: `Engine ${baseUrl.split("//")[1]?.split("/")[0] ?? engineId}`,
-        baseUrl,
-        username,
-        password: entry.password ? String(entry.password) : undefined,
-        token: entry.token ? String(entry.token) : undefined,
-        allowInsecure: entry.allowInsecure === true,
-        caCert: entry.caCert ? String(entry.caCert) : undefined,
-        createdAt: now,
-      };
-      seedEngine(engine);
-    }
-
-    tenants.push({
-      id: String(entry.id ?? ""),
-      name: String(entry.name ?? entry.id ?? "Default"),
-      engineId: engine?.id ?? "",
-      tag: entry.tag ? String(entry.tag) : undefined,
-      createdAt: String(entry.createdAt ?? now),
-    });
-  }
-
-  return tenants;
-};
-
-const seedFromEnv = (): ClusterConnection[] => {
-  const now = new Date().toISOString();
-  const loadEnginesData = loadEngines();
-
-  const ensureEngine = (conn: {
-    baseUrl: string; username?: string; password?: string;
-    token?: string; allowInsecure?: boolean; caCert?: string;
-  }): string => {
-    const baseUrl = sanitizeBaseUrl(conn.baseUrl);
-    const existing = findEngineByConnection(baseUrl, conn.username);
-    if (existing) return existing.id;
-
-    const engineId = `engine-${baseUrl.replace(/[^a-zA-Z0-9]/g, "").slice(-12)}`;
-    const engine: OlvmEngine = {
-      id: engineId,
-      name: `Engine ${baseUrl.split("//")[1]?.split("/")[0] ?? engineId}`,
-      baseUrl,
-      username: conn.username,
-      password: conn.password,
-      token: conn.token,
-      allowInsecure: conn.allowInsecure,
-      caCert: conn.caCert,
-      createdAt: now,
-    };
-    seedEngine(engine);
-    return engineId;
-  };
-
-  if (process.env.OLVM_TENANTS) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(process.env.OLVM_TENANTS);
-    } catch {
-      try {
-        parsed = Function(`"use strict"; return (${process.env.OLVM_TENANTS});`)();
-      } catch {
-        parsed = [];
-      }
-    }
-    if (Array.isArray(parsed)) {
-      return (parsed as Record<string, unknown>[])
-        .map((t) => {
-          const baseUrl = sanitizeBaseUrl(String(t.baseUrl ?? ""));
-          if (!t.id || !baseUrl) return null;
-          const engineId = ensureEngine({
-            baseUrl,
-            username: t.username ? String(t.username) : undefined,
-            password: t.password ? String(t.password) : undefined,
-            token: t.token ? String(t.token) : undefined,
-            allowInsecure: t.allowInsecure === true,
-            caCert: t.caCert ? String(t.caCert) : readCaFile(t.caFile as string | undefined),
-          });
-          return {
-            id: String(t.id),
-            name: String(t.name ?? t.id ?? "Default"),
-            engineId,
-            tag: t.tag ? String(t.tag) : undefined,
-            storageDomains: Array.isArray(t.storageDomains)
-              ? t.storageDomains.map(String)
-              : undefined,
-            networks: Array.isArray(t.networks)
-              ? t.networks.map(String)
-              : undefined,
-            createdAt: now,
-          } as ClusterConnection;
-        })
-        .filter((c): c is ClusterConnection => c !== null);
-    }
-  }
-
-  const baseUrl = process.env.OLVM_BASE_URL;
-  const username = process.env.OLVM_USERNAME;
-  const password = process.env.OLVM_PASSWORD;
-  if (baseUrl && username && password) {
-    const engineId = ensureEngine({
-      baseUrl,
-      username,
-      password,
-      token: process.env.OLVM_TOKEN,
-      allowInsecure: process.env.OLVM_ALLOW_INSECURE === "true",
-      caCert: readCaFile(process.env.OLVM_CA_FILE),
-    });
-    return [
-      {
-        id: "default",
-        name: "Default",
-        engineId,
-        createdAt: now,
-      },
-    ];
-  }
-
-  return [];
-};
-
-const persist = () => {
-  fs.mkdirSync(path.dirname(storePath), { recursive: true });
-  fs.writeFileSync(storePath, JSON.stringify(cache, null, 2), "utf8");
-};
-
-const load = (): ClusterConnection[] => {
-  if (cache) return cache;
-  try {
-    const raw = JSON.parse(fs.readFileSync(storePath, "utf8"));
-    const migrated = migrateOldFormat(raw);
-    cache = migrated;
-    if (migrated !== raw) persist();
-  } catch {
-    cache = seedFromEnv();
-    if (cache.length) persist();
-  }
-  return cache;
-};
-
-export const listClusters = (): ClusterConnection[] =>
-  load().map((c) => ({ ...c }));
-
-export const getClusterById = (id: string): ClusterConnection | null => {
-  const found = load().find((c) => c.id === id);
-  return found ? { ...found } : null;
-};
+const toCluster = (row: NonNullable<TenantRow>): ClusterConnection => ({
+  id: row.id,
+  name: row.name,
+  engineId: row.engineId,
+  tag: row.tag ?? undefined,
+  storageDomains: row.storageDomains.length ? row.storageDomains : undefined,
+  networks: row.networks.length ? row.networks : undefined,
+  networkConfig: Array.isArray(row.networkConfig) ? row.networkConfig as NetworkConfig[] : undefined,
+  createdAt: row.createdAt.toISOString(),
+});
 
 const validate = (input: ClusterInput) => {
   if (!input.name?.trim()) throw new Error("El nombre es obligatorio");
@@ -222,81 +38,48 @@ const validate = (input: ClusterInput) => {
   if (!input.tag?.trim()) throw new Error("El tag multitenant es obligatorio");
 };
 
-const assertUniqueTag = (
-  list: ClusterConnection[],
-  engineId: string,
-  tag: string,
-  excludedId?: string,
-) => {
-  const normalizedTag = tag.trim().toLowerCase();
-  const duplicate = list.find(
-    (tenant) =>
-      tenant.id !== excludedId &&
-      tenant.engineId === engineId &&
-      tenant.tag?.trim().toLowerCase() === normalizedTag,
-  );
-  if (duplicate) {
-    throw new Error(`El tag "${tag}" ya esta asignado al tenant ${duplicate.id}`);
-  }
+const assertUniqueTag = async (engineId: string, tag: string, excludedId?: string) => {
+  const tenants = await prisma.tenant.findMany({ where: { engineId } });
+  const normalized = tag.trim().toLowerCase();
+  const duplicate = tenants.find((tenant) => tenant.id !== excludedId && tenant.tag?.trim().toLowerCase() === normalized);
+  if (duplicate) throw new Error(`El tag "${tag}" ya esta asignado al tenant ${duplicate.id}`);
 };
 
-export const createCluster = (input: ClusterInput): ClusterConnection => {
+export const listClusters = async (): Promise<ClusterConnection[]> =>
+  (await prisma.tenant.findMany({ orderBy: { createdAt: "asc" } })).map(toCluster);
+
+export const getClusterById = async (id: string): Promise<ClusterConnection | null> => {
+  const row = await prisma.tenant.findUnique({ where: { id } });
+  return row ? toCluster(row) : null;
+};
+
+export const createCluster = async (input: ClusterInput): Promise<ClusterConnection> => {
   validate(input);
-  const list = load();
   const id = input.id?.trim() || `tenant-${Date.now()}`;
-  if (list.some((c) => c.id === id)) {
-    throw new Error(`Ya existe un tenant con id "${id}"`);
-  }
-  assertUniqueTag(list, input.engineId!.trim(), input.tag!.trim());
-  const conn: ClusterConnection = {
-    id,
-    name: input.name!.trim(),
-    engineId: input.engineId!.trim(),
-    tag: input.tag?.trim() || undefined,
-    storageDomains: input.storageDomains && input.storageDomains.length > 0 ? input.storageDomains : undefined,
-    networks: input.networks && input.networks.length > 0 ? input.networks : undefined,
-    networkConfig: input.networkConfig && input.networkConfig.length > 0 ? input.networkConfig : undefined,
-    createdAt: new Date().toISOString(),
-  };
-  list.push(conn);
-  cache = list;
-  persist();
-  return { ...conn };
+  if (await prisma.tenant.findUnique({ where: { id } })) throw new Error(`Ya existe un tenant con id "${id}"`);
+  await assertUniqueTag(input.engineId!.trim(), input.tag!.trim());
+  const row = await prisma.tenant.create({ data: {
+    id, name: input.name!.trim(), engineId: input.engineId!.trim(), tag: input.tag!.trim(),
+    storageDomains: input.storageDomains?.filter(Boolean) ?? [], networks: input.networks?.filter(Boolean) ?? [],
+    networkConfig: input.networkConfig?.length ? input.networkConfig : Prisma.JsonNull,
+  } });
+  return toCluster(row);
 };
 
-export const updateCluster = (
-  id: string,
-  input: ClusterInput,
-): ClusterConnection => {
-  const list = load();
-  const index = list.findIndex((c) => c.id === id);
-  if (index === -1) throw new Error("Tenant no encontrado");
-  const current = list[index];
-  const next: ClusterConnection = {
-    ...current,
-    name: input.name !== undefined ? input.name.trim() : current.name,
-    engineId: input.engineId !== undefined ? input.engineId.trim() : current.engineId,
-    tag: input.tag !== undefined ? input.tag.trim() || undefined : current.tag,
-    storageDomains: input.storageDomains !== undefined
-      ? input.storageDomains.length > 0 ? input.storageDomains : undefined
-      : current.storageDomains,
-    networks: input.networks !== undefined
-      ? input.networks.length > 0 ? input.networks : undefined
-      : current.networks,
-    networkConfig: input.networkConfig !== undefined
-      ? input.networkConfig.length > 0 ? input.networkConfig : undefined
-      : current.networkConfig,
-  };
+export const updateCluster = async (id: string, input: ClusterInput): Promise<ClusterConnection> => {
+  const current = await getClusterById(id);
+  if (!current) throw new Error("Tenant no encontrado");
+  const next = { ...current, ...input };
   validate(next);
-  assertUniqueTag(list, next.engineId, next.tag!, id);
-  list[index] = next;
-  cache = list;
-  persist();
-  return { ...next };
+  await assertUniqueTag(next.engineId, next.tag!, id);
+  const row = await prisma.tenant.update({ where: { id }, data: {
+    name: next.name.trim(), engineId: next.engineId.trim(), tag: next.tag?.trim() || null,
+    storageDomains: next.storageDomains?.filter(Boolean) ?? [], networks: next.networks?.filter(Boolean) ?? [],
+    networkConfig: next.networkConfig?.length ? next.networkConfig : Prisma.JsonNull,
+  } });
+  return toCluster(row);
 };
 
-export const deleteCluster = (id: string): void => {
-  const list = load().filter((c) => c.id !== id);
-  cache = list;
-  persist();
+export const deleteCluster = async (id: string): Promise<void> => {
+  await prisma.tenant.delete({ where: { id } });
 };

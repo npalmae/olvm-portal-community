@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:migrate-runtime-data": "node scripts/migrate-json.cjs"
   },
   "dependencies": {
     "@novnc/novnc": "1.4.0",

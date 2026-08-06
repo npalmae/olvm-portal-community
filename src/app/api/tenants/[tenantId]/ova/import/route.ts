@@ -16,6 +16,10 @@ import {
   downloadOvaFromSd,
 } from "@/lib/olvmClient";
 import { getOvaUploadPaths } from "@/lib/ovaStaging";
+import {
+  getSystemSecretWithEnvFallback,
+  SYSTEM_SECRET_KEYS,
+} from "@/lib/systemSecretStore";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -24,29 +28,32 @@ export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 const asString = (value: unknown) => typeof value === "string" ? value.trim() : "";
 
-const sshExec = async (hostAddress: string, command: string, timeoutMs = 300_000) => {
-  const sshUser = process.env.OLVM_HOST_SSH_USER?.trim() || "root";
-  const sshPassword = process.env.OLVM_HOST_SSH_PASSWORD?.trim();
+type SshCredentials = { user: string; password: string };
+
+const resolveSshCredentials = async (): Promise<SshCredentials> => {
+  const sshUser = await getSystemSecretWithEnvFallback(SYSTEM_SECRET_KEYS.hostSshUser) || "root";
+  const sshPassword = await getSystemSecretWithEnvFallback(SYSTEM_SECRET_KEYS.hostSshPassword);
   if (!sshPassword) throw new Error("OLVM_HOST_SSH_PASSWORD no está configurado");
+  return { user: sshUser, password: sshPassword };
+};
+
+const sshExec = async (credentials: SshCredentials, hostAddress: string, command: string, timeoutMs = 300_000) => {
   const { stdout } = await execFileAsync("sshpass", [
-    "-p", sshPassword,
+    "-p", credentials.password,
     "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-    `${sshUser}@${hostAddress}`,
+    `${credentials.user}@${hostAddress}`,
     command,
   ], { timeout: timeoutMs, maxBuffer: 50 * 1024 * 1024 });
   return stdout;
 };
 
-const scpToHost = async (localPath: string, hostAddress: string, remotePath: string) => {
-  const sshUser = process.env.OLVM_HOST_SSH_USER?.trim() || "root";
-  const sshPassword = process.env.OLVM_HOST_SSH_PASSWORD?.trim();
-  if (!sshPassword) throw new Error("OLVM_HOST_SSH_PASSWORD no está configurado");
+const scpToHost = async (credentials: SshCredentials, localPath: string, hostAddress: string, remotePath: string) => {
   await execFileAsync("sshpass", [
-    "-p", sshPassword,
+    "-p", credentials.password,
     "scp",
     "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
     localPath,
-    `${sshUser}@${hostAddress}:${remotePath}`,
+    `${credentials.user}@${hostAddress}:${remotePath}`,
   ], { timeout: 540_000, maxBuffer: 10 * 1024 * 1024 });
 };
 
@@ -54,6 +61,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
   const { tenantId } = await context.params;
   let hostAddr = "";
   let extractDir = "";
+  let sshCredentials: SshCredentials | null = null;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -86,13 +94,14 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
         { status: 500 },
       );
     }
+    sshCredentials = await resolveSshCredentials();
 
     extractDir = `/tmp/ova-import-${Date.now()}`;
     const remoteOva = path.posix.join(hostStagingDir, `${uploadId || diskId}.ova`);
 
     if (isFromCatalog) {
       const { transferId, downloadUrl } = await downloadOvaFromSd(tenantId, diskId);
-      await sshExec(hostAddr,
+      await sshExec(sshCredentials, hostAddr,
         `curl -sk -o '${remoteOva}' '${downloadUrl}'`,
         540_000,
       );
@@ -101,7 +110,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
       const { filePath } = getOvaUploadPaths(uploadId);
       const fileInfo = await stat(filePath);
       if (!fileInfo.isFile() || fileInfo.size === 0) throw new Error("El archivo OVA no está disponible");
-      await scpToHost(filePath, hostAddr, remoteOva);
+      await scpToHost(sshCredentials, filePath, hostAddr, remoteOva);
 
       void uploadOvaAsDisk(tenantId, {
         name: ovaName || `${uploadId}.ova`,
@@ -111,15 +120,15 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
       }).catch(() => undefined);
     }
 
-    await sshExec(hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
+    await sshExec(sshCredentials, hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
 
-    const vmdkName = (await sshExec(hostAddr, `find ${extractDir} -name '*.vmdk' -type f | head -1`)).trim();
+    const vmdkName = (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -name '*.vmdk' -type f | head -1`)).trim();
     if (!vmdkName) throw new Error("El OVA no contiene un disco VMDK");
 
     const qcow2Path = `${extractDir}/disk.qcow2`;
-    await sshExec(hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${qcow2Path}'`, 540_000);
+    await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${qcow2Path}'`, 540_000);
 
-    const infoRaw = await sshExec(hostAddr, `qemu-img info --output=json '${qcow2Path}'`);
+    const infoRaw = await sshExec(sshCredentials, hostAddr, `qemu-img info --output=json '${qcow2Path}'`);
     const qcow2Info = JSON.parse(infoRaw);
     const virtualSize = Number(qcow2Info["virtual-size"]) || 10 * 1024 * 1024 * 1024;
 
@@ -134,7 +143,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
 
     const { transferId: upTransferId, uploadUrl } = await startImageTransfer(tenantId, newDiskId);
 
-    await sshExec(hostAddr,
+    await sshExec(sshCredentials, hostAddr,
       `curl -sk -X PUT -H 'Content-Type: application/octet-stream' --data-binary @'${qcow2Path}' '${uploadUrl}'`,
       540_000,
     );
@@ -147,8 +156,8 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   } finally {
-    if (hostAddr && extractDir) {
-      void sshExec(hostAddr, `rm -rf ${extractDir}`).catch(() => undefined);
+    if (hostAddr && extractDir && sshCredentials) {
+      void sshExec(sshCredentials, hostAddr, `rm -rf ${extractDir}`).catch(() => undefined);
     }
   }
 }

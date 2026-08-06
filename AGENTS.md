@@ -8,8 +8,8 @@
 | Portal Público | `https://olvmportal.sixmanager.io` | Contenedor separado en `10.176.160.41` |
 | OLVM Engine | `https://10.141.11.63/ovirt-engine/api` | API REST oVirt v4 |
 | OLVM Host | `10.141.11.60` | ID `fbad1a2a-2413-453a-b42d-3472c6713254` |
-| SSH Bastion | `npalma@10.176.160.124` | Password: ver variable de entorno |
-| SSH Portal Público | `npalma@10.176.160.41` | Mismo password |
+| SSH Bastion | `npalma@10.176.160.124` | Usar credencial administrada fuera del repositorio |
+| SSH Portal Público | `npalma@10.176.160.41` | Usar credencial administrada fuera del repositorio |
 
 ## Regla de Despliegue
 
@@ -20,8 +20,7 @@
 ## Wasabi S3 Backup
 
 - **Bucket:** `olvm-portal`
-- **Access Key:** `25VB21V207WC5NPG15VS`
-- **Secret Key:** `JhJyVoKPt8FDnMXspqKppeCECC8znZZw6Il71WGy`
+- **Credenciales:** configuradas fuera del repositorio en `~/.aws/credentials`
 - **Endpoint:** `s3.us-central-1.wasabisys.com`
 - **Region:** `us-central-1`
 - **Estructura:** `s3://olvm-portal/backups/YYYY-MM-DD/portal-{bastion|public}/`

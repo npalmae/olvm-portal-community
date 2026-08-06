@@ -522,7 +522,7 @@ export const vmMatchesTenantTag = (vm: RawVm, expectedTag?: string) => {
 };
 
 export const enforceVmTagPolicy = async (tenantId: string, vmId: string) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const expectedTag = tenant.tag?.trim();
   if (!expectedTag) {
     throw new Error(`Forbidden: tenant ${tenantId} no tiene un tag OLVM configurado`);
@@ -720,7 +720,7 @@ const parseVirtViewerConnection = (
 };
 
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const expectedTag = tenant.tag?.trim();
   const data = (await olvmFetch(
     tenant,
@@ -749,7 +749,7 @@ export const fetchVmById = async (
   tenantId: string,
   vmId: string,
 ): Promise<VmSummary> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const hostMap = await getHostNameMap(tenant);
   const data = (await olvmFetch(
     tenant,
@@ -783,7 +783,7 @@ export const fetchVmDisks = async (
   tenantId: string,
   vmId: string,
 ): Promise<VmDiskSummary> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(
     tenant,
     withJsonFormat(`/vms/${vmId}/diskattachments?follow=disk`),
@@ -838,7 +838,7 @@ export const fetchVmConsoleFile = async (
   vmId: string,
   protocol: "spice" | "vnc" = "spice",
 ): Promise<string> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const consolesResponse = await olvmFetch(
     tenant,
     withJsonFormat(`/vms/${vmId}/graphicsconsoles`),
@@ -916,7 +916,7 @@ export const fetchVmConsoleInfo = async (
   protocol: "spice" | "vnc" = "vnc",
   opts?: { ticket?: string; consoleId?: string; issueTicket?: boolean },
 ): Promise<ConsoleInfo> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const engineUrl = new URL(tenant.baseUrl);
   const engineHost = engineUrl.hostname;
   const defaultPort = 5900;
@@ -1027,7 +1027,7 @@ export const sendVmAction = async (
   if (!isSupportedAction(action)) {
     throw new Error(`Unsupported VM action: ${action}`);
   }
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   await olvmFetch(tenant, `/vms/${vmId}/${action}`, { method: "POST", body: "{}" });
 };
 
@@ -1293,7 +1293,7 @@ export const createTagIfNotExists = async (
   tenantId: string,
   tagName: string,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const tag = tagName.trim();
   if (!tag) return;
   const existing = await findTagId(tenant, tag);
@@ -1314,7 +1314,7 @@ export const assignTagToVm = async (
   tenantId: string,
   vmId: string,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   await applyTenantTag(tenant, vmId);
 };
 
@@ -1323,7 +1323,7 @@ export const removeTagFromVm = async (
   tenantId: string,
   vmId: string,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const tag = tenant.tag?.trim();
   if (!tag) return;
   const tagId = await findTagId(tenant, tag);
@@ -1347,7 +1347,7 @@ export const cloneVm = async (
     throw new Error("El nombre del clon es obligatorio");
   }
 
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const clonePayloads = [
     { vm: { name: normalizedName } }, // formato canónico oVirt/OLVM
     { action: { vm: { name: normalizedName } } }, // fallback
@@ -1412,7 +1412,7 @@ type CreateVmInput = {
 };
 
 export const createVm = async (tenantId: string, payload: CreateVmInput) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const osType = payload.os === "windows"
     ? "windows_2022"
     : payload.os === "linux"
@@ -1493,7 +1493,7 @@ const findVmIdByName = async (tenant: TenantConfig, name: string): Promise<strin
 };
 
 export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   if (await findVmIdByName(tenant, payload.name)) {
     throw new Error(`Ya existe una VM con nombre ${payload.name}`);
   }
@@ -1516,7 +1516,7 @@ export const createUploadDisk = async (
   tenantId: string,
   params: { name: string; provisionedSize: number; storageDomainId: string },
 ): Promise<string> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const res = await olvmFetch(tenant, "/disks", {
     method: "POST",
     body: JSON.stringify({
@@ -1548,7 +1548,7 @@ export const startImageTransfer = async (
   tenantId: string,
   diskId: string,
 ): Promise<{ transferId: string; uploadUrl: string }> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const res = await olvmFetch(tenant, "/imagetransfers", {
     method: "POST",
     body: JSON.stringify({ disk: { id: diskId }, direction: "upload" }),
@@ -1589,7 +1589,7 @@ export const startImageTransfer = async (
 };
 
 export const finalizeImageTransfer = async (tenantId: string, transferId: string) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   await olvmFetch(tenant, `/imagetransfers/${transferId}/finalize`, {
     method: "POST",
     body: "{}",
@@ -1599,7 +1599,7 @@ export const finalizeImageTransfer = async (tenantId: string, transferId: string
 export type OvaDiskInfo = { id: string; name: string; size: number; storageDomainName: string };
 
 export const fetchOvaDisks = async (tenantId: string): Promise<OvaDiskInfo[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/disks"));
   const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
   const list = root && Array.isArray(root.disk) ? root.disk as Record<string, unknown>[] : [];
@@ -1619,7 +1619,7 @@ export const uploadOvaAsDisk = async (
   params: { name: string; filePath: string; fileSize: number; storageDomainId: string },
 ): Promise<string> => {
   const { readFile } = await import("fs/promises");
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const diskName = params.name.toLowerCase().endsWith(".ova") ? params.name : `${params.name}.ova`;
 
   const diskRes = await olvmFetch(tenant, "/disks", {
@@ -1710,7 +1710,7 @@ export const downloadOvaFromSd = async (
   tenantId: string,
   diskId: string,
 ): Promise<{ transferId: string; downloadUrl: string }> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const transferRes = await olvmFetch(tenant, "/imagetransfers", {
     method: "POST",
     body: JSON.stringify({ disk: { id: diskId }, direction: "download" }),
@@ -1750,7 +1750,7 @@ export const downloadOvaFromSd = async (
 };
 
 export const deleteOvaDisk = async (tenantId: string, diskId: string) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   await olvmFetch(tenant, `/disks/${diskId}`, { method: "DELETE" });
 };
 
@@ -1759,7 +1759,7 @@ export const waitForDiskReady = async (
   diskId: string,
   timeoutMs = 120_000,
 ) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`));
@@ -1777,7 +1777,7 @@ export const attachDiskToVm = async (
   diskId: string,
   opts?: { bootable?: boolean; interface?: string },
 ) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const payload = {
     disk: { id: diskId },
     active: true,
@@ -1814,7 +1814,7 @@ export const updateVmResources = async (
   vmId: string,
   payload: UpdateVmInput,
 ) => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const body: Record<string, unknown> = {
     memory: payload.memoryMB ? payload.memoryMB * 1024 * 1024 : undefined,
     cpu: payload.cpuCores
@@ -1836,7 +1836,7 @@ export const updateVmResources = async (
 export type OlvmHost = { id: string; name: string; address?: string };
 
 export const fetchHosts = async (tenantId: string): Promise<OlvmHost[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/hosts"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && Array.isArray(root.host) ? root.host as Record<string, unknown>[] : [];
@@ -1863,7 +1863,7 @@ export type StorageDomainInfo = {
 export const fetchStorageDomains = async (
   tenantId: string,
 ): Promise<StorageDomainInfo[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/storagedomains"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "storage_domain" in root
@@ -1904,7 +1904,7 @@ export const fetchStorageDomains = async (
 export const fetchAllStorageDomains = async (
   tenantId: string,
 ): Promise<StorageDomainInfo[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/storagedomains"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "storage_domain" in root
@@ -1932,7 +1932,7 @@ export type OlvmCluster = { id: string; name: string };
 export type OlvmTemplate = { id: string; name: string };
 
 export const fetchClusters = async (tenantId: string): Promise<OlvmCluster[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/clusters"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "cluster" in root ? (root.cluster as Record<string, unknown>[]) : [];
@@ -1943,7 +1943,7 @@ export const fetchClusters = async (tenantId: string): Promise<OlvmCluster[]> =>
 };
 
 export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/templates"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "template" in root ? (root.template as Record<string, unknown>[]) : [];
@@ -1956,7 +1956,7 @@ export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> 
 export type IsoInfo = { id: string; name: string; storageDomainId: string; storageDomainName: string; sizeGB: number };
 
 export const fetchIsos = async (tenantId: string): Promise<IsoInfo[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/disks"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "disk" in root ? (root.disk as Record<string, unknown>[]) : [];
@@ -1978,7 +1978,7 @@ export const fetchIsos = async (tenantId: string): Promise<IsoInfo[]> => {
 };
 
 export const mountIso = async (tenantId: string, vmId: string, isoId: string): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const body = JSON.stringify({ file: { id: isoId } });
   await olvmFetch(tenant, `/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`, {
     method: "PUT",
@@ -1988,7 +1988,7 @@ export const mountIso = async (tenantId: string, vmId: string, isoId: string): P
 };
 
 export const unmountIso = async (tenantId: string, vmId: string): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const body = JSON.stringify({ file: { id: "00000000-0000-0000-0000-000000000000" } });
   await olvmFetch(tenant, `/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`, {
     method: "PUT",
@@ -1998,7 +1998,7 @@ export const unmountIso = async (tenantId: string, vmId: string): Promise<void> 
 };
 
 export const fetchCurrentIso = async (tenantId: string, vmId: string): Promise<string | null> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat(`/vms/${vmId}/cdroms/00000000-0000-0000-0000-000000000000`));
   const file = (data as Record<string, unknown> | null)?.cdrom as Record<string, unknown> | undefined;
   const fileId = (file?.file as Record<string, unknown> | undefined)?.id;
@@ -2010,7 +2010,7 @@ export const addDiskToVm = async (
   vmId: string,
   params: { sizeGB: number; storageDomainId: string; name?: string; interface?: string },
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const provisionedSize = params.sizeGB * 1024 * 1024 * 1024;
   const diskPayload: Record<string, unknown> = {
     name: params.name || `disk-${vmId.slice(0, 8)}`,
@@ -2067,7 +2067,7 @@ export const fetchVmDiskDetails = async (
   tenantId: string,
   vmId: string,
 ): Promise<VmDiskDetail[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(
     tenant,
     withJsonFormat(`/vms/${vmId}/diskattachments?follow=disk`),
@@ -2093,7 +2093,7 @@ export const deleteVmDisk = async (
   attachmentId: string,
   diskId: string,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   await olvmFetch(tenant, `/vms/${vmId}/diskattachments/${attachmentId}`, {
     method: "DELETE",
   });
@@ -2106,7 +2106,7 @@ export const runOnceFromCd = async (
   tenantId: string,
   vmId: string,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const payload = {
     vm: {
       os: {
@@ -2124,7 +2124,7 @@ export const runOnceFromCd = async (
 };
 
 export const deleteVm = async (tenantId: string, vmId: string): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   try {
     await olvmFetch(tenant, `/vms/${vmId}/stop`, { method: "POST", body: "{}" });
   } catch (err) {
@@ -2142,7 +2142,7 @@ export const uploadIso = async (
   storageDomainId: string,
   fileBuffer: Buffer,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
 
   // 1. Crear disco ISO (sparse:false requerido por OLVM)
   const diskRes = await olvmFetch(tenant, "/disks", {
@@ -2275,7 +2275,7 @@ export const fetchVmNics = async (
   tenantId: string,
   vmId: string,
 ): Promise<VmNic[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(
     tenant,
     withJsonFormat(`/vms/${vmId}/nics`),
@@ -2325,7 +2325,7 @@ export const addNicToVm = async (
   vmId: string,
   params: { name?: string; interface?: string; vnicProfileId: string },
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const baseBody = {
     name: params.name || `nic-${Date.now().toString(36)}`,
     interface: params.interface || "virtio",
@@ -2355,7 +2355,7 @@ export const updateNicLink = async (
   nicId: string,
   linked: boolean,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   await olvmFetch(tenant, `/vms/${vmId}/nics/${nicId}`, {
     method: "PUT",
     body: JSON.stringify({ linked, plugged: linked }),
@@ -2367,7 +2367,7 @@ export const deleteNicFromVm = async (
   vmId: string,
   nicId: string,
 ): Promise<void> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   try {
     await olvmFetch(tenant, `/vms/${vmId}/nics/${nicId}/deactivate`, {
       method: "POST",
@@ -2386,7 +2386,7 @@ export type OlvmNetwork = { id: string; name: string; datacenterId: string };
 export type OlvmVnicProfile = { id: string; name: string; networkId: string; networkName: string };
 
 export const fetchNetworks = async (tenantId: string, skipFilter = false): Promise<OlvmNetwork[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/networks"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "network" in root ? (root.network as Record<string, unknown>[]) : [];
@@ -2402,7 +2402,7 @@ export const fetchNetworks = async (tenantId: string, skipFilter = false): Promi
 };
 
 export const fetchVnicProfiles = async (tenantId: string): Promise<OlvmVnicProfile[]> => {
-  const tenant = getTenantById(tenantId);
+  const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/vnicprofiles"));
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "vnic_profile" in root ? (root.vnic_profile as Record<string, unknown>[]) : [];

@@ -21,10 +21,10 @@ export async function POST(_: Request, context: Params) {
   if (!isPlatformSuperadmin(session.user))
     return NextResponse.json({ error: "Forbidden: solo superadmin" }, { status: 403 });
 
-  const cluster = getClusterById(id);
+  const cluster = await getClusterById(id);
   if (!cluster) return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 });
 
-  const engine = getEngineById(cluster.engineId);
+  const engine = await getEngineById(cluster.engineId);
   if (!engine) return NextResponse.json({ error: "Engine no encontrado para este tenant" }, { status: 404 });
 
   const result = await testConnection({

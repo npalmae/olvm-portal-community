@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   const { id: engineId } = await ctx.params;
-  const tenants = getTenants();
+  const tenants = await getTenants();
   const tenant = tenants.find((t) => t.engineId === engineId);
   if (!tenant) {
     return NextResponse.json([]);

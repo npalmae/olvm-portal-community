@@ -12,8 +12,8 @@ import { invalidateDispatcherCache, createTagIfNotExists } from "@/lib/olvmClien
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const toPublic = (c: ClusterConnection) => {
-  const engine = getEngineById(c.engineId);
+const toPublic = async (c: ClusterConnection) => {
+  const engine = await getEngineById(c.engineId);
   return {
     id: c.id,
     name: c.name,
@@ -40,7 +40,7 @@ const requireSuperadmin = async () => {
 export async function GET() {
   const { denied } = await requireSuperadmin();
   if (denied) return NextResponse.json({ error: denied.message }, { status: denied.status });
-  return NextResponse.json(listClusters().map(toPublic));
+  return NextResponse.json(await Promise.all((await listClusters()).map(toPublic)));
 }
 
 export async function POST(request: Request) {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = createCluster({
+    const created = await createCluster({
       id: typeof body.id === "string" ? body.id : undefined,
       name: typeof body.name === "string" ? body.name : "",
       engineId: typeof body.engineId === "string" ? body.engineId : "",
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       try { await createTagIfNotExists(created.id, created.tag); } catch { /* best-effort */ }
     }
 
-    return NextResponse.json(toPublic(created), { status: 201 });
+    return NextResponse.json(await toPublic(created), { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   }

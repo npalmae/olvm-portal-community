@@ -1,53 +1,32 @@
-import fs from "fs/promises";
-import path from "path";
 import crypto from "crypto";
+import { prisma } from "./prisma";
+import { hashToken } from "./crypto";
 
-const STORE_PATH = path.join(process.cwd(), "data", "reset-tokens.json");
-
-type ResetToken = {
-  token: string;
-  email: string;
-  expiresAt: number;
-  used: boolean;
-};
-
-const readTokens = async (): Promise<ResetToken[]> => {
-  try {
-    const raw = await fs.readFile(STORE_PATH, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-};
-
-const writeTokens = async (tokens: ResetToken[]) => {
-  await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
-  await fs.writeFile(STORE_PATH, JSON.stringify(tokens, null, 2));
-};
+type ResetToken = { token: string; email: string; expiresAt: number; used: boolean };
 
 export const createResetToken = async (email: string): Promise<string> => {
-  const tokens = await readTokens();
-  const now = Date.now();
-  const active = tokens.filter((t) => t.expiresAt > now && !t.used);
   const token = crypto.randomBytes(32).toString("hex");
-  active.push({ token, email, expiresAt: now + 30 * 60 * 1000, used: false });
-  await writeTokens(active);
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.resetToken.deleteMany({ where: { OR: [{ expiresAt: { lt: now } }, { used: true }] } }),
+    prisma.resetToken.create({ data: {
+      tokenHash: hashToken(token), email: email.trim().toLowerCase(),
+      expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+    } }),
+  ]);
   return token;
 };
 
 export const verifyResetToken = async (token: string): Promise<ResetToken | null> => {
-  const tokens = await readTokens();
-  const found = tokens.find((t) => t.token === token && !t.used);
-  if (!found) return null;
-  if (found.expiresAt < Date.now()) return null;
-  return found;
+  const row = await prisma.resetToken.findUnique({ where: { tokenHash: hashToken(token) } });
+  if (!row || row.used || row.expiresAt.getTime() < Date.now()) return null;
+  return { token: "", email: row.email, expiresAt: row.expiresAt.getTime(), used: row.used };
 };
 
 export const consumeResetToken = async (token: string): Promise<boolean> => {
-  const tokens = await readTokens();
-  const found = tokens.find((t) => t.token === token);
-  if (!found || found.used || found.expiresAt < Date.now()) return false;
-  found.used = true;
-  await writeTokens(tokens);
-  return true;
+  const result = await prisma.resetToken.updateMany({
+    where: { tokenHash: hashToken(token), used: false, expiresAt: { gt: new Date() } },
+    data: { used: true },
+  });
+  return result.count === 1;
 };

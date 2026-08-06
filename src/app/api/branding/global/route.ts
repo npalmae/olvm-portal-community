@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
 
 export async function GET() {
-  const cfg = readBrandingConfig();
+  const cfg = await readBrandingConfig();
 
   return NextResponse.json({
     brandName: cfg.brandName ?? "",

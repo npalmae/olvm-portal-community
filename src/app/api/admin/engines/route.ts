@@ -39,7 +39,7 @@ const requireSuperadmin = async () => {
 export async function GET() {
   const { denied } = await requireSuperadmin();
   if (denied) return NextResponse.json({ error: denied.message }, { status: denied.status });
-  return NextResponse.json(listEngines().map(toPublic));
+  return NextResponse.json((await listEngines()).map(toPublic));
 }
 
 export async function POST(request: Request) {
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = createEngine({
+    const created = await createEngine({
       id: typeof body.id === "string" ? body.id : undefined,
       name: typeof body.name === "string" ? body.name : "",
       baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : "",

@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
 
 export async function GET() {
-  const cfg = readBrandingConfig();
-  const logo = readLogo();
+  const cfg = await readBrandingConfig();
+  const logo = await readLogo();
 
   if (!logo || !cfg.logoMime) {
     return new NextResponse(null, { status: 404 });
