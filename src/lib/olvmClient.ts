@@ -1279,6 +1279,18 @@ const applyTenantTag = async (tenant: TenantConfig, vmId: string) => {
   const tag = tenant.tag?.trim();
   if (!tag) return;
   try {
+    // Garantiza que el tag exista en OLVM antes de asignarlo.
+    if (!(await findTagId(tenant, tag))) {
+      await olvmFetch(tenant, "/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/xml", Accept: "application/xml" },
+        body: `<tag><name>${tag}</name></tag>`,
+      });
+    }
+  } catch {
+    // best-effort: si no se pudo crear, se intenta asignar de todos modos.
+  }
+  try {
     await olvmFetch(tenant, `/vms/${vmId}/tags`, {
       method: "POST",
       headers: { "Content-Type": "application/xml", Accept: "application/xml" },
