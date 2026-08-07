@@ -1557,6 +1557,17 @@ export default function Home() {
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{totals.down} down</span>
               <span>{totals.total} {t("total")}</span>
             </div>
+            <div className="mt-2 flex justify-center border-t pt-2" style={{ borderColor: "var(--sidebar-border)" }}>
+              <a
+                href="https://sixmanager.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] font-medium uppercase tracking-widest transition-opacity hover:opacity-80"
+                style={{ color: "var(--sidebar-muted)" }}
+              >
+                {t("poweredBy")} <span className="font-semibold text-gray-300">Sixmanager</span>
+              </a>
+            </div>
           </div>
         )}
       </aside>

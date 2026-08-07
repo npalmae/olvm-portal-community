@@ -242,4 +242,5 @@ export const dashboardMessages: Messages = {
   localWsProxy: msg("Proxy WS local", "Local WS proxy", "Lokaler WS-Proxy", "Proxy WS local"),
   close: msg("Cerrar", "Close", "Schließen", "Fechar"),
   consoleError: msg("Error de consola", "Console error", "Konsolenfehler", "Erro da console"),
+  poweredBy: msg("Impulsado por", "Powered by", "Betrieben von", "Desenvolvido por"),
 };
