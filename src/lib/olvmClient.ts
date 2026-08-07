@@ -1819,7 +1819,6 @@ export const updateVmResources = async (
 ) => {
   const tenant = await getTenantById(tenantId);
   const body: Record<string, unknown> = {
-    memory: payload.memoryMB ? payload.memoryMB * 1024 * 1024 : undefined,
     cpu: payload.cpuCores
       ? {
           topology: {
@@ -1829,6 +1828,18 @@ export const updateVmResources = async (
         }
       : undefined,
   };
+
+  if (payload.memoryMB) {
+    const newMemory = payload.memoryMB * 1024 * 1024;
+    body.memory = newMemory;
+    const current = await olvmFetch(tenant, withJsonFormat(`/vms/${vmId}`)) as {
+      memory_policy?: { max?: number };
+    } | null;
+    const currentMax = Number(current?.memory_policy?.max ?? 0);
+    if (newMemory > currentMax) {
+      body.memory_policy = { max: newMemory };
+    }
+  }
 
   await olvmFetch(tenant, `/vms/${vmId}`, {
     method: "PUT",
