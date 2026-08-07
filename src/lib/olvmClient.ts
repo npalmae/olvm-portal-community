@@ -745,6 +745,21 @@ export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
   return [];
 };
 
+// Lista TODAS las VMs sin filtrar por tag. Solo para detección interna de clones;
+// los clones nacen sin tag y serían invisibles en la lista filtrada por tenant.
+const fetchAllVmsUnfiltered = async (tenant: TenantConfig): Promise<RawVm[]> => {
+  const data = (await olvmFetch(
+    tenant,
+    withJsonFormat("/vms?follow=tags"),
+  )) as unknown;
+  const root =
+    data && typeof data === "object" && !Array.isArray(data) ? data : null;
+  if (root && "vm" in root && Array.isArray((root as { vm?: unknown }).vm)) {
+    return (root as { vm?: RawVm[] }).vm ?? [];
+  }
+  return [];
+};
+
 export const fetchVmById = async (
   tenantId: string,
   vmId: string,
@@ -1153,7 +1168,9 @@ const findClonedVmId = async (
   newName: string,
   timeoutMs?: number,
 ): Promise<string | null> => {
-  const before = await fetchVms(tenantId);
+  const tenant = await getTenantById(tenantId);
+  // La búsqueda NO puede filtrar por tag: el clon nace sin tag y sería invisible.
+  const before = await fetchAllVmsUnfiltered(tenant);
   const existingName = before.find((vm) => vm.name === newName);
   if (existingName) {
     throw new Error(`Ya existe una VM con nombre ${newName}`);
@@ -1163,7 +1180,7 @@ const findClonedVmId = async (
   const pollEveryMs = 5_000;
 
   while (Date.now() < deadline) {
-    const current = await fetchVms(tenantId);
+    const current = await fetchAllVmsUnfiltered(tenant);
     const found = current.find(
       (vm) =>
         vm.name === newName && vm.id !== sourceVmId && !knownIds.has(vm.id),
