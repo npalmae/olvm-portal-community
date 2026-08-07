@@ -1437,12 +1437,14 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
 
   // Agregar NIC automática si hay vnic_profile
   if (payload.vnicProfileId) {
-    body.nics = [{
-      name: "nic1",
-      interface: "virtio",
-      vnic_profile: { id: payload.vnicProfileId },
-      linked: true,
-    }];
+    body.nics = {
+      nic: [{
+        name: "nic1",
+        interface: "virtio",
+        vnic_profile: { id: payload.vnicProfileId },
+        linked: true,
+      }],
+    };
   }
 
   // Cloud-init para asignación de IP sin intervenir el OS
@@ -1451,6 +1453,7 @@ export const createVm = async (tenantId: string, payload: CreateVmInput) => {
       nic_configurations: {
         nic_configuration: [{
           name: "nic1",
+          on_boot: true,
           ip: {
             address: payload.cloudInit.ip,
             netmask: payload.cloudInit.netmask ?? "255.255.255.0",
