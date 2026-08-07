@@ -137,7 +137,15 @@ export default function EmailConfigPage() {
           <h1 className="mt-3 text-lg font-bold text-gray-900">{t("emailTitle")}</h1>
           <p className="text-xs text-gray-500">{t("emailSubtitle")}</p>
           </div>
-          <LanguageSelector />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/admin/backups")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t("backups")}
+            </button>
+            <LanguageSelector />
+          </div>
         </div>
 
         {error && (

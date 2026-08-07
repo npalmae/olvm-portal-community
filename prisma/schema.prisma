@@ -72,6 +72,49 @@ model EmailConfig {
   updatedAt   DateTime @updatedAt
 }
 
+model BackupStorageConfig {
+  id              Int      @id @default(1)
+  provider        String   @default("s3")
+  endpoint        String
+  region          String
+  bucket          String
+  prefix          String   @default("backups/bastion")
+  accessKey       String
+  secretKey       String
+  forcePathStyle  Boolean  @default(true)
+  enabled         Boolean  @default(true)
+  scheduleEnabled Boolean  @default(false)
+  frequency       String   @default("daily")
+  scheduleHour    Int      @default(2)
+  scheduleWeekday Int      @default(0)
+  retentionDays   Int      @default(30)
+  retentionCount  Int      @default(30)
+  defaultProfile  String   @default("operational")
+  lastScheduledAt DateTime?
+  nextRunAt       DateTime?
+  updatedAt       DateTime @updatedAt
+}
+
+model BackupJob {
+  id          String    @id @default(uuid())
+  profile     String
+  trigger     String
+  status      String    @default("queued")
+  stage       String    @default("queued")
+  progress    Int       @default(0)
+  requestedBy String
+  objectKey   String?
+  sizeBytes   BigInt?
+  checksum    String?
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+}
+
 model ApiKey {
   id        String    @id
   keyHash   String    @unique

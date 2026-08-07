@@ -18,5 +18,8 @@ node ./node_modules/.bin/next start -H 0.0.0.0 -p 3001 &
 echo "[startup] Esperando Next.js..."
 sleep 3
 
+echo "[startup] Iniciando scheduler de backups..."
+node ./scripts/backup-scheduler.cjs &
+
 echo "[startup] Iniciando proxy reverso en puerto 3000..."
 exec node proxy-server.js

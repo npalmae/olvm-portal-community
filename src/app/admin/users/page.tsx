@@ -321,6 +321,12 @@ export default function AdminUsersPage() {
               {t("clusters")}
             </button>
             <button
+              onClick={() => router.push("/admin/backups")}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t("backups")}
+            </button>
+            <button
               onClick={() => router.push("/admin/branding")}
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
             >

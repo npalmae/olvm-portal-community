@@ -18,6 +18,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl openssh-client sshpass tar gzip \
+    && curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/postgresql.asc \
+    && printf '%s\n' 'deb [signed-by=/usr/share/keyrings/postgresql.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 \
+    && apt-get purge -y --auto-remove curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package.json ./
 COPY prisma ./prisma
 RUN npm install --omit=dev && npm cache clean --force
@@ -35,10 +44,10 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 COPY scripts/migrate-json.cjs ./scripts/migrate-json.cjs
+COPY scripts/backup-scheduler.cjs ./scripts/backup-scheduler.cjs
 COPY proxy-server.js ./proxy-server.js
 COPY start.sh ./start.sh
 RUN mkdir -p data && chmod +x start.sh
-RUN apt-get update && apt-get install -y --no-install-recommends openssh-client sshpass && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 3000
 EXPOSE 3010
