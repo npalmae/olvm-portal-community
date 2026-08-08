@@ -387,8 +387,9 @@ export default function AdminBackupsPage() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative">
                 <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
-                <input type="text" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder={t("backupSearchPlaceholder")} className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 sm:w-64" />
+                <input type="text" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder={t("backupSearchPlaceholder")} className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 sm:w-72" />
                 {historySearch && <button onClick={() => setHistorySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-400 hover:text-gray-600">✕</button>}
+                <p className="mt-1 text-[10px] text-gray-400">{t("backupSearchHint")}</p>
               </div>
               <button onClick={loadJobs} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("backupRefresh")}</button>
             </div>
