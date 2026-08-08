@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -93,6 +93,7 @@ export default function AdminBackupsPage() {
   const [jobs, setJobs] = useState<BackupJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historySearch, setHistorySearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [starting, setStarting] = useState<Profile | null>(null);
@@ -103,6 +104,29 @@ export default function AdminBackupsPage() {
 
   const isSuperadmin = session?.user?.globalRole === "superadmin" || session?.user?.role === "superadmin";
   const activeJob = jobs.some((job) => job.status === "queued" || job.status === "running");
+
+  const filteredJobs = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    const sorted = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (!term) return sorted.slice(0, 7);
+    return sorted.filter((job) => {
+      const haystack = [
+        job.id,
+        job.profile,
+        job.status,
+        job.trigger,
+        job.requestedBy,
+        job.stage,
+        job.objectKey,
+        job.checksum,
+        job.error,
+      ]
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [jobs, historySearch]);
 
   const applyConfig = (next: BackupConfig | null) => {
     setConfig(next);
@@ -349,10 +373,33 @@ export default function AdminBackupsPage() {
         </div>
 
         <section className="mt-6 overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--border)" }}><div><h2 className="text-sm font-bold text-gray-900">{t("backupHistoryTitle")}</h2><p className="text-[11px] text-gray-400">{activeJob ? t("backupPollingActive") : t("backupPollingIdle")}</p></div><button onClick={loadJobs} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("backupRefresh")}</button></div>
-          {historyLoading ? <div className="px-5 py-12 text-center text-sm text-gray-400">{t("backupHistoryLoading")}</div> : jobs.length === 0 ? <div className="px-5 py-12 text-center"><p className="text-sm font-medium text-gray-600">{t("backupHistoryEmpty")}</p><p className="mt-1 text-xs text-gray-400">{t("backupHistoryEmptyHelp")}</p></div> : (
+          <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)" }}>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">{t("backupHistoryTitle")}</h2>
+              <p className="text-[11px] text-gray-400">{activeJob ? t("backupPollingActive") : t("backupPollingIdle")}</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative">
+                <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
+                <input type="text" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder={t("backupSearchPlaceholder")} className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 sm:w-64" />
+                {historySearch && <button onClick={() => setHistorySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-400 hover:text-gray-600">✕</button>}
+              </div>
+              <button onClick={loadJobs} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("backupRefresh")}</button>
+            </div>
+          </div>
+          {!historyLoading && jobs.length > 0 && (
+            <div className="border-b bg-gray-50 px-5 py-2 text-[11px] text-gray-500" style={{ borderColor: "var(--border)" }}>
+              {historySearch.trim() ? t("backupSearchResults", { count: String(filteredJobs.length) }) : t("backupShowingRecent", { shown: String(filteredJobs.length), total: String(jobs.length) })}
+            </div>
+          )}
+          {historyLoading ? <div className="px-5 py-12 text-center text-sm text-gray-400">{t("backupHistoryLoading")}</div> : filteredJobs.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm font-medium text-gray-600">{historySearch.trim() ? t("backupSearchNoResults") : t("backupHistoryEmpty")}</p>
+              {!historySearch.trim() && <p className="mt-1 text-xs text-gray-400">{t("backupHistoryEmptyHelp")}</p>}
+            </div>
+          ) : (
             <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-              {jobs.map((job) => <article key={job.id} className="p-5">
+              {filteredJobs.map((job) => <article key={job.id} className="p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(job.status)}`}>{t(`backupStatus${job.status[0].toUpperCase()}${job.status.slice(1)}`)}</span><span className="text-sm font-semibold text-gray-900">{job.profile === "full" ? t("backupFull") : t("backupOperational")}</span><span className="text-[11px] text-gray-400">{job.trigger === "scheduled" ? t("backupScheduled") : t("backupManual")}</span></div><p className="mt-1 truncate font-mono text-[10px] text-gray-400" title={job.id}>{job.id}</p></div>
                   <div className="text-left text-[11px] text-gray-500 sm:text-right"><p>{formatDate(job.createdAt)}</p><p>{t("backupRequestedBy", { requester: job.requestedBy })}</p></div>
