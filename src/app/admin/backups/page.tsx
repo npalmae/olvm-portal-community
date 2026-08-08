@@ -105,29 +105,6 @@ export default function AdminBackupsPage() {
   const isSuperadmin = session?.user?.globalRole === "superadmin" || session?.user?.role === "superadmin";
   const activeJob = jobs.some((job) => job.status === "queued" || job.status === "running");
 
-  const filteredJobs = useMemo(() => {
-    const term = historySearch.trim().toLowerCase();
-    const sorted = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    if (!term) return sorted.slice(0, 7);
-    return sorted.filter((job) => {
-      const haystack = [
-        job.id,
-        job.profile,
-        job.status,
-        job.trigger,
-        job.requestedBy,
-        job.stage,
-        job.objectKey,
-        job.checksum,
-        job.error,
-      ]
-        .filter((value): value is string => typeof value === "string" && value.length > 0)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
-  }, [jobs, historySearch]);
-
   const applyConfig = (next: BackupConfig | null) => {
     setConfig(next);
     if (!next) {
@@ -263,6 +240,35 @@ export default function AdminBackupsPage() {
     while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit += 1; }
     return `${size.toLocaleString(dateLocale, { maximumFractionDigits: 1 })} ${units[unit]}`;
   };
+
+  const filteredJobs = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    const sorted = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (!term) return sorted.slice(0, 7);
+    return sorted.filter((job) => {
+      const haystack = [
+        job.id,
+        job.profile,
+        job.status,
+        job.trigger,
+        job.requestedBy,
+        job.stage,
+        job.objectKey,
+        job.checksum,
+        job.error,
+        job.createdAt,
+        job.startedAt,
+        job.finishedAt,
+        formatDate(job.createdAt),
+        formatDate(job.startedAt),
+        formatDate(job.finishedAt),
+      ]
+        .filter((value): value is string => typeof value === "string" && value.length > 0 && value !== t("backupNever"))
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [jobs, historySearch, formatDate, t]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center text-sm text-gray-500" style={{ background: "var(--bg)" }}>{t("loading")}</div>;
   if (!isSuperadmin) return null;
