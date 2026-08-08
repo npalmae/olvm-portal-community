@@ -96,6 +96,8 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
       );
     }
     sshCredentials = await resolveSshCredentials();
+    // Garantiza que el directorio de staging exista en el host destino.
+    await sshExec(sshCredentials, hostAddr, `mkdir -p '${hostStagingDir}'`);
 
     // Determina el formato de origen: qcow2 directo u OVA (tar).
     let sourceFormat: "ova" | "qcow2" = "ova";
