@@ -1630,13 +1630,23 @@ export const finalizeImageTransfer = async (tenantId: string, transferId: string
 
 export type OvaDiskInfo = { id: string; name: string; size: number; storageDomainName: string };
 
+export const fetchDiskName = async (tenantId: string, diskId: string): Promise<string> => {
+  const tenant = await getTenantById(tenantId);
+  const d = await olvmFetch(tenant, withJsonFormat(`/disks/${diskId}`));
+  if (typeof d === "string") return d.match(/<name>([^<]+)<\/name>/)?.[1]?.trim() ?? "";
+  return String((d as Record<string, unknown> | null)?.name ?? "");
+};
+
 export const fetchOvaDisks = async (tenantId: string): Promise<OvaDiskInfo[]> => {
   const tenant = await getTenantById(tenantId);
   const data = await olvmFetch(tenant, withJsonFormat("/disks"));
   const root = data && typeof data === "object" ? data as Record<string, unknown> : null;
   const list = root && Array.isArray(root.disk) ? root.disk as Record<string, unknown>[] : [];
   return list
-    .filter((d) => String(d.name ?? "").toLowerCase().endsWith(".ova"))
+    .filter((d) => {
+      const name = String(d.name ?? "").toLowerCase();
+      return name.endsWith(".ova") || name.endsWith(".qcow2");
+    })
     .map((d) => ({
       id: String(d.id ?? ""),
       name: String(d.name ?? ""),
@@ -1648,11 +1658,19 @@ export const fetchOvaDisks = async (tenantId: string): Promise<OvaDiskInfo[]> =>
 
 export const uploadOvaAsDisk = async (
   tenantId: string,
-  params: { name: string; filePath: string; fileSize: number; storageDomainId: string },
+  params: { name: string; filePath: string; fileSize: number; storageDomainId: string; virtualSize?: number },
 ): Promise<string> => {
   const { readFile } = await import("fs/promises");
   const tenant = await getTenantById(tenantId);
-  const diskName = params.name.toLowerCase().endsWith(".ova") ? params.name : `${params.name}.ova`;
+  const lowerName = params.name.toLowerCase();
+  const isQcow2 = lowerName.endsWith(".qcow2");
+  const diskName = (lowerName.endsWith(".ova") || isQcow2) ? params.name : `${params.name}.ova`;
+  // imageio valida que el contenido coincida con el formato del disco:
+  // qcow2 exige disco "cow" (con provisioned_size = tamaño virtual);
+  // OVA (tar) va como "raw" con provisioned_size múltiplo de 512 y payload relleno.
+  const provisionedSize = isQcow2
+    ? Math.ceil((params.virtualSize && params.virtualSize > 0 ? params.virtualSize : params.fileSize) / 512) * 512
+    : Math.ceil(params.fileSize / 512) * 512;
 
   const diskRes = await olvmFetch(tenant, "/disks", {
     method: "POST",
@@ -1660,9 +1678,9 @@ export const uploadOvaAsDisk = async (
       name: diskName,
       alias: diskName,
       content_type: "iso",
-      format: "raw",
-      sparse: false,
-      provisioned_size: params.fileSize,
+      format: isQcow2 ? "cow" : "raw",
+      sparse: isQcow2,
+      provisioned_size: provisionedSize,
       storage_domains: { storage_domain: [{ id: params.storageDomainId }] },
     }),
   });
@@ -1716,6 +1734,10 @@ export const uploadOvaAsDisk = async (
   } catch { /* keep */ }
 
   const buffer = await readFile(params.filePath);
+  // En discos raw imageio espera exactamente provisioned_size bytes; en cow basta el contenido qcow2.
+  const payload = !isQcow2 && buffer.length < provisionedSize
+    ? Buffer.concat([buffer, Buffer.alloc(provisionedSize - buffer.length)])
+    : buffer;
   const uploadDispatcher = new UndiciAgent({
     connect: { rejectUnauthorized: false },
     bodyTimeout: 0,
@@ -1723,8 +1745,8 @@ export const uploadOvaAsDisk = async (
   });
   const uploadRes = await fetch(uploadUrl, {
     method: "PUT",
-    headers: { "Content-Type": "application/octet-stream", "Content-Length": String(params.fileSize) },
-    body: buffer,
+    headers: { "Content-Type": "application/octet-stream", "Content-Length": String(payload.length) },
+    body: payload,
     dispatcher: uploadDispatcher as any,
     duplex: "half",
   } as any);

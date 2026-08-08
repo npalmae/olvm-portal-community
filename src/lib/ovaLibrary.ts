@@ -11,7 +11,10 @@ export const listOvaDisks = async (
   ovaDisks: { id: string; name: string; provisioned_size?: string | number; storage_domains?: { storage_domain?: { name?: string; id?: string }[] } }[],
 ): Promise<OvaDiskEntry[]> => {
   return ovaDisks
-    .filter((d) => (d.name ?? "").toLowerCase().endsWith(".ova"))
+    .filter((d) => {
+      const name = (d.name ?? "").toLowerCase();
+      return name.endsWith(".ova") || name.endsWith(".qcow2");
+    })
     .map((d) => ({
       id: d.id,
       name: d.name,

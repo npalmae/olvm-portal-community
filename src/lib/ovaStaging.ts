@@ -8,14 +8,16 @@ export type OvaUploadMetadata = {
   ovf: string;
 };
 
+export type OvaStagingFormat = "ova" | "qcow2";
+
 export const getOvaStagingDir = () =>
   process.env.OVA_STAGING_DIR?.trim() || path.join(process.cwd(), "data", "ova-staging");
 
-export const getOvaUploadPaths = (uploadId: string) => {
+export const getOvaUploadPaths = (uploadId: string, format: OvaStagingFormat = "ova") => {
   if (!UPLOAD_ID_PATTERN.test(uploadId)) throw new Error("Identificador OVA inválido");
   const dir = getOvaStagingDir();
   return {
-    filePath: path.join(dir, `${uploadId}.ova`),
+    filePath: path.join(dir, `${uploadId}.${format}`),
     metadataPath: path.join(dir, `${uploadId}.json`),
   };
 };

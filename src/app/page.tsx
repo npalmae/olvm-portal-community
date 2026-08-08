@@ -912,8 +912,8 @@ export default function Home() {
         if (data?.done) completed = data;
         setOvaUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
       }
-      if (!completed?.uploadId || !completed.ovf) throw new Error(t("ovaNotConfirmed"));
-      setUploadedOva({ uploadId: completed.uploadId, name: file.name, ovf: completed.ovf });
+      if (!completed?.uploadId) throw new Error(t("ovaNotConfirmed"));
+      setUploadedOva({ uploadId: completed.uploadId, name: file.name, ovf: completed.ovf ?? "" });
       setSuccess(t("ovaUploadSuccess", { name: file.name }));
     } catch (err) { setError((err as Error).message); }
     finally { setUploadingOva(false); setTimeout(() => setOvaUploadProgress(null), 1000); }
@@ -2731,7 +2731,7 @@ export default function Home() {
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <p className="text-[11px] font-bold text-emerald-800">{uploadedOva.name}</p>
-                              <p className="mt-0.5 truncate text-[10px] text-emerald-600">{uploadedOva.ovf}</p>
+                              {uploadedOva.ovf && <p className="mt-0.5 truncate text-[10px] text-emerald-600">{uploadedOva.ovf}</p>}
                             </div>
                              <button onClick={() => setUploadedOva(null)} className="ml-2 shrink-0 text-[10px] text-emerald-700 underline">{t("change")}</button>
                           </div>
@@ -2764,7 +2764,7 @@ export default function Home() {
                           </div>
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
-                            <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
+                            <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
                         </div>
                       ) : (
@@ -2777,7 +2777,7 @@ export default function Home() {
                           )}
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-3 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
-                            <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
+                            <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
                         </div>
                       )}

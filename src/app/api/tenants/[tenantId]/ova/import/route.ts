@@ -14,6 +14,7 @@ import {
   attachDiskToVm,
   uploadOvaAsDisk,
   downloadOvaFromSd,
+  fetchDiskName,
 } from "@/lib/olvmClient";
 import { getOvaUploadPaths } from "@/lib/ovaStaging";
 import {
@@ -96,8 +97,29 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     }
     sshCredentials = await resolveSshCredentials();
 
+    // Determina el formato de origen: qcow2 directo u OVA (tar).
+    let sourceFormat: "ova" | "qcow2" = "ova";
+    let stagedFilePath = "";
+    let stagedFileSize = 0;
+    if (isFromCatalog) {
+      const catalogName = await fetchDiskName(tenantId, diskId);
+      if (catalogName.toLowerCase().endsWith(".qcow2")) sourceFormat = "qcow2";
+    } else {
+      const qcow2Info = await stat(getOvaUploadPaths(uploadId, "qcow2").filePath).catch(() => null);
+      if (qcow2Info?.isFile() && qcow2Info.size > 0) {
+        sourceFormat = "qcow2";
+        stagedFilePath = getOvaUploadPaths(uploadId, "qcow2").filePath;
+        stagedFileSize = qcow2Info.size;
+      } else {
+        const ovaInfo = await stat(getOvaUploadPaths(uploadId, "ova").filePath).catch(() => null);
+        if (!ovaInfo?.isFile() || ovaInfo.size === 0) throw new Error("El archivo OVA no está disponible");
+        stagedFilePath = getOvaUploadPaths(uploadId, "ova").filePath;
+        stagedFileSize = ovaInfo.size;
+      }
+    }
+
     extractDir = `/tmp/ova-import-${Date.now()}`;
-    const remoteOva = path.posix.join(hostStagingDir, `${uploadId || diskId}.ova`);
+    const remoteOva = path.posix.join(hostStagingDir, `${uploadId || diskId}.${sourceFormat}`);
 
     if (isFromCatalog) {
       const { transferId, downloadUrl } = await downloadOvaFromSd(tenantId, diskId);
@@ -107,44 +129,38 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
       );
       await finalizeImageTransfer(tenantId, transferId);
     } else {
-      const { filePath } = getOvaUploadPaths(uploadId);
-      const fileInfo = await stat(filePath);
-      if (!fileInfo.isFile() || fileInfo.size === 0) throw new Error("El archivo OVA no está disponible");
-      await scpToHost(sshCredentials, filePath, hostAddr, remoteOva);
-
-      void uploadOvaAsDisk(tenantId, {
-        name: ovaName || `${uploadId}.ova`,
-        filePath,
-        fileSize: fileInfo.size,
-        storageDomainId,
-      }).catch(() => undefined);
+      await scpToHost(sshCredentials, stagedFilePath, hostAddr, remoteOva);
     }
 
-    await sshExec(sshCredentials, hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
-
-    const qcow2Name = (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -type f -iname '*.qcow2' | head -1`)).trim();
-    const vmdkName = qcow2Name ? "" : (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -type f -iname '*.vmdk' | head -1`)).trim();
-
     let diskPath: string;
-    if (qcow2Name) {
-      // Si el OVA ya trae qcow2, se usa directo; solo se reconvierte si tiene backing file.
-      const embeddedInfoRaw = await sshExec(sshCredentials, hostAddr, `qemu-img info --output=json '${qcow2Name}'`);
-      const embeddedInfo = JSON.parse(embeddedInfoRaw) as { "backing-filename"?: string };
-      if (embeddedInfo["backing-filename"]) {
-        diskPath = `${extractDir}/disk-flat.qcow2`;
-        await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -O qcow2 '${qcow2Name}' '${diskPath}'`, 540_000);
-      } else {
-        diskPath = qcow2Name;
-      }
-    } else if (vmdkName) {
-      diskPath = `${extractDir}/disk.qcow2`;
-      await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${diskPath}'`, 540_000);
+
+    if (sourceFormat === "qcow2") {
+      // Subida directa de qcow2: no hay OVA que extraer.
+      diskPath = remoteOva;
     } else {
-      throw new Error("El OVA no contiene un disco soportado (qcow2 o vmdk)");
+      await sshExec(sshCredentials, hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
+
+      const qcow2Name = (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -type f -iname '*.qcow2' | head -1`)).trim();
+      const vmdkName = qcow2Name ? "" : (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -type f -iname '*.vmdk' | head -1`)).trim();
+
+      if (qcow2Name) {
+        diskPath = qcow2Name;
+      } else if (vmdkName) {
+        diskPath = `${extractDir}/disk.qcow2`;
+        await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${diskPath}'`, 540_000);
+      } else {
+        throw new Error("El OVA no contiene un disco soportado (qcow2 o vmdk)");
+      }
     }
 
     const infoRaw = await sshExec(sshCredentials, hostAddr, `qemu-img info --output=json '${diskPath}'`);
-    const diskInfo = JSON.parse(infoRaw) as { "virtual-size"?: number };
+    const diskInfo = JSON.parse(infoRaw) as { "virtual-size"?: number; "backing-filename"?: string };
+    if (diskInfo["backing-filename"]) {
+      // Aplana la cadena de backing files antes de subir.
+      const flatPath = `${extractDir}/disk-flat.qcow2`;
+      await sshExec(sshCredentials, hostAddr, `mkdir -p ${extractDir} && qemu-img convert -p -O qcow2 '${diskPath}' '${flatPath}'`, 540_000);
+      diskPath = flatPath;
+    }
     const virtualSize = Number(diskInfo["virtual-size"]) || 10 * 1024 * 1024 * 1024;
 
     const { vmId } = await importOvaVm(tenantId, { name, clusterId, storageDomainId, hostId, hostPath: remoteOva });
@@ -167,7 +183,24 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     await waitForDiskReady(tenantId, newDiskId);
     await attachDiskToVm(tenantId, vmId, newDiskId, { bootable: true, interface: "virtio_scsi" });
 
-    return NextResponse.json({ ok: true, vmId, pending: false });
+    // Copia al catálogo del tenant (best-effort, no bloquea el resultado de la VM).
+    let catalogWarning: string | null = null;
+    if (!isFromCatalog) {
+      try {
+        await uploadOvaAsDisk(tenantId, {
+          name: ovaName || `${uploadId}.${sourceFormat}`,
+          filePath: stagedFilePath,
+          fileSize: stagedFileSize,
+          storageDomainId,
+          virtualSize,
+        });
+      } catch (catalogError) {
+        catalogWarning = (catalogError as Error).message;
+        console.error("[ova-import] catalog copy failed:", catalogError);
+      }
+    }
+
+    return NextResponse.json({ ok: true, vmId, pending: false, catalogWarning });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   } finally {

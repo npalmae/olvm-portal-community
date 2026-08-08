@@ -205,7 +205,7 @@ export const dashboardMessages: Messages = {
   catalogCount: msg("Catálogo ({count} OVAs)…", "Catalog ({count} OVAs)…", "Katalog ({count} OVAs)…", "Catálogo ({count} OVAs)…"),
   uploading: msg("Subiendo…", "Uploading…", "Wird hochgeladen…", "A carregar…"),
   uploadNew: msg("subir nuevo", "upload new", "neu hochladen", "carregar novo"),
-  selectOvaFile: msg("Seleccionar archivo .ova", "Select .ova file", ".ova-Datei auswählen", "Selecionar ficheiro .ova"),
+  selectOvaFile: msg("Seleccionar archivo .ova o .qcow2", "Select .ova or .qcow2 file", ".ova- oder .qcow2-Datei auswählen", "Selecionar ficheiro .ova ou .qcow2"),
   configurationStep2: msg("2. Configuración", "2. Configuration", "2. Konfiguration", "2. Configuração"),
   configurationStep3: msg("3. Configuración", "3. Configuration", "3. Konfiguration", "3. Configuração"),
   nameRequired: msg("Nombre *", "Name *", "Name *", "Nome *"),
