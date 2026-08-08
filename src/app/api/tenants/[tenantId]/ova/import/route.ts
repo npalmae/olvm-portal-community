@@ -122,15 +122,30 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
 
     await sshExec(sshCredentials, hostAddr, `mkdir -p ${extractDir} && tar -xf ${remoteOva} -C ${extractDir}/`);
 
-    const vmdkName = (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -name '*.vmdk' -type f | head -1`)).trim();
-    if (!vmdkName) throw new Error("El OVA no contiene un disco VMDK");
+    const qcow2Name = (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -type f -iname '*.qcow2' | head -1`)).trim();
+    const vmdkName = qcow2Name ? "" : (await sshExec(sshCredentials, hostAddr, `find ${extractDir} -type f -iname '*.vmdk' | head -1`)).trim();
 
-    const qcow2Path = `${extractDir}/disk.qcow2`;
-    await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${qcow2Path}'`, 540_000);
+    let diskPath: string;
+    if (qcow2Name) {
+      // Si el OVA ya trae qcow2, se usa directo; solo se reconvierte si tiene backing file.
+      const embeddedInfoRaw = await sshExec(sshCredentials, hostAddr, `qemu-img info --output=json '${qcow2Name}'`);
+      const embeddedInfo = JSON.parse(embeddedInfoRaw) as { "backing-filename"?: string };
+      if (embeddedInfo["backing-filename"]) {
+        diskPath = `${extractDir}/disk-flat.qcow2`;
+        await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -O qcow2 '${qcow2Name}' '${diskPath}'`, 540_000);
+      } else {
+        diskPath = qcow2Name;
+      }
+    } else if (vmdkName) {
+      diskPath = `${extractDir}/disk.qcow2`;
+      await sshExec(sshCredentials, hostAddr, `qemu-img convert -p -f vmdk -O qcow2 '${vmdkName}' '${diskPath}'`, 540_000);
+    } else {
+      throw new Error("El OVA no contiene un disco soportado (qcow2 o vmdk)");
+    }
 
-    const infoRaw = await sshExec(sshCredentials, hostAddr, `qemu-img info --output=json '${qcow2Path}'`);
-    const qcow2Info = JSON.parse(infoRaw);
-    const virtualSize = Number(qcow2Info["virtual-size"]) || 10 * 1024 * 1024 * 1024;
+    const infoRaw = await sshExec(sshCredentials, hostAddr, `qemu-img info --output=json '${diskPath}'`);
+    const diskInfo = JSON.parse(infoRaw) as { "virtual-size"?: number };
+    const virtualSize = Number(diskInfo["virtual-size"]) || 10 * 1024 * 1024 * 1024;
 
     const { vmId } = await importOvaVm(tenantId, { name, clusterId, storageDomainId, hostId, hostPath: remoteOva });
 
@@ -144,7 +159,7 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     const { transferId: upTransferId, uploadUrl } = await startImageTransfer(tenantId, newDiskId);
 
     await sshExec(sshCredentials, hostAddr,
-      `curl -sk -X PUT -H 'Content-Type: application/octet-stream' --data-binary @'${qcow2Path}' '${uploadUrl}'`,
+      `curl -sk -X PUT -H 'Content-Type: application/octet-stream' --data-binary @'${diskPath}' '${uploadUrl}'`,
       540_000,
     );
 
