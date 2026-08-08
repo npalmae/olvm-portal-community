@@ -180,13 +180,16 @@ Acceder a `http://<servidor>:3000`
 | `OLVM_SHARED_SDS` | JSON con SDs compartidos globales | Opcional |
 | `USER_STORE_PATH` | Path custom para users.json | Opcional |
 | `ENGINE_STORE_PATH` | Path custom para engines.json | Opcional |
-| `OVA_STAGING_DIR` | Directorio del portal donde se guardan los OVA subidos | Para importar OVA |
-| `OVA_HOST_STAGING_DIR` | El mismo directorio compartido visto desde el host OLVM | Para importar OVA |
-| `OVA_IMPORT_HOST_ID` | ID del host OLVM que puede leer el staging compartido | Para importar OVA |
-| `OVA_STAGING_HOST_PATH` | Ruta del staging compartido en el servidor Docker, montada en `OVA_STAGING_DIR` | Para importar OVA con Compose |
+| `OVA_STAGING_DIR` | Directorio del portal donde se guardan los OVA/qcow2 subidos | Para importar OVA/qcow2 |
+| `OVA_HOST_STAGING_DIR` | Directorio temporal en el host OLVM donde el portal copia los archivos vía SCP | Para importar OVA/qcow2 |
+| `OVA_IMPORT_HOST_ID` | ID del host OLVM usado para la conversión/subida | Para importar OVA/qcow2 |
+| `OVA_STAGING_HOST_PATH` | Ruta del staging en el servidor Docker, montada en `OVA_STAGING_DIR` | Para importar OVA con Compose |
 
-El staging OVA debe ser almacenamiento compartido: `OVA_STAGING_HOST_PATH` en el servidor del portal y
-`OVA_HOST_STAGING_DIR` en el host indicado por `OVA_IMPORT_HOST_ID` deben apuntar al mismo contenido.
+El portal copia los archivos al host OLVM vía SCP (credenciales `OLVM_HOST_SSH_USER`/`OLVM_HOST_SSH_PASSWORD`
+o el secreto del sistema configurado en la UI). El directorio `OVA_HOST_STAGING_DIR` (por defecto `/mnt/ova`)
+**debe existir en el host OLVM seleccionado al importar**; el portal intenta crearlo automáticamente con
+`mkdir -p`, por lo que basta con que el usuario SSH tenga permisos para crearlo. Se aceptan archivos
+`.ova` (con disco VMDK o qcow2 dentro) y `.qcow2` directos.
 
 ---
 
