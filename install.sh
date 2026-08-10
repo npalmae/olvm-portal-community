@@ -22,9 +22,33 @@ PREREQ_OK=true
 if command -v docker >/dev/null 2>&1; then
   echo -e "  ${GREEN}✓${NC} Docker: $(docker --version 2>/dev/null | head -c 60)"
 else
-  echo -e "  ${YELLOW}✗${NC} Docker: no instalado"
-  echo -e "     Instalar: https://docs.docker.com/engine/install/"
-  PREREQ_OK=false
+  echo -e "  ${BLUE}→${NC} Docker no encontrado. Instalando..."
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -qq && sudo apt-get install -y -qq ca-certificates curl gnupg
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    sudo apt-get update -qq && sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo systemctl enable --now docker
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y -q yum-utils
+    sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    sudo yum install -y -q docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo systemctl enable --now docker
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y -q dnf-plugins-core
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    sudo dnf install -y -q docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo systemctl enable --now docker
+  else
+    echo -e "  ${YELLOW}✗${NC} No se pudo instalar Docker automáticamente."
+    echo -e "     Instalalo manualmente: https://docs.docker.com/engine/install/"
+    PREREQ_OK=false
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} Docker instalado: $(docker --version 2>/dev/null | head -c 60)"
+  fi
 fi
 
 # 2. Docker Compose
