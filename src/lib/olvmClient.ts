@@ -2348,18 +2348,19 @@ export const fetchVmNics = async (
   const root = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const list = root && "nic" in root ? (root.nic as Record<string, unknown>[]) : [];
 
-  let ipMap: Record<string, string> = {};
+  let ipMap: Record<string, string[]> = {};
   try {
     const rd = await olvmFetch(tenant, withJsonFormat(`/vms/${vmId}/reporteddevices`));
     const rdRoot = rd && typeof rd === "object" ? (rd as Record<string, unknown>) : null;
     const devs = rdRoot && "reported_device" in rdRoot ? (rdRoot.reported_device as Record<string, unknown>[]) : [];
     for (const d of devs) {
       const mac = String((d.mac as Record<string, unknown>)?.address ?? "").toLowerCase();
-      const ips = Array.isArray(d.ips) ? d.ips : (d.ips ? [d.ips] : []);
-      for (const ipEntry of ips) {
-        const ip = String((ipEntry as Record<string, unknown>)?.address ?? (ipEntry as Record<string, unknown>)?.ip ?? "");
-        if (ip && !ip.includes(":")) {
-          ipMap[mac] = ip;
+      if (!mac) continue;
+      const ipStr = extractGuestIps(d.ips);
+      if (!ipStr) continue;
+      for (const addr of ipStr.split(",").map((s) => s.trim())) {
+        if (addr && !addr.includes(":")) {
+          (ipMap[mac] ??= []).push(addr);
         }
       }
     }
@@ -2380,7 +2381,7 @@ export const fetchVmNics = async (
       networkId: String(network.id ?? ""),
       networkName: String(network.name ?? "") || String(vp.name ?? ""),
       vnicProfileId: String(vp.id ?? ""),
-      ipv4: ipMap[String(macAddr).toLowerCase()] ?? undefined,
+      ipv4: (ipMap[String(macAddr).toLowerCase()] ?? []).join(", ") || undefined,
     };
   });
 };
