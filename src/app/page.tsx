@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { usePortalBranding } from "@/components/usePortalBranding";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
@@ -207,6 +208,7 @@ const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-
    ════════════════════════════════════════════════════════════════════════ */
 
 export default function Home() {
+  const router = useRouter();
   const { data: session } = useSession();
   const { locale } = useLocale();
   const t = useTranslations(dashboardMessages);
@@ -316,6 +318,13 @@ export default function Home() {
   const canRead = isSuperadmin || Boolean(activeTenantRole);
   const canOperate = isSuperadmin || activeRoleRank >= 1;
   const canAdmin = isSuperadmin || activeRoleRank >= 2;
+
+  useEffect(() => {
+    fetch("/api/setup/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => { if (data.setupComplete === false) router.push("/setup"); })
+      .catch(() => {});
+  }, [router]);
 
   useEffect(() => {
     const authorized = detailTab === "overview"

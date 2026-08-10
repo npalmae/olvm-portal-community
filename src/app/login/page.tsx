@@ -35,6 +35,13 @@ function LoginPageContent() {
     else if (reason === "expired") setInfo("login.expired");
   }, [reason]);
 
+  useEffect(() => {
+    fetch("/api/setup/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => { if (data.setupComplete === false) router.push("/setup"); })
+      .catch(() => {});
+  }, [router]);
+
   const completeLogin = async (code?: string) => {
     const result = await signIn("credentials", {
       redirect: true,
