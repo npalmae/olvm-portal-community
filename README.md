@@ -113,83 +113,155 @@ Portal web self-service que permite gestionar máquinas virtuales, storage domai
 
 ---
 
-## 🚀 Despliegue
+## 🚀 Instalación
 
-### Prerrequisitos
-- Docker instalado en el servidor
-- Acceso al engine OLVM/oVirt (REST API)
-- Servicio SMTP o API key de Resend para 2FA
+### Instalación rápida (recomendada)
 
-### 1. Clonar y construir
+El portal incluye un script interactivo (`install.sh`) que verifica prerequisitos, genera los secretos de bootstrap, construye los contenedores y abre un wizard web para la configuración inicial.
 
 ```bash
 git clone https://github.com/npalmae/olvm-portal.git
 cd olvm-portal
-docker build -t olvm-portal:latest .
+chmod +x install.sh
+./install.sh
 ```
 
-### 2. Configurar variables de entorno
+El script verifica automáticamente:
+- ✅ Docker instalado (lo instala automáticamente si no está, en Debian/Ubuntu/CentOS/Fedora)
+- ✅ Docker Compose (v1 o v2)
+- ✅ OpenSSL (para generar secretos)
+- ✅ Puerto 3000 libre
+- ✅ Espacio en disco (mín. 5 GB)
+- ✅ RAM (mín. 2 GB recomendado)
 
-Crear archivo `.env`:
+Después genera el `.env` con secretos aleatorios (`AUTH_SECRET`, `FIELD_ENCRYPTION_KEY`, `DB_PASSWORD`), construye y levanta los contenedores, e imprime la URL del wizard:
+
+```
+http://<servidor>:3000/setup
+```
+
+### Wizard web de configuración (/setup)
+
+Al abrir el navegador por primera vez, aparece el wizard interactivo:
+
+| Paso | Descripción | Obligatorio |
+|------|-------------|:-----------:|
+| 1. **Superadmin** | Crear el primer usuario administrador global (email + password) | ✅ |
+| 2. **Motor OLVM** | URL del engine, usuario y password. Botón "Probar conexión" | ✅ |
+| 3. **Tenant** | Nombre del tenant + tag OLVM (se crea automáticamente en el engine) | ✅ |
+| 4. **Email** | API key de Resend + email remitente (para 2FA y notificaciones) | ⏭ Opcional |
+| 5. **SSH Hosts** | Usuario y password SSH de los hosts OLVM (para import OVA/qcow2) | ⏭ Opcional |
+| 6. **Listo** | Redirección al dashboard | — |
+
+El wizard crea el superadmin sin autenticación (solo funciona si no existe uno previo), se autologuea, y los pasos siguientes usan los endpoints admin autenticados.
+
+### Datos que necesitas tener a mano
+
+- URL de la API REST del motor OLVM/oVirt (ej: `https://engine.example.com/ovirt-engine/api`)
+- Credenciales del engine (usuario + password, típicamente `admin@internal`)
+- Nombre y tag del tenant (ej: `produccion`)
+- *(Opcional)* API key de Resend + email remitente para 2FA
+- *(Opcional)* Credenciales SSH de los hosts OLVM (`root` + password)
+
+### Despliegue manual (sin install.sh)
+
+Si preferís configurar todo a mano:
 
 ```bash
-# Autenticación
-AUTH_SECRET=tu-secreto-jwt
-AUTH_TRUST_HOST=true
-REQUIRE_2FA=true
+git clone https://github.com/npalmae/olvm-portal.git
+cd olvm-portal
 
-# Email (2FA)
-RESEND_API_KEY=re_xxxxxxxx
-RESEND_FROM=noreply@tudominio.com
+# 1. Crear .env con los secretos mínimos
+cp .env.example .env  # o generarlo manualmente
+# Editar AUTH_SECRET, FIELD_ENCRYPTION_KEY, DB_PASSWORD, AUTH_URL
 
-# Engines y Tenants
-OLVM_TENANTS=[
-  {"id":"produccion","name":"Produccion","baseUrl":"https://10.141.11.63/ovirt-engine/api","username":"admin@internal","password":"xxx","allowInsecure":true,"tag":"produccion","storageDomains":["DATA","ISOS"]},
-  {"id":"desarrollo","name":"Desarrollo","baseUrl":"https://10.141.11.63/ovirt-engine/api","username":"admin@internal","password":"xxx","allowInsecure":true,"tag":"desarrollo"}
-]
+# 2. Construir y levantar
+docker-compose up -d --build
 
-# Storage domains compartidos (visibles para todos los tenants)
-OLVM_SHARED_SDS=["ISOS","REPOSITORIO"]
+# 3. Abrir el wizard
+# http://<servidor>:3000/setup
 ```
 
-### 3. Ejecutar
+### Instalación en un servidor nuevo (paso a paso)
 
 ```bash
-docker run -d \
-  --name olvm-portal \
-  --restart unless-stopped \
-  --network host \
-  --env-file .env \
-  olvm-portal:latest
+# 1. Clonar el repositorio
+git clone https://github.com/npalmae/olvm-portal.git
+cd olvm-portal
+
+# 2. Ejecutar el instalador
+chmod +x install.sh
+./install.sh
+# → Verifica prerequisitos
+# → Instala Docker si falta
+# → Genera .env con secretos aleatorios
+# → Pregunta la URL pública del portal
+# → Construye y levanta los contenedores
+
+# 3. Abrir el navegador en la URL que muestra el script
+# http://<IP>:3000/setup
+
+# 4. Completar el wizard web (superadmin → engine → tenant → email → SSH)
+
+# 5. ¡Listo! El portal redirige al dashboard
 ```
 
-Acceder a `http://<servidor>:3000`
+### Gestión de contenedores
+
+```bash
+# Ver estado
+docker-compose ps
+
+# Ver logs
+docker logs -f olvm-portal
+
+# Reiniciar
+docker-compose restart portal
+
+# Detener
+docker-compose down
+
+# Actualizar (nueva versión del código)
+git pull origin main
+docker-compose build portal
+docker stop olvm-portal && docker rm olvm-portal
+docker-compose up -d portal
+```
 
 ---
 
 ## ⚙️ Variables de Entorno
 
-| Variable | Descripción | Requerido |
-|----------|-------------|-----------|
-| `AUTH_SECRET` | Secreto para JWT | ✅ |
-| `AUTH_TRUST_HOST` | Confía en el host (detrás de proxy) | ✅ |
-| `REQUIRE_2FA` | Forzar doble factor | Recomendado |
-| `RESEND_API_KEY` | API key de Resend para emails 2FA | Si 2FA activo |
-| `RESEND_FROM` | Email remitente para 2FA | Si 2FA activo |
-| `OLVM_TENANTS` | JSON con engines + tenants | ✅ |
-| `OLVM_SHARED_SDS` | JSON con SDs compartidos globales | Opcional |
-| `USER_STORE_PATH` | Path custom para users.json | Opcional |
-| `ENGINE_STORE_PATH` | Path custom para engines.json | Opcional |
-| `OVA_STAGING_DIR` | Directorio del portal donde se guardan los OVA/qcow2 subidos | Para importar OVA/qcow2 |
-| `OVA_HOST_STAGING_DIR` | Directorio temporal en el host OLVM donde el portal copia los archivos vía SCP | Para importar OVA/qcow2 |
-| `OVA_IMPORT_HOST_ID` | ID del host OLVM usado para la conversión/subida | Para importar OVA/qcow2 |
-| `OVA_STAGING_HOST_PATH` | Ruta del staging en el servidor Docker, montada en `OVA_STAGING_DIR` | Para importar OVA con Compose |
+El script `install.sh` genera automáticamente las variables de bootstrap. El resto se configura desde el wizard web o el panel de administración.
 
-El portal copia los archivos al host OLVM vía SCP (credenciales `OLVM_HOST_SSH_USER`/`OLVM_HOST_SSH_PASSWORD`
-o el secreto del sistema configurado en la UI). El directorio `OVA_HOST_STAGING_DIR` (por defecto `/mnt/ova`)
-**debe existir en el host OLVM seleccionado al importar**; el portal intenta crearlo automáticamente con
-`mkdir -p`, por lo que basta con que el usuario SSH tenga permisos para crearlo. Se aceptan archivos
-`.ova` (con disco VMDK o qcow2 dentro) y `.qcow2` directos.
+### Generadas por install.sh (bootstrap)
+
+| Variable | Descripción |
+|----------|-------------|
+| `AUTH_SECRET` | Secreto para JWT (aleatorio) |
+| `FIELD_ENCRYPTION_KEY` | Clave AES-256-GCM para cifrar credenciales en DB (aleatorio) |
+| `DB_PASSWORD` | Password de PostgreSQL (aleatorio) |
+| `AUTH_URL` / `NEXTAUTH_URL` | URL pública del portal (se pregunta en la instalación) |
+| `AUTH_TRUST_HOST` | Confiar en el host detrás de proxy (`true`) |
+| `REQUIRE_2FA` | Forzar 2FA (`false` durante setup, activar desde el panel) |
+
+### Configurables desde el wizard web (/setup) o el panel admin
+
+| Variable | Dónde se guarda | Descripción |
+|----------|----------------|-------------|
+| Engine OLVM (URL, user, pass) | PostgreSQL (cifrado) | Configuración del motor OLVM |
+| Tenant + tag | PostgreSQL | Aislamiento multitenant |
+| Email (Resend) | PostgreSQL (cifrado) | API key + email remitente para 2FA |
+| SSH Hosts OLVM | PostgreSQL (cifrado) | Credenciales SSH para import OVA/qcow2 |
+
+### Importación OVA/qcow2
+
+| Variable | Descripción |
+|----------|-------------|
+| `OVA_STAGING_DIR` | Directorio del portal donde se guardan los archivos subidos |
+| `OVA_HOST_STAGING_DIR` | Directorio temporal en el host OLVM para SCP (se crea automáticamente con `mkdir -p`) |
+
+Se aceptan archivos `.ova` (con disco VMDK o qcow2 dentro) y `.qcow2` directos.
 
 ---
 
@@ -219,62 +291,64 @@ o el secreto del sistema configurado en la UI). El directorio `OVA_HOST_STAGING_
 
 ---
 
-## 👤 Usuarios por Defecto
+## 👤 Usuario Inicial
 
-El sistema incluye usuarios seed en `data/users.json`:
-
-| Email | Rol | Tenant |
-|-------|-----|--------|
-| `super@test.com` | superadmin | — |
-| `npalma@sixmanager.com` | superadmin | — |
-
-> Los nuevos usuarios creados desde el portal se persisten en `data/users.json` y sobreviven reinicios si se incluyen en el Docker image.
+El primer usuario **superadmin** se crea desde el wizard web (`/setup`) durante la instalación. No hay usuarios seed predefinidos. Los usuarios adicionales se crean desde el panel de administración (`/admin/users`).
 
 ---
 
 ## 🔒 Seguridad
 
-- **JWT stateless**: el token se genera al login y no consulta la DB en cada request
-- **2FA**: código OTP por email en cada login
+- **PostgreSQL + Prisma**: todos los datos operativos viven en PostgreSQL (no en archivos JSON planos)
+- **Cifrado AES-256-GCM**: credenciales del engine, API keys y secretos del sistema se cifran en la DB con `FIELD_ENCRYPTION_KEY`
+- **JWT stateless**: el token de sesión se genera al login con `AUTH_SECRET`
+- **2FA**: código OTP por email (Resend) en cada login (activable desde el panel)
 - **Aislamiento por tags**: las VMs se filtran por tag de OLVM, un tenant no puede ver VMs de otro
 - **Middleware**: bloquea acceso a APIs de otros tenants (403 o redirect)
-- **Credenciales centralizadas**: las credenciales del engine nunca se exponen a los usuarios
+- **Roles**: `superadmin` (global), `admin` (por tenant), `user` (por tenant), `operator` (solo lectura)
+- **API read-only**: endpoint `/api/v1/*` con header `X-API-Key` (hereda memberships del usuario)
 
 ---
 
 ## 📂 Estructura del Proyecto
 
 ```
-src/
-├── app/
-│   ├── page.tsx              # Dashboard principal (portal)
-│   ├── layout.tsx            # Root layout (SessionProvider)
-│   ├── login/                # Página de login
-│   ├── register/             # Self-registration
-│   ├── admin/
-│   │   ├── clusters/         # Admin Engines + Tenants
-│   │   └── users/            # Admin Usuarios
-│   ├── api/
-│   │   ├── admin/engines/    # CRUD engines + test + SDs
-│   │   ├── admin/clusters/   # CRUD tenants
-│   │   ├── admin/users/      # CRUD usuarios
-│   │   └── tenants/[id]/
-│   │       ├── vms/          # VMs + acciones + discos + cdrom
-│   │       ├── isos/         # Listar + subir ISOs
-│   │       ├── storage-domains/
-│   │       └── provisioning-options/
-│   └── console/              # Consola noVNC embebida
-├── lib/
-│   ├── olvmClient.ts         # Cliente REST API OLVM (VMs, discos, ISOs, tags)
-│   ├── engineStore.ts        # Store de engines (JSON)
-│   ├── clusterStore.ts       # Store de tenants (JSON)
-│   ├── userStore.ts          # Store de usuarios (JSON + bcrypt)
-│   ├── config.ts             # Resolver tenant → engine → TenantConfig
-│   ├── authz.ts              # Helpers de autorización
-│   └── wsProxy.ts            # Proxy WebSocket para consola VNC
-├── auth.ts                   # NextAuth config
-├── auth-base.ts              # Auth config (Edge compatible)
-└── middleware.ts             # Protección de rutas + tenant guard
+olvm-portal/
+├── install.sh                     # Script de instalación interactiva
+├── docker-compose.yml             # Orquestación de contenedores
+├── start.sh                       # Entrypoint del contenedor portal
+├── prisma/
+│   ├── schema.prisma              # Esquema de la base de datos
+│   └── migrations/                # Migraciones de Prisma
+├── src/
+│   ├── app/
+│   │   ├── setup/page.tsx         # Wizard de instalación (/setup)
+│   │   ├── page.tsx               # Dashboard principal
+│   │   ├── login/                 # Página de login
+│   │   ├── admin/
+│   │   │   ├── clusters/          # Admin: Engines + Tenants
+│   │   │   ├── users/             # Admin: Usuarios
+│   │   │   ├── email/             # Admin: Config email
+│   │   │   ├── branding/          # Admin: Branding
+│   │   │   └── backups/           # Admin: Backups S3/Wasabi
+│   │   └── api/
+│   │       ├── setup/             # Endpoints del wizard (status, superadmin)
+│   │       ├── admin/             # Endpoints admin (engines, clusters, users, email, secrets)
+│   │       ├── tenants/[id]/      # Endpoints por tenant (VMs, OVA, ISOs, etc.)
+│   │       └── v1/                # API read-only (X-API-Key)
+│   ├── lib/
+│   │   ├── olvmClient.ts          # Cliente REST API OLVM
+│   │   ├── setupState.ts          # Detección de primer arranque
+│   │   ├── engineStore.ts         # Store de engines (PostgreSQL)
+│   │   ├── clusterStore.ts        # Store de tenants (PostgreSQL)
+│   │   ├── userStore.ts           # Store de usuarios (PostgreSQL + bcrypt)
+│   │   ├── crypto.ts              # Cifrado AES-256-GCM
+│   │   ├── backupService.ts       # Motor de backups
+│   │   └── email.ts               # Cliente Resend
+│   ├── middleware.ts              # Protección de rutas + setup gating
+│   └── auth.ts / auth-base.ts     # NextAuth config
+└── scripts/
+    └── backup-scheduler.cjs       # Scheduler de backups programados
 ```
 
 ---
