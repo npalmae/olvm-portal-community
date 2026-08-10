@@ -48,6 +48,13 @@ else
   fi
   if command -v docker >/dev/null 2>&1; then
     echo -e "  ${GREEN}✓${NC} Docker instalado: $(docker --version 2>/dev/null | head -c 60)"
+    # Asegurar que el usuario actual tenga permisos de Docker
+    if ! docker ps >/dev/null 2>&1; then
+      echo -e "  ${BLUE}→${NC} Agregando usuario actual al grupo docker..."
+      sudo usermod -aG docker "$USER" 2>/dev/null || true
+      echo -e "  ${YELLOW}!${NC} Se agregó el usuario al grupo docker. Re-ejecutando con permisos actualizados..."
+      exec sg docker -c "$0"
+    fi
   fi
 fi
 
