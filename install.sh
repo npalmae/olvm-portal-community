@@ -13,24 +13,87 @@ echo
 
 # ── Prerequisitos ────────────────────────────────────────────────────────────
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo -e "${YELLOW}✗ Docker no está instalado. Instálalo primero:${NC}"
-  echo "   https://docs.docker.com/engine/install/"
-  exit 1
+echo -e "${BLUE}▶ Verificando prerequisitos...${NC}"
+echo
+
+PREREQ_OK=true
+
+# 1. Docker
+if command -v docker >/dev/null 2>&1; then
+  echo -e "  ${GREEN}✓${NC} Docker: $(docker --version 2>/dev/null | head -c 60)"
+else
+  echo -e "  ${YELLOW}✗${NC} Docker: no instalado"
+  echo -e "     Instalar: https://docs.docker.com/engine/install/"
+  PREREQ_OK=false
 fi
 
+# 2. Docker Compose
 COMPOSE=""
 if command -v docker-compose >/dev/null 2>&1; then
   COMPOSE="docker-compose"
 elif docker compose version >/dev/null 2>&1; then
   COMPOSE="docker compose"
 else
-  echo -e "${YELLOW}✗ Docker Compose no está instalado.${NC}"
+  COMPOSE=""
+fi
+if [ -n "$COMPOSE" ]; then
+  echo -e "  ${GREEN}✓${NC} Docker Compose: $COMPOSE"
+else
+  echo -e "  ${YELLOW}✗${NC} Docker Compose: no instalado"
+  echo -e "     Instalar: https://docs.docker.com/compose/install/"
+  PREREQ_OK=false
+fi
+
+# 3. OpenSSL (generación de secretos)
+if command -v openssl >/dev/null 2>&1; then
+  echo -e "  ${GREEN}✓${NC} OpenSSL: $(openssl version 2>/dev/null | head -c 30)"
+else
+  echo -e "  ${YELLOW}!${NC} OpenSSL: no encontrado (se usará /dev/urandom como fallback)"
+fi
+
+# 4. Puerto 3000 libre
+if ss -tlnp 2>/dev/null | grep -q ':3000 ' || netstat -tlnp 2>/dev/null | grep -q ':3000 '; then
+  echo -e "  ${YELLOW}!${NC} Puerto 3000: en uso (verificá que no haya otra instancia del portal)"
+else
+  echo -e "  ${GREEN}✓${NC} Puerto 3000: libre"
+fi
+
+# 5. Espacio en disco (mínimo 5 GB)
+AVAILABLE_GB=$(df -BG . 2>/dev/null | awk 'NR==2 {gsub("G","",$4); print $4}')
+if [ -n "$AVAILABLE_GB" ] && [ "$AVAILABLE_GB" -lt 5 ] 2>/dev/null; then
+  echo -e "  ${YELLOW}✗${NC} Espacio en disco: ${AVAILABLE_GB} GB (se recomiendan al menos 5 GB)"
+  PREREQ_OK=false
+elif [ -n "$AVAILABLE_GB" ]; then
+  echo -e "  ${GREEN}✓${NC} Espacio en disco: ${AVAILABLE_GB} GB disponibles"
+else
+  echo -e "  ${GREEN}✓${NC} Espacio en disco: no se pudo verificar (continuando)"
+fi
+
+# 6. RAM (mínimo 2 GB)
+TOTAL_RAM_MB=$(free -m 2>/dev/null | awk '/^Mem:/ {print $2}')
+if [ -n "$TOTAL_RAM_MB" ] && [ "$TOTAL_RAM_MB" -lt 1800 ] 2>/dev/null; then
+  echo -e "  ${YELLOW}!${NC} RAM: ${TOTAL_RAM_MB} MB (se recomiendan al menos 2 GB)"
+elif [ -n "$TOTAL_RAM_MB" ]; then
+  echo -e "  ${GREEN}✓${NC} RAM: ${TOTAL_RAM_MB} MB"
+fi
+
+echo
+
+# Información de lo que vas a necesitar a mano para el wizard web
+echo -e "${BLUE}ℹ  Datos que vas a necesitar para el wizard web:${NC}"
+echo -e "   • URL del motor OLVM/oVirt (ej: https://engine.example.com/ovirt-engine/api)"
+echo -e "   • Credenciales del engine (usuario + password)"
+echo -e "   • Nombre y tag del tenant"
+echo -e "   • (Opcional) API key de Resend + email remitente"
+echo -e "   • (Opcional) Credenciales SSH de los hosts OLVM"
+echo
+
+if [ "$PREREQ_OK" = false ]; then
+  echo -e "${YELLOW}✗ Faltan prerequisitos obligatorios. Instalalos y volvé a ejecutar.${NC}"
   exit 1
 fi
 
-echo -e "${BLUE}✓ Docker:${NC}   $(docker --version)"
-echo -e "${BLUE}✓ Compose:${NC}  $COMPOSE"
+echo -e "${GREEN}✓ Prerequisitos OK${NC}"
 echo
 
 # ── .env ─────────────────────────────────────────────────────────────────────
