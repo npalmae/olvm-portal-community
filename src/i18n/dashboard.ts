@@ -128,6 +128,8 @@ export const dashboardMessages: Messages = {
   openConsole: msg("Abrir Consola", "Open Console", "Konsole öffnen", "Abrir console"),
   noIp: msg("Sin IP (guest agent requerido)", "No IP (guest agent required)", "Keine IP (Guest Agent erforderlich)", "Sem IP (guest agent necessário)"),
   noActiveNics: msg("Sin NICs activas", "No active NICs", "Keine aktiven NICs", "Sem NICs ativas"),
+  nicUp: msg("Up", "Up", "Up", "Up"),
+  nicDown: msg("Down", "Down", "Down", "Down"),
   memory: msg("Memoria", "Memory", "Arbeitsspeicher", "Memória"),
   diskRead: msg("Disco R", "Disk R", "Datenträger R", "Disco R"),
   diskWrite: msg("Disco W", "Disk W", "Datenträger W", "Disco W"),

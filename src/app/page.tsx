@@ -2063,19 +2063,25 @@ export default function Home() {
                 <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("network")}</p>
                   <div className="space-y-1.5">
-                    {vmNics.filter(n => n.linked && n.plugged).length > 0 ? (
-                      vmNics.filter(n => n.linked && n.plugged).map((n) => (
+                    {vmNics.length > 0 ? (
+                      vmNics.map((n) => {
+                        const isUp = n.linked && n.plugged;
+                        return (
                         <div key={n.id} className="flex flex-col gap-0.5">
                           <div className="flex justify-between text-xs">
-                            <span className="text-gray-500">{n.networkName || n.name}</span>
+                            <span className="flex items-center gap-1.5 text-gray-500">
+                              <span className={`h-2 w-2 shrink-0 rounded-full ${isUp ? "bg-emerald-500" : "bg-gray-300"}`} title={isUp ? t("nicUp") : t("nicDown")} />
+                              {n.networkName || n.name}
+                            </span>
                             <span className="font-semibold text-gray-800">{n.ipv4 ?? t("noIp")}</span>
                           </div>
                           <div className="flex justify-between text-[9px] text-gray-400">
-                            <span>{n.interface}</span>
+                            <span>{n.interface} · <span className={isUp ? "font-medium text-emerald-600" : ""}>{isUp ? t("nicUp") : t("nicDown")}</span></span>
                             <span>MAC: {n.mac ?? "—"}</span>
                           </div>
                         </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <p className="text-[11px] text-gray-400">{t("noActiveNics")}</p>
                     )}
