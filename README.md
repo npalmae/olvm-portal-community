@@ -172,11 +172,13 @@ git clone https://github.com/npalmae/olvm-portal.git
 cd olvm-portal
 
 # 1. Crear .env con los secretos mínimos
-cp .env.example .env  # o generarlo manualmente
+cp .env.example .env
 # Editar AUTH_SECRET, FIELD_ENCRYPTION_KEY, DB_PASSWORD, AUTH_URL
+# Generar secretos con: openssl rand -base64 32
 
-# 2. Construir y levantar
-docker-compose up -d --build
+# 2. Construir y levantar (usar docker compose v2 o docker-compose v1)
+docker compose up -d --build
+# o: docker-compose up -d --build
 
 # 3. Abrir el wizard
 # http://<servidor>:3000/setup
