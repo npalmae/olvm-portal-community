@@ -19,9 +19,7 @@ echo
 PREREQ_OK=true
 
 # 1. Docker
-if command -v docker >/dev/null 2>&1; then
-  echo -e "  ${GREEN}✓${NC} Docker: $(docker --version 2>/dev/null | head -c 60)"
-else
+if ! command -v docker >/dev/null 2>&1; then
   echo -e "  ${BLUE}→${NC} Docker no encontrado. Instalando..."
   if command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update -qq && sudo apt-get install -y -qq ca-certificates curl gnupg
@@ -46,16 +44,27 @@ else
     echo -e "     Instalalo manualmente: https://docs.docker.com/engine/install/"
     PREREQ_OK=false
   fi
-  if command -v docker >/dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Docker instalado: $(docker --version 2>/dev/null | head -c 60)"
-    # Asegurar que el usuario actual tenga permisos de Docker
+fi
+
+# Verificar permisos de Docker (sea recién instalado o preexistente)
+if command -v docker >/dev/null 2>&1; then
+  echo -e "  ${GREEN}✓${NC} Docker: $(docker --version 2>/dev/null | head -c 60)"
+  if ! docker ps >/dev/null 2>&1; then
+    echo -e "  ${BLUE}→${NC} Agregando usuario '$USER' al grupo docker..."
+    sudo usermod -aG docker "$USER" 2>/dev/null || true
+    # Re-ejecutar el script con los permisos del grupo docker aplicados
     if ! docker ps >/dev/null 2>&1; then
-      echo -e "  ${BLUE}→${NC} Agregando usuario actual al grupo docker..."
-      sudo usermod -aG docker "$USER" 2>/dev/null || true
-      echo -e "  ${YELLOW}!${NC} Se agregó el usuario al grupo docker. Re-ejecutando con permisos actualizados..."
-      exec sg docker -c "$0"
+      echo -e "  ${YELLOW}!${NC} Re-ejecutando con permisos actualizados..."
+      exec sg docker -c "$0" || {
+        echo -e "  ${YELLOW}!${NC} No se pudo aplicar el grupo automáticamente."
+        echo -e "     Ejecutá manualmente: sudo usermod -aG docker \$USER && newgrp docker"
+        echo -e "     Y volvé a correr: ./install.sh"
+        exit 1
+      }
     fi
   fi
+else
+  PREREQ_OK=false
 fi
 
 # 2. Docker Compose
@@ -131,63 +140,66 @@ echo
 
 ENV_FILE=".env"
 
-if [ -f "$ENV_FILE" ]; then
-  echo -e "${YELLOW}ℹ  Ya existe $ENV_FILE — se reutiliza.${NC}"
-  echo -e "   Para regenerar, eliminá el archivo y volvé a ejecutar."
-else
+rand_b64() {
+  openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64
+}
+rand_hex() {
+  openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | od -A n -t x1 | tr -d ' \n'
+}
+
+# Función para leer un valor del .env
+env_get() { grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-; }
+# Función para setear/reescribir un valor en el .env
+env_set() {
+  local key="$1" val="$2"
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+  else
+    echo "${key}=${val}" >> "$ENV_FILE"
+  fi
+}
+
+NEEDS_SECRETS=false
+if [ ! -f "$ENV_FILE" ]; then
+  NEEDS_SECRETS=true
+elif [ -z "$(env_get AUTH_SECRET)" ] || [ -z "$(env_get FIELD_ENCRYPTION_KEY)" ] || [ -z "$(env_get DB_PASSWORD)" ]; then
+  echo -e "${YELLOW}ℹ  $ENV_FILE existe pero le faltan secretos. Completando...${NC}"
+  NEEDS_SECRETS=true
+fi
+
+if [ "$NEEDS_SECRETS" = true ]; then
   echo -e "${BLUE}▶ Generando secretos de bootstrap...${NC}"
 
-  rand_b64() {
-    openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64
-  }
-  rand_hex() {
-    openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | od -A n -t x1 | tr -d ' \n'
-  }
+  # Generar solo los que faltan (no pisar los existentes)
+  [ -z "$(env_get AUTH_SECRET)" ] && env_set "AUTH_SECRET" "$(rand_b64)"
+  [ -z "$(env_get FIELD_ENCRYPTION_KEY)" ] && env_set "FIELD_ENCRYPTION_KEY" "$(rand_b64)"
+  [ -z "$(env_get DB_PASSWORD)" ] && env_set "DB_PASSWORD" "$(rand_hex)"
 
-  AUTH_SECRET=$(rand_b64)
-  FIELD_KEY=$(rand_b64)
-  DB_PASS=$(rand_hex)
+  # Asegurar variables obligatorias restantes
+  env_set "AUTH_TRUST_HOST" "true"
+  env_set "REQUIRE_2FA" "false"
+  env_set "OVA_STAGING_DIR" "/mnt/ova"
+  env_set "OVA_HOST_STAGING_DIR" "/mnt/ova"
+  env_set "OVA_STAGING_HOST_PATH" "./data/ova-staging"
 
-  DEFAULT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-  [ -z "$DEFAULT_IP" ] && DEFAULT_IP="localhost"
-  DEFAULT_URL="http://${DEFAULT_IP}:3000"
-
-  echo
-  read -rp "URL pública del portal [${DEFAULT_URL}]: " AUTH_URL
-  AUTH_URL="${AUTH_URL:-$DEFAULT_URL}"
+  # Preguntar URL si no está seteada o es localhost
+  CURRENT_URL="$(env_get AUTH_URL)"
+  if [ -z "$CURRENT_URL" ] || [[ "$CURRENT_URL" == *"localhost"* ]]; then
+    DEFAULT_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    [ -z "$DEFAULT_IP" ] && DEFAULT_IP="localhost"
+    DEFAULT_URL="http://${DEFAULT_IP}:3000"
+    echo
+    read -rp "URL pública del portal [${DEFAULT_URL}]: " AUTH_URL
+    AUTH_URL="${AUTH_URL:-$DEFAULT_URL}"
+    env_set "AUTH_URL" "$AUTH_URL"
+    env_set "NEXTAUTH_URL" "$AUTH_URL"
+  fi
 
   mkdir -p data/ova-staging
-
-  cat > "$ENV_FILE" <<EOF
-# ── OLVM Portal .env — generado por install.sh — $(date) ──
-# NO compartir este archivo. Permisos recomendados: 600.
-
-# Bootstrap (obligatorios antes de arrancar)
-AUTH_SECRET=${AUTH_SECRET}
-FIELD_ENCRYPTION_KEY=${FIELD_KEY}
-DB_PASSWORD=${DB_PASS}
-AUTH_URL=${AUTH_URL}
-NEXTAUTH_URL=${AUTH_URL}
-AUTH_TRUST_HOST=true
-
-# 2FA desactivado durante la instalación; se activa desde el wizard o el panel
-REQUIRE_2FA=false
-
-# Opcionales — se configuran desde el wizard web (/setup)
-RESEND_API_KEY=
-RESEND_FROM=
-OLVM_TENANTS=
-OLVM_HOST_SSH_USER=root
-OLVM_HOST_SSH_PASSWORD=
-API_READ_KEY=
-
-# Staging OVA/qcow2
-OVA_STAGING_DIR=/mnt/ova
-OVA_HOST_STAGING_DIR=/mnt/ova
-OVA_STAGING_HOST_PATH=./data/ova-staging
-EOF
-  chmod 600 "$ENV_FILE"
-  echo -e "${GREEN}✓ $ENV_FILE generado${NC}"
+  chmod 600 "$ENV_FILE" 2>/dev/null || true
+  echo -e "${GREEN}✓ $ENV_FILE listo${NC}"
+else
+  echo -e "${GREEN}✓${NC} $ENV_FILE ya tiene secretos válidos — se reutiliza."
 fi
 
 # ── Build + Start ────────────────────────────────────────────────────────────
