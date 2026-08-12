@@ -21,6 +21,10 @@ PREREQ_OK=true
 # 1. Docker
 if ! command -v docker >/dev/null 2>&1; then
   echo -e "  ${BLUE}→${NC} Docker no encontrado. Instalando..."
+  # Reparar dpkg si quedó interrumpido (común tras instalaciones fallidas)
+  if command -v dpkg >/dev/null 2>&1; then
+    sudo dpkg --configure -a >/dev/null 2>&1 || true
+  fi
   if command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update -qq && sudo apt-get install -y -qq ca-certificates curl gnupg
     sudo install -m 0755 -d /etc/apt/keyrings
