@@ -152,7 +152,7 @@ rand_hex() {
 }
 
 # Función para leer un valor del .env
-env_get() { grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-; }
+env_get() { grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true; }
 # Función para setear/reescribir un valor en el .env
 env_set() {
   local key="$1" val="$2"
@@ -166,6 +166,7 @@ env_set() {
 NEEDS_SECRETS=false
 if [ ! -f "$ENV_FILE" ]; then
   NEEDS_SECRETS=true
+  touch "$ENV_FILE"
 elif [ -z "$(env_get AUTH_SECRET)" ] || [ -z "$(env_get FIELD_ENCRYPTION_KEY)" ] || [ -z "$(env_get DB_PASSWORD)" ]; then
   echo -e "${YELLOW}ℹ  $ENV_FILE existe pero le faltan secretos. Completando...${NC}"
   NEEDS_SECRETS=true
@@ -175,9 +176,9 @@ if [ "$NEEDS_SECRETS" = true ]; then
   echo -e "${BLUE}▶ Generando secretos de bootstrap...${NC}"
 
   # Generar solo los que faltan (no pisar los existentes)
-  [ -z "$(env_get AUTH_SECRET)" ] && env_set "AUTH_SECRET" "$(rand_b64)"
-  [ -z "$(env_get FIELD_ENCRYPTION_KEY)" ] && env_set "FIELD_ENCRYPTION_KEY" "$(rand_b64)"
-  [ -z "$(env_get DB_PASSWORD)" ] && env_set "DB_PASSWORD" "$(rand_hex)"
+  if [ -z "$(env_get AUTH_SECRET)" ]; then env_set "AUTH_SECRET" "$(rand_b64)"; fi
+  if [ -z "$(env_get FIELD_ENCRYPTION_KEY)" ]; then env_set "FIELD_ENCRYPTION_KEY" "$(rand_b64)"; fi
+  if [ -z "$(env_get DB_PASSWORD)" ]; then env_set "DB_PASSWORD" "$(rand_hex)"; fi
 
   # Asegurar variables obligatorias restantes
   env_set "AUTH_TRUST_HOST" "true"
@@ -193,7 +194,7 @@ if [ "$NEEDS_SECRETS" = true ]; then
     [ -z "$DEFAULT_IP" ] && DEFAULT_IP="localhost"
     DEFAULT_URL="http://${DEFAULT_IP}:3000"
     echo
-    read -rp "URL pública del portal [${DEFAULT_URL}]: " AUTH_URL
+    read -rp "URL pública del portal [${DEFAULT_URL}]: " AUTH_URL || true
     AUTH_URL="${AUTH_URL:-$DEFAULT_URL}"
     env_set "AUTH_URL" "$AUTH_URL"
     env_set "NEXTAUTH_URL" "$AUTH_URL"
