@@ -115,9 +115,7 @@ Portal web self-service que permite gestionar máquinas virtuales, storage domai
 
 ## 🚀 Instalación
 
-### Instalación rápida (recomendada)
-
-El portal incluye un script interactivo (`install.sh`) que verifica prerequisitos, genera los secretos de bootstrap, construye los contenedores y abre un wizard web para la configuración inicial.
+### Paso 1: Clonar y ejecutar el instalador
 
 ```bash
 git clone https://github.com/npalmae/olvm-portal.git
@@ -126,34 +124,31 @@ chmod +x install.sh
 ./install.sh
 ```
 
-El script verifica automáticamente:
-- ✅ Docker instalado (lo instala automáticamente si no está, en Debian/Ubuntu/CentOS/Fedora)
-- ✅ Docker Compose (v1 o v2)
-- ✅ OpenSSL (para generar secretos)
-- ✅ Puerto 3000 libre
-- ✅ Espacio en disco (mín. 5 GB)
-- ✅ RAM (mín. 2 GB recomendado)
+Eso es todo. El instalador se encarga de:
+- Instalar Docker automáticamente si no está presente (Ubuntu, Debian, CentOS, Fedora)
+- Otorgar permisos de Docker al usuario actual
+- Verificar Docker Compose, OpenSSL, puerto 3000, disco (mín 5 GB) y RAM (mín 2 GB)
+- Generar el `.env` con secretos aleatorios seguros
+- Construir y levantar los contenedores
 
-Después genera el `.env` con secretos aleatorios (`AUTH_SECRET`, `FIELD_ENCRYPTION_KEY`, `DB_PASSWORD`), construye y levanta los contenedores, e imprime la URL del wizard:
+### Paso 2: Abrir el wizard web
+
+Al terminar, el instalador muestra la URL:
 
 ```
 http://<servidor>:3000/setup
 ```
 
-### Wizard web de configuración (/setup)
-
-Al abrir el navegador por primera vez, aparece el wizard interactivo:
+### Wizard de configuración (/setup)
 
 | Paso | Descripción | Obligatorio |
 |------|-------------|:-----------:|
 | 1. **Superadmin** | Crear el primer usuario administrador global (email + password) | ✅ |
 | 2. **Motor OLVM** | URL del engine, usuario y password. Botón "Probar conexión" | ✅ |
 | 3. **Tenant** | Nombre del tenant + tag OLVM (se crea automáticamente en el engine) | ✅ |
-| 4. **Email** | API key de Resend + email remitente (para 2FA y notificaciones) | ⏭ Opcional |
+| 4. **Email** | API key de Resend + email remitente (para 2FA) | ⏭ Opcional |
 | 5. **SSH Hosts** | Usuario y password SSH de los hosts OLVM (para import OVA/qcow2) | ⏭ Opcional |
 | 6. **Listo** | Redirección al dashboard | — |
-
-El wizard crea el superadmin sin autenticación (solo funciona si no existe uno previo), se autologuea, y los pasos siguientes usan los endpoints admin autenticados.
 
 ### Datos que necesitas tener a mano
 
@@ -163,71 +158,26 @@ El wizard crea el superadmin sin autenticación (solo funciona si no existe uno 
 - *(Opcional)* API key de Resend + email remitente para 2FA
 - *(Opcional)* Credenciales SSH de los hosts OLVM (`root` + password)
 
-### Despliegue manual (sin install.sh)
-
-Si preferís configurar todo a mano:
-
-```bash
-git clone https://github.com/npalmae/olvm-portal.git
-cd olvm-portal
-
-# 1. Crear .env con los secretos mínimos
-cp .env.example .env
-# Editar AUTH_SECRET, FIELD_ENCRYPTION_KEY, DB_PASSWORD, AUTH_URL
-# Generar secretos con: openssl rand -base64 32
-
-# 2. Construir y levantar (usar docker compose v2 o docker-compose v1)
-docker compose up -d --build
-# o: docker-compose up -d --build
-
-# 3. Abrir el wizard
-# http://<servidor>:3000/setup
-```
-
-### Instalación en un servidor nuevo (paso a paso)
-
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/npalmae/olvm-portal.git
-cd olvm-portal
-
-# 2. Ejecutar el instalador
-chmod +x install.sh
-./install.sh
-# → Verifica prerequisitos
-# → Instala Docker si falta
-# → Genera .env con secretos aleatorios
-# → Pregunta la URL pública del portal
-# → Construye y levanta los contenedores
-
-# 3. Abrir el navegador en la URL que muestra el script
-# http://<IP>:3000/setup
-
-# 4. Completar el wizard web (superadmin → engine → tenant → email → SSH)
-
-# 5. ¡Listo! El portal redirige al dashboard
-```
-
 ### Gestión de contenedores
 
 ```bash
 # Ver estado
-docker-compose ps
+docker compose ps
 
 # Ver logs
 docker logs -f olvm-portal
 
 # Reiniciar
-docker-compose restart portal
+docker compose restart portal
 
 # Detener
-docker-compose down
+docker compose down
 
-# Actualizar (nueva versión del código)
+# Actualizar (nueva versión)
 git pull origin main
-docker-compose build portal
+docker compose build portal
 docker stop olvm-portal && docker rm olvm-portal
-docker-compose up -d portal
+docker compose up -d portal
 ```
 
 ---
