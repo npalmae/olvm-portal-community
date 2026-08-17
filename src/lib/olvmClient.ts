@@ -115,9 +115,10 @@ const getDispatcher = (tenant: TenantConfig) => {
 export const invalidateDispatcherCache = (tenantId?: string) => {
   if (tenantId) dispatcherCache.delete(tenantId);
   else dispatcherCache.clear();
-  // Las conexiones cambiaron: limpiar también el caché de nombres de hosts
+  // Las conexiones cambiaron: limpiar también el caché de nombres de hosts y tokens SSO.
   if (tenantId) hostNameCache.delete(tenantId);
   else hostNameCache.clear();
+  ssoTokenCache.clear();
 };
 
 // Cache de nombres de hosts por tenant (id -> name). oVirt no permite
@@ -157,6 +158,94 @@ export type ConnectionTestResult = {
   detail: string;
 };
 
+// ── SSO OAuth tokens ── OLVM 4.5 con internal SSO (Keycloak) rechaza Basic en /api;
+// hay que obtener un token vía /sso/oauth/token y usar "Authorization: Bearer".
+
+type SsoTokenEntry = { token: string; expiresAt: number };
+const ssoTokenCache = new Map<string, SsoTokenEntry>();
+
+export const invalidateSsoTokenCache = () => {
+  ssoTokenCache.clear();
+};
+
+const decodeJwtExp = (token: string): number | null => {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1] ?? "", "base64").toString("utf8"),
+    ) as { exp?: unknown };
+    const exp = Number(payload.exp);
+    return Number.isFinite(exp) ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+type SsoConnection = {
+  baseUrl: string;
+  username?: string | null;
+  password?: string | null;
+  allowInsecure?: boolean;
+  caCert?: Buffer | string | null;
+};
+
+const ssoEndpointFor = (baseUrl: string) =>
+  `${baseUrl.replace(/\/api\/?$/i, "").replace(/\/$/, "")}/sso/oauth/token`;
+
+const acquireSsoToken = async (conn: SsoConnection): Promise<string | null> => {
+  if (!conn.username || !conn.password) return null;
+  const ca = conn.caCert
+    ? typeof conn.caCert === "string"
+      ? conn.caCert
+      : conn.caCert.toString()
+    : undefined;
+  const dispatcher = new UndiciAgent({
+    connect: conn.allowInsecure
+      ? { rejectUnauthorized: false }
+      : ca
+        ? { ca }
+        : undefined,
+  });
+  try {
+    const body = new URLSearchParams({
+      grant_type: "password",
+      scope: "ovirt-app-api",
+      username: conn.username,
+      password: conn.password,
+    }).toString();
+    const res = await fetch(ssoEndpointFor(conn.baseUrl), {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body,
+      dispatcher,
+    } as any);
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => null)) as {
+      access_token?: string;
+      expires_in?: number;
+    } | null;
+    const token = data?.access_token;
+    if (!token) return null;
+    const expiresAt = decodeJwtExp(token)
+      ?? (data?.expires_in
+        ? Date.now() + Number(data.expires_in) * 1000
+        : Date.now() + 50 * 60 * 1000);
+    ssoTokenCache.set(`${conn.baseUrl}|${conn.username}`, { token, expiresAt });
+    return token;
+  } catch {
+    return null;
+  }
+};
+
+const getSsoToken = async (conn: SsoConnection): Promise<string | null> => {
+  const cached = ssoTokenCache.get(`${conn.baseUrl}|${conn.username}`);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+  return acquireSsoToken(conn);
+};
+
 // Prueba una conexión (guardada o no) contra el engine OLVM.
 export const testConnection = async (input: {
   baseUrl: string;
@@ -167,11 +256,6 @@ export const testConnection = async (input: {
   caCert?: Buffer | string;
 }): Promise<ConnectionTestResult> => {
   const baseUrl = input.baseUrl.trim().replace(/\/$/, "");
-  const auth = input.token
-    ? `Bearer ${input.token}`
-    : input.username && input.password
-      ? `Basic ${Buffer.from(`${input.username}:${input.password}`, "utf-8").toString("base64")}`
-      : null;
   const ca = input.caCert
     ? typeof input.caCert === "string"
       ? input.caCert
@@ -184,26 +268,41 @@ export const testConnection = async (input: {
         ? { ca }
         : undefined,
   });
-  try {
-    const res = await fetch(`${baseUrl}/vms?max=1`, {
+
+  const attempt = async (auth: string) =>
+    fetch(`${baseUrl}/vms?max=1`, {
       cache: "no-store",
       headers: {
         Accept: "application/json",
-        ...(auth ? { Authorization: auth } : {}),
+        Authorization: auth,
       },
       dispatcher,
     } as any);
-    if (res.status === 200) {
-      return { ok: true, status: 200, detail: "Conexión exitosa" };
+
+  // Orden de intentos: token estático → token SSO (usuario+password) → Basic.
+  const auths: string[] = [];
+  if (input.token) auths.push(`Bearer ${input.token.trim()}`);
+  if (input.username && input.password) {
+    const sso = await getSsoToken(input);
+    if (sso) auths.push(`Bearer ${sso}`);
+    auths.push(
+      `Basic ${Buffer.from(`${input.username}:${input.password}`, "utf-8").toString("base64")}`,
+    );
+  }
+
+  try {
+    for (const auth of auths) {
+      const res = await attempt(auth);
+      if (res.status === 200) return { ok: true, status: 200, detail: "Conexión exitosa" };
+      if (res.status !== 401) {
+        return {
+          ok: false,
+          status: res.status,
+          detail: `Respuesta inesperada (HTTP ${res.status})`,
+        };
+      }
     }
-    if (res.status === 401) {
-      return { ok: false, status: 401, detail: "Credenciales inválidas" };
-    }
-    return {
-      ok: false,
-      status: res.status,
-      detail: `Respuesta inesperada (HTTP ${res.status})`,
-    };
+    return { ok: false, status: 401, detail: "Credenciales inválidas" };
   } catch (error) {
     return {
       ok: false,
@@ -213,9 +312,11 @@ export const testConnection = async (input: {
   }
 };
 
-const buildHeaders = (tenant: TenantConfig, headers?: HeadersInit) => {
+const buildHeaders = (tenant: TenantConfig, headers?: HeadersInit, authOverride?: string) => {
   let authHeader: string;
-  if (tenant.token) {
+  if (authOverride) {
+    authHeader = authOverride;
+  } else if (tenant.token) {
     authHeader = `Bearer ${tenant.token}`;
   } else {
     const credentials = `${tenant.username}:${tenant.password}`;
@@ -240,17 +341,31 @@ const olvmFetch = async (
     ? path
     : `${tenant.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  let response: Response;
-  try {
-    response = await fetch(
+  const doFetch = (auth?: string) =>
+    fetch(
       url,
       {
         ...init,
         cache: "no-store",
-        headers: buildHeaders(tenant, init?.headers),
+        headers: buildHeaders(tenant, init?.headers, auth),
         dispatcher: getDispatcher(tenant),
       } as any,
     );
+
+  let response: Response;
+  try {
+    // Con usuario+password se intenta primero token SSO (requerido por OLVM 4.5
+    // con internal SSO); si no está disponible cae a Basic (compatibilidad).
+    let ssoToken: string | null = null;
+    if (!tenant.token && tenant.username && tenant.password) {
+      ssoToken = await getSsoToken(tenant);
+    }
+    response = await doFetch(ssoToken ? `Bearer ${ssoToken}` : undefined);
+    if (response.status === 401 && ssoToken) {
+      ssoTokenCache.delete(`${tenant.baseUrl}|${tenant.username}`);
+      const fresh = await acquireSsoToken(tenant);
+      if (fresh) response = await doFetch(`Bearer ${fresh}`);
+    }
   } catch (error) {
     throw new Error(
       `No se pudo conectar con OLVM (${tenant.baseUrl}): ${(error as Error).message}`,
