@@ -37,20 +37,29 @@ export const toggleApiKey = async (id: string): Promise<void> => {
   if (row) await prisma.apiKey.update({ where: { id }, data: { active: !row.active } });
 };
 
-export type ApiKeyContext = { userId: string; userEmail: string; globalRole: string | null; tenantIds: string[] };
+export type ApiKeyContext = {
+  userId: string;
+  userEmail: string;
+  globalRole: string | null;
+  tenantIds: string[];
+  tenantRoles: Record<string, string>;
+};
 
 export const validateApiKey = async (providedKey: string): Promise<ApiKeyContext | null> => {
   const bootstrapKey = await getSystemSecretWithEnvFallback(SYSTEM_SECRET_KEYS.apiReadKey);
   if (bootstrapKey) {
     const providedHash = hashToken(providedKey);
-    if (safeEqualHash(providedHash, hashToken(bootstrapKey))) return { userId: "system", userEmail: "system-key", globalRole: "superadmin", tenantIds: [] };
+    if (safeEqualHash(providedHash, hashToken(bootstrapKey))) return { userId: "system", userEmail: "system-key", globalRole: "superadmin", tenantIds: [], tenantRoles: {} };
   }
   const keyHash = hashToken(providedKey);
   const match = await prisma.apiKey.findUnique({ where: { keyHash }, include: { user: { include: { memberships: true } } } });
   if (!match?.active || !safeEqualHash(keyHash, match.keyHash)) return null;
   await prisma.apiKey.update({ where: { id: match.id }, data: { lastUsed: new Date() } }).catch(() => undefined);
+  const tenantRoles: Record<string, string> = {};
+  for (const membership of match.user.memberships) tenantRoles[membership.tenantId] = membership.role;
   return {
     userId: match.user.id, userEmail: match.user.email, globalRole: match.user.globalRole,
     tenantIds: match.user.memberships.map((membership) => membership.tenantId),
+    tenantRoles,
   };
 };
