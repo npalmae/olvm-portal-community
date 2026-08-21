@@ -101,7 +101,6 @@ export async function GET(request: Request) {
         roles: "operator+",
         description: "Clusters, plantillas, redes, vnic profiles y storage domains para construir un despliegue",
       },
-    },
       activity: {
         method: "GET",
         url: `${base}/activity`,
@@ -114,7 +113,8 @@ export async function GET(request: Request) {
         roles: "operator+",
         description: "Actividades de un tenant especifico",
       },
-      authentication: {
+    },
+    authentication: {
       type: "API Key",
       header: "X-API-Key",
       example: `curl -H "X-API-Key: YOUR_KEY" ${base}/vms`,
