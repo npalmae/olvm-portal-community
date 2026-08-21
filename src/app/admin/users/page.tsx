@@ -623,6 +623,7 @@ function EditModal({
   const [newKeyName, setNewKeyName] = useState("");
   const [creatingKey, setCreatingKey] = useState(false);
   const [revealedKeyId, setRevealedKeyId] = useState<string | null>(null);
+  const [apiBaseUrl, setApiBaseUrl] = useState("");
 
   const loadUserKeys = async () => {
     try {
@@ -634,6 +635,10 @@ function EditModal({
   useEffect(() => {
     if (isSuperadmin) loadUserKeys();
   }, [isSuperadmin, user.id]);
+
+  useEffect(() => {
+    setApiBaseUrl(window.location.origin);
+  }, []);
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) return;
@@ -949,7 +954,7 @@ function EditModal({
                     {revealedKeyId === k.id && k.key && (
                       <div className="mt-1.5 rounded bg-gray-50 border border-gray-200 px-2.5 py-1.5">
                          <p className="text-[9px] font-semibold text-gray-400 uppercase mb-0.5">{t("usage")}</p>
-                        <code className="text-[10px] text-gray-600 break-all">curl -H "X-API-Key: {k.key}" http://10.176.160.124:3000/api/v1/vms</code>
+                         <code className="text-[10px] text-gray-600 break-all">curl -H "X-API-Key: {k.key}" {apiBaseUrl}/api/v1/vms</code>
                       </div>
                     )}
                   </div>
