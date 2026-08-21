@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
+import { logActivity } from "@/lib/activityStore";
 import {
   deleteVm,
   enforceVmTagPolicy,
@@ -96,6 +97,9 @@ export async function DELETE(_: Request, context: Params) {
     }
 
     await deleteVm(tenantId, vmId);
+    await logActivity({
+      tenantId, userEmail: session.user.email ?? "portal", origin: "portal", action: "delete", status: "ok", vmId,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(

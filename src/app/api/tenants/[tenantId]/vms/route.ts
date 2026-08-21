@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createVm, fetchVms } from "@/lib/olvmClient";
 import { assertTenantAccess } from "@/lib/authz";
+import { logActivity } from "@/lib/activityStore";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,16 @@ export async function POST(request: Request, context: Params) {
       os: os || undefined,
       vnicProfileId: vnicProfileId || undefined,
       cloudInit,
+    });
+
+    await logActivity({
+      tenantId,
+      userEmail: session.user.email ?? "portal",
+      origin: "portal",
+      action: "deploy",
+      status: "ok",
+      vmName: name,
+      detail: `template=${templateId || "-"} cpu=${cpuCores ?? "-"} mem=${memoryMB ?? "-"}MB`,
     });
 
     return NextResponse.json({ ok: true });

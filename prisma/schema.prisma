@@ -168,3 +168,21 @@ model PortalBranding {
   logoSize   Int?
   updatedAt  DateTime @updatedAt
 }
+
+/// Registro de actividades: operaciones ejecutadas desde el portal o via API
+model Activity {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenantName String?
+  vmId       String?
+  vmName     String?
+  userEmail  String
+  origin     String   // "portal" | "api"
+  action     String   // deploy | start | stop | reboot | shutdown | run_once_cd | clone | delete
+  status     String   // ok | error
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+}

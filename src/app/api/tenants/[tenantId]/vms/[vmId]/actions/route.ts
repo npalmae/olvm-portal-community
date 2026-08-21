@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
+import { logActivity } from "@/lib/activityStore";
 import {
   cloneVm,
   enforceVmTagPolicy,
@@ -47,11 +48,23 @@ export async function POST(request: Request, context: Params) {
         );
       }
       const cloned = await cloneVm(tenantId, vmId, cloneName);
+      await logActivity({
+        tenantId,
+        userEmail: session.user.email ?? "portal",
+        origin: "portal",
+        action: "clone",
+        status: "ok",
+        vmId,
+        detail: `→ ${cloneName}`,
+      });
       return NextResponse.json({ ok: true, cloned });
     }
 
     if (action === "run_once_cd") {
       await runOnceFromCd(tenantId, vmId);
+      await logActivity({
+        tenantId, userEmail: session.user.email ?? "portal", origin: "portal", action, status: "ok", vmId,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -63,6 +76,9 @@ export async function POST(request: Request, context: Params) {
     }
 
     await sendVmAction(tenantId, vmId, action);
+    await logActivity({
+      tenantId, userEmail: session.user.email ?? "portal", origin: "portal", action, status: "ok", vmId,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = (error as Error).message;

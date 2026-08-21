@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiRoleGate, checkApiKey, unauthorizedResponse } from "@/lib/apiAuth";
 import { createVm, fetchVms } from "@/lib/olvmClient";
+import { logActivity } from "@/lib/activityStore";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,16 @@ export async function POST(request: Request, context: Params) {
       os: os || undefined,
       vnicProfileId: vnicProfileId || undefined,
       cloudInit,
+    });
+
+    await logActivity({
+      tenantId,
+      userEmail: ctx.userEmail,
+      origin: "api",
+      action: "deploy",
+      status: "ok",
+      vmName: name,
+      detail: `template=${templateId} cpu=${cpuCores ?? "-"} mem=${memoryMB ?? "-"}MB`,
     });
 
     return NextResponse.json(

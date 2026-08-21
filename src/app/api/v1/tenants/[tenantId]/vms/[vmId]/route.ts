@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiRoleGate, checkApiKey, unauthorizedResponse } from "@/lib/apiAuth";
+import { logActivity } from "@/lib/activityStore";
 import { deleteVm, enforceVmTagPolicy, fetchVmById } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,9 @@ export async function DELETE(request: Request, context: Params) {
       }
     }
     await deleteVm(tenantId, vmId);
+    await logActivity({
+      tenantId, userEmail: ctx.userEmail, origin: "api", action: "delete", status: "ok", vmId,
+    });
     return NextResponse.json({ ok: true, deleted: vmId });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });

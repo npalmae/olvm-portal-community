@@ -13,7 +13,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     api: "OLVM Portal API",
-    version: "2.0",
+    version: "2.1",
+    docs: "https://github.com/npalmae/olvm-portal-community/blob/main/docs/API.md",
     authenticatedAs: ctx.userEmail,
     scope: ctx.globalRole === "superadmin" ? "all tenants" : `tenants: ${ctx.tenantIds.join(", ") || "none"}`,
     roles: {
@@ -101,7 +102,19 @@ export async function GET(request: Request) {
         description: "Clusters, plantillas, redes, vnic profiles y storage domains para construir un despliegue",
       },
     },
-    authentication: {
+      activity: {
+        method: "GET",
+        url: `${base}/activity`,
+        roles: "operator+ (scope: tus tenants; superadmin: todos)",
+        description: "Registro de operaciones: acciones del portal y via API, con usuario, origen, accion y estado",
+      },
+      tenant_activity: {
+        method: "GET",
+        url: `${base}/tenants/{tenantId}/activity`,
+        roles: "operator+",
+        description: "Actividades de un tenant especifico",
+      },
+      authentication: {
       type: "API Key",
       header: "X-API-Key",
       example: `curl -H "X-API-Key: YOUR_KEY" ${base}/vms`,

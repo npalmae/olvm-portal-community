@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiRoleGate, checkApiKey, unauthorizedResponse } from "@/lib/apiAuth";
+import { logActivity } from "@/lib/activityStore";
 import {
   cloneVm,
   enforceVmTagPolicy,
@@ -55,11 +56,23 @@ export async function POST(request: Request, context: Params) {
         return NextResponse.json({ error: "cloneName is required for clone action" }, { status: 400 });
       }
       const cloned = await cloneVm(tenantId, vmId, cloneName);
+      await logActivity({
+        tenantId,
+        userEmail: ctx.userEmail,
+        origin: "api",
+        action: "clone",
+        status: "ok",
+        vmId,
+        detail: `→ ${cloneName}`,
+      });
       return NextResponse.json({ ok: true, action, cloned });
     }
 
     if (action === "run_once_cd") {
       await runOnceFromCd(tenantId, vmId);
+      await logActivity({
+        tenantId, userEmail: ctx.userEmail, origin: "api", action, status: "ok", vmId,
+      });
       return NextResponse.json({ ok: true, action });
     }
 
@@ -68,6 +81,9 @@ export async function POST(request: Request, context: Params) {
     }
 
     await sendVmAction(tenantId, vmId, action);
+    await logActivity({
+      tenantId, userEmail: ctx.userEmail, origin: "api", action, status: "ok", vmId,
+    });
     return NextResponse.json({ ok: true, action, vmId });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
