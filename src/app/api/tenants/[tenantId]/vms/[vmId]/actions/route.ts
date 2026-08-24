@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
-import { logActivity } from "@/lib/activityStore";
-import { createCloneJob, runCloneJob, serializeCloneJob } from "@/lib/cloneJobService";
+import { createOperationJob, runOperationJob, serializeOperationJob } from "@/lib/operationJobService";
 import {
   enforceVmTagPolicy,
+  fetchVmById,
   isSupportedAction,
-  runOnceFromCd,
-  sendVmAction,
 } from "@/lib/olvmClient";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +35,7 @@ export async function POST(request: Request, context: Params) {
       );
     }
 
+    let input: Record<string, unknown> | undefined;
     if (action === "clone") {
       assertTenantAccess(session.user, tenantId, "admin");
       const cloneName =
@@ -47,38 +46,24 @@ export async function POST(request: Request, context: Params) {
           { status: 400 },
         );
       }
-      const job = await createCloneJob({
-        tenantId, sourceVmId: vmId,
-        sourceVmName: typeof body?.sourceVmName === "string" ? body.sourceVmName.trim() : undefined,
-        cloneName, requestedBy: session.user.email ?? "portal", origin: "portal",
-      });
-      void runCloneJob(job.id).catch(() => undefined);
-      const statusUrl = `/api/tenants/${tenantId}/clone-jobs/${job.id}`;
-      return NextResponse.json({ ok: true, job: serializeCloneJob(job), statusUrl }, {
-        status: 202, headers: { Location: statusUrl },
-      });
+      input = { cloneName };
     }
-
-    if (action === "run_once_cd") {
-      await runOnceFromCd(tenantId, vmId);
-      await logActivity({
-        tenantId, userEmail: session.user.email ?? "portal", origin: "portal", action, status: "ok", vmId,
-      });
-      return NextResponse.json({ ok: true });
-    }
-
-    if (!isSupportedAction(action)) {
+    if (action !== "clone" && action !== "run_once_cd" && action !== "restart" && !isSupportedAction(action)) {
       return NextResponse.json(
         { error: `Unsupported action ${action}` },
         { status: 400 },
       );
     }
 
-    await sendVmAction(tenantId, vmId, action);
-    await logActivity({
-      tenantId, userEmail: session.user.email ?? "portal", origin: "portal", action, status: "ok", vmId,
+    const vm = await fetchVmById(tenantId, vmId);
+    const job = await createOperationJob({
+      tenantId, action, targetVmId: vmId,
+      targetVmName: vm?.name,
+      requestedBy: session.user.email!, origin: "portal", input,
     });
-    return NextResponse.json({ ok: true });
+    void runOperationJob(job.id).catch(() => undefined);
+    const statusUrl = `/api/tenants/${tenantId}/operation-jobs/${job.id}`;
+    return NextResponse.json({ ok: true, job: serializeOperationJob(job), statusUrl }, { status: 202, headers: { Location: statusUrl } });
   } catch (error) {
     const message = (error as Error).message;
     const lower = message.toLowerCase();

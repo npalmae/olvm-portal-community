@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
-import { logActivity } from "@/lib/activityStore";
+import { createOperationJob, runOperationJob, serializeOperationJob } from "@/lib/operationJobService";
 import {
-  deleteVm,
   enforceVmTagPolicy,
   fetchVmById,
   updateVmResources,
@@ -96,11 +95,12 @@ export async function DELETE(_: Request, context: Params) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
 
-    await deleteVm(tenantId, vmId);
-    await logActivity({
-      tenantId, userEmail: session.user.email ?? "portal", origin: "portal", action: "delete", status: "ok", vmId,
-    });
-    return NextResponse.json({ ok: true });
+    const vm = await fetchVmById(tenantId, vmId);
+    const job = await createOperationJob({ tenantId, action: "delete", targetVmId: vmId, targetVmName: vm?.name,
+      requestedBy: session.user.email!, origin: "portal" });
+    void runOperationJob(job.id).catch(() => undefined);
+    const statusUrl = `/api/tenants/${tenantId}/operation-jobs/${job.id}`;
+    return NextResponse.json({ ok: true, job: serializeOperationJob(job), statusUrl }, { status: 202, headers: { Location: statusUrl } });
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },

@@ -95,6 +95,12 @@ export async function GET(request: Request) {
         roles: "admin+",
         description: "Eliminar una VM del tenant",
       },
+      operation_jobs: {
+        method: "GET",
+        url: `${base}/tenants/{tenantId}/operation-jobs`,
+        roles: "operator+",
+        description: "Listar progreso durable de mutaciones del tenant; agregar /{jobId} para detalle",
+      },
       catalog: {
         method: "GET",
         url: `${base}/tenants/{tenantId}/catalog`,

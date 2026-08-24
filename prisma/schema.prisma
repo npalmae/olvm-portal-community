@@ -36,6 +36,7 @@ model Tenant {
   createdAt      DateTime     @default(now())
   memberships    Membership[]
   cloneJobs      CloneJob[]
+  operationJobs  OperationJob[]
 
   @@unique([engineId, tag])
 }
@@ -129,6 +130,30 @@ model CloneJob {
   status       String    @default("queued")
   stage        String    @default("queued")
   progress     Int       @default(0)
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+model OperationJob {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  action       String
+  targetVmId   String?
+  targetVmName String?
+  requestedBy  String
+  origin       String
+  status       String    @default("queued")
+  stage        String    @default("queued")
+  progress     Int       @default(0)
+  input        Json?
+  resultVmId   String?
   error        String?
   startedAt    DateTime?
   finishedAt   DateTime?

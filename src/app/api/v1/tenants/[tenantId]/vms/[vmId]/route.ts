@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiRoleGate, checkApiKey, unauthorizedResponse } from "@/lib/apiAuth";
-import { logActivity } from "@/lib/activityStore";
-import { deleteVm, enforceVmTagPolicy, fetchVmById } from "@/lib/olvmClient";
+import { enforceVmTagPolicy, fetchVmById } from "@/lib/olvmClient";
+import { createOperationJob, runOperationJob, serializeOperationJob } from "@/lib/operationJobService";
 
 export const dynamic = "force-dynamic";
 
@@ -53,11 +53,12 @@ export async function DELETE(request: Request, context: Params) {
         );
       }
     }
-    await deleteVm(tenantId, vmId);
-    await logActivity({
-      tenantId, userEmail: ctx.userEmail, origin: "api", action: "delete", status: "ok", vmId,
-    });
-    return NextResponse.json({ ok: true, deleted: vmId });
+    const vm = await fetchVmById(tenantId, vmId);
+    const job = await createOperationJob({ tenantId, action: "delete", targetVmId: vmId, targetVmName: vm?.name,
+      requestedBy: ctx.userEmail, origin: "api" });
+    void runOperationJob(job.id).catch(() => undefined);
+    const statusUrl = `/api/v1/tenants/${tenantId}/operation-jobs/${job.id}`;
+    return NextResponse.json({ ok: true, job: serializeOperationJob(job), statusUrl }, { status: 202, headers: { Location: statusUrl } });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

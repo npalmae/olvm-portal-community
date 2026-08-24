@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiRoleGate, checkApiKey, unauthorizedResponse } from "@/lib/apiAuth";
-import { createVm, fetchVms } from "@/lib/olvmClient";
-import { logActivity } from "@/lib/activityStore";
+import { fetchVms } from "@/lib/olvmClient";
+import { createOperationJob, runOperationJob, serializeOperationJob } from "@/lib/operationJobService";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +67,7 @@ export async function POST(request: Request, context: Params) {
       );
     }
 
-    await createVm(tenantId, {
+    const input = {
       name,
       clusterId,
       templateId,
@@ -78,22 +78,12 @@ export async function POST(request: Request, context: Params) {
       os: os || undefined,
       vnicProfileId: vnicProfileId || undefined,
       cloudInit,
-    });
-
-    await logActivity({
-      tenantId,
-      userEmail: ctx.userEmail,
-      origin: "api",
-      action: "deploy",
-      status: "ok",
-      vmName: name,
-      detail: `template=${templateId} cpu=${cpuCores ?? "-"} mem=${memoryMB ?? "-"}MB`,
-    });
-
-    return NextResponse.json(
-      { ok: true, deployed: { tenantId, name, templateId, clusterId, cpuCores, memoryMB } },
-      { status: 201 },
-    );
+    };
+    const job = await createOperationJob({ tenantId, action: "deploy", targetVmName: name,
+      requestedBy: ctx.userEmail, origin: "api", input });
+    void runOperationJob(job.id).catch(() => undefined);
+    const statusUrl = `/api/v1/tenants/${tenantId}/operation-jobs/${job.id}`;
+    return NextResponse.json({ ok: true, job: serializeOperationJob(job), statusUrl }, { status: 202, headers: { Location: statusUrl } });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

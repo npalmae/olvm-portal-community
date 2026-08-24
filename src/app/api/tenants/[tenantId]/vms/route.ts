@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createVm, fetchVms } from "@/lib/olvmClient";
+import { fetchVms } from "@/lib/olvmClient";
 import { assertTenantAccess } from "@/lib/authz";
-import { logActivity } from "@/lib/activityStore";
+import { createOperationJob, runOperationJob, serializeOperationJob } from "@/lib/operationJobService";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +63,7 @@ export async function POST(request: Request, context: Params) {
       );
     }
 
-    await createVm(tenantId, {
+    const input = {
       name,
       clusterId,
       templateId: templateId || undefined,
@@ -74,19 +74,12 @@ export async function POST(request: Request, context: Params) {
       os: os || undefined,
       vnicProfileId: vnicProfileId || undefined,
       cloudInit,
-    });
-
-    await logActivity({
-      tenantId,
-      userEmail: session.user.email ?? "portal",
-      origin: "portal",
-      action: "deploy",
-      status: "ok",
-      vmName: name,
-      detail: `template=${templateId || "-"} cpu=${cpuCores ?? "-"} mem=${memoryMB ?? "-"}MB`,
-    });
-
-    return NextResponse.json({ ok: true });
+    };
+    const job = await createOperationJob({ tenantId, action: "deploy", targetVmName: name,
+      requestedBy: session.user.email!, origin: "portal", input });
+    void runOperationJob(job.id).catch(() => undefined);
+    const statusUrl = `/api/tenants/${tenantId}/operation-jobs/${job.id}`;
+    return NextResponse.json({ ok: true, job: serializeOperationJob(job), statusUrl }, { status: 202, headers: { Location: statusUrl } });
   } catch (error) {
     const message = (error as Error).message;
     const status = message.toLowerCase().includes("tenant") ? 400 : 500;

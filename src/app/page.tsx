@@ -56,7 +56,7 @@ type ActionLog = {
 };
 
 type CloneJob = {
-  id: string; tenantId: string; sourceVmId: string; cloneName: string; origin: "portal" | "api";
+  id: string; tenantId: string; action: string; targetVmId?: string; targetVmName?: string; requestedBy: string; origin: "portal" | "api";
   status: "queued" | "running" | "completed" | "failed"; stage: string; progress: number; error?: string | null;
 };
 
@@ -464,7 +464,7 @@ export default function Home() {
       const tenantIds = selectedTenant === ALL_TENANTS ? tenants.map((tenant) => tenant.id) : [selectedTenant];
       const jobs = (await Promise.all(tenantIds.map(async (tenantId) => {
         try {
-          const response = await fetch(`/api/tenants/${tenantId}/clone-jobs?limit=25`, { cache: "no-store" });
+           const response = await fetch(`/api/tenants/${tenantId}/operation-jobs?limit=25`, { cache: "no-store" });
           const data = await parseJsonSafe(response);
           return response.ok && Array.isArray(data) ? data as CloneJob[] : [];
         } catch { return [] as CloneJob[]; }
@@ -1702,9 +1702,9 @@ export default function Home() {
               <div key={job.id} className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
-                    <span>{t("cloneProgress", { name: job.cloneName, stage: t(`cloneStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
+                     <span>{t("operationProgress", { action: t(`operationAction${job.action[0].toUpperCase()}${job.action.slice(1)}`), name: job.targetVmName || job.targetVmId || "", stage: t(`operationStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
                     <span className="shrink-0 rounded border border-blue-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600">
-                      {t(job.origin === "api" ? "cloneOriginApi" : "cloneOriginPortal")}
+                       {t(job.origin === "api" ? "operationOriginApi" : "operationOriginPortal", { email: job.requestedBy })}
                     </span>
                   </span>
                   <span className="tabular-nums">{job.progress}%</span>
