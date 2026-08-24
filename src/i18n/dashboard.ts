@@ -42,6 +42,8 @@ export const dashboardMessages: Messages = {
   cloneCreated: msg("Clon {name} creado. Quedó apagado y con red desconectada.", "Clone {name} created. It is powered off with networking disconnected.", "Klon {name} erstellt. Er ist ausgeschaltet und das Netzwerk ist getrennt.", "Clone {name} criado. Ficou desligado e com a rede desligada."),
   cloneQueued: msg("Clonación de {name} en cola.", "Clone of {name} queued.", "Klonen von {name} wurde eingereiht.", "Clonagem de {name} em fila."),
   cloneProgress: msg("Clonando {name}: {stage}", "Cloning {name}: {stage}", "{name} wird geklont: {stage}", "A clonar {name}: {stage}"),
+  cloneOriginApi: msg("Iniciado por API", "Started by API", "Von API gestartet", "Iniciado pela API"),
+  cloneOriginPortal: msg("Iniciado desde el portal", "Started from portal", "Im Portal gestartet", "Iniciado no portal"),
   cloneStageQueued: msg("en cola", "queued", "in Warteschlange", "em fila"),
   cloneStageSubmitting: msg("iniciando en OLVM", "submitting to OLVM", "wird an OLVM übermittelt", "a enviar para o OLVM"),
   cloneStageWaiting: msg("esperando la VM", "waiting for VM", "Warten auf VM", "a aguardar pela VM"),

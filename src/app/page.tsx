@@ -1701,7 +1701,12 @@ export default function Home() {
             {cloneJobs.map((job) => (
               <div key={job.id} className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                 <div className="mb-1 flex items-center justify-between gap-3">
-                  <span>{t("cloneProgress", { name: job.cloneName, stage: t(`cloneStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span>{t("cloneProgress", { name: job.cloneName, stage: t(`cloneStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
+                    <span className="shrink-0 rounded border border-blue-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600">
+                      {t(job.origin === "api" ? "cloneOriginApi" : "cloneOriginPortal")}
+                    </span>
+                  </span>
                   <span className="tabular-nums">{job.progress}%</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
