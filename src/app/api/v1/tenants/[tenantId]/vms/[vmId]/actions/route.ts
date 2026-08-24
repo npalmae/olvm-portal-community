@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiRoleGate, checkApiKey, unauthorizedResponse } from "@/lib/apiAuth";
 import { logActivity } from "@/lib/activityStore";
+import { createCloneJob, runCloneJob, serializeCloneJob } from "@/lib/cloneJobService";
 import {
-  cloneVm,
   enforceVmTagPolicy,
   isSupportedAction,
   runOnceFromCd,
@@ -55,17 +55,16 @@ export async function POST(request: Request, context: Params) {
       if (!cloneName) {
         return NextResponse.json({ error: "cloneName is required for clone action" }, { status: 400 });
       }
-      const cloned = await cloneVm(tenantId, vmId, cloneName);
-      await logActivity({
-        tenantId,
-        userEmail: ctx.userEmail,
-        origin: "api",
-        action: "clone",
-        status: "ok",
-        vmId,
-        detail: `→ ${cloneName}`,
+      const job = await createCloneJob({
+        tenantId, sourceVmId: vmId,
+        sourceVmName: typeof body.sourceVmName === "string" ? body.sourceVmName.trim() : undefined,
+        cloneName, requestedBy: ctx.userEmail, origin: "api",
       });
-      return NextResponse.json({ ok: true, action, cloned });
+      void runCloneJob(job.id).catch(() => undefined);
+      const statusUrl = `/api/v1/tenants/${tenantId}/clone-jobs/${job.id}`;
+      return NextResponse.json({ ok: true, action, job: serializeCloneJob(job), statusUrl }, {
+        status: 202, headers: { Location: statusUrl },
+      });
     }
 
     if (action === "run_once_cd") {

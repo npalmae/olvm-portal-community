@@ -1167,6 +1167,9 @@ type CloneVmResult = {
   pending?: boolean;
 };
 
+export type CloneVmStage = "submitting" | "waiting" | "tagging" | "stopping" | "networking" | "disks";
+type CloneVmProgress = (stage: CloneVmStage, progress: number) => void | Promise<void>;
+
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
@@ -1278,19 +1281,12 @@ const waitForDisksUnlocked = async (tenant: TenantConfig, vmId: string) => {
 };
 
 const findClonedVmId = async (
-  tenantId: string,
+  tenant: TenantConfig,
   sourceVmId: string,
   newName: string,
+  knownIds: Set<string>,
   timeoutMs?: number,
 ): Promise<string | null> => {
-  const tenant = await getTenantById(tenantId);
-  // La búsqueda NO puede filtrar por tag: el clon nace sin tag y sería invisible.
-  const before = await fetchAllVmsUnfiltered(tenant);
-  const existingName = before.find((vm) => vm.name === newName);
-  if (existingName) {
-    throw new Error(`Ya existe una VM con nombre ${newName}`);
-  }
-  const knownIds = new Set(before.map((vm) => vm.id));
   const deadline = Date.now() + (timeoutMs ?? (Number(process.env.CLONE_TIMEOUT_MS) || 600_000));
   const pollEveryMs = 5_000;
 
@@ -1298,9 +1294,10 @@ const findClonedVmId = async (
     const current = await fetchAllVmsUnfiltered(tenant);
     const found = current.find(
       (vm) =>
-        vm.name === newName && vm.id !== sourceVmId && !knownIds.has(vm.id),
+        vm.name === newName && typeof vm.id === "string"
+        && vm.id !== sourceVmId && !knownIds.has(vm.id),
     );
-    if (found?.id) return found.id;
+    if (typeof found?.id === "string") return found.id;
     await sleep(pollEveryMs);
   }
 
@@ -1309,11 +1306,15 @@ const findClonedVmId = async (
 };
 
 // Post-proceso del clon: tag del tenant + apagar + desconectar NICs + discos.
-const finalizeClonedVm = async (tenant: TenantConfig, vmId: string) => {
+const finalizeClonedVm = async (tenant: TenantConfig, vmId: string, onProgress?: CloneVmProgress) => {
+  await onProgress?.("tagging", 60);
   await applyTenantTag(tenant, vmId);
+  await onProgress?.("stopping", 70);
   await ensureVmStopped(tenant, vmId);
+  await onProgress?.("networking", 80);
   await disconnectVmNics(tenant, vmId);
   await ensureVmStopped(tenant, vmId);
+  await onProgress?.("disks", 90);
   await waitForDisksUnlocked(tenant, vmId);
 };
 
@@ -1485,6 +1486,7 @@ export const cloneVm = async (
   tenantId: string,
   sourceVmId: string,
   newName: string,
+  onProgress?: CloneVmProgress,
 ): Promise<CloneVmResult> => {
   const normalizedName = newName.trim();
   if (!normalizedName) {
@@ -1492,6 +1494,14 @@ export const cloneVm = async (
   }
 
   const tenant = await getTenantById(tenantId);
+  // El clon nace sin tag. La referencia debe tomarse antes del POST para no
+  // confundir un clon rápido con una VM que ya existía.
+  const before = await fetchAllVmsUnfiltered(tenant);
+  if (before.some((vm) => vm.name === normalizedName)) {
+    throw new Error(`Ya existe una VM con nombre ${normalizedName}`);
+  }
+  const knownIds = new Set(before.flatMap((vm) => typeof vm.id === "string" ? [vm.id] : []));
+  await onProgress?.("submitting", 10);
   const clonePayloads = [
     { vm: { name: normalizedName } }, // formato canónico oVirt/OLVM
     { action: { vm: { name: normalizedName } } }, // fallback
@@ -1519,27 +1529,16 @@ export const cloneVm = async (
     );
   }
 
-  // Espera breve en la request; si la VM aparece rápido, se finaliza en caliente.
-  const clonedVmId = await findClonedVmId(tenantId, sourceVmId, normalizedName, 120_000);
+  await onProgress?.("waiting", 35);
+  const timeout = Number(process.env.CLONE_TIMEOUT_MS) || 1_800_000;
+  const clonedVmId = await findClonedVmId(tenant, sourceVmId, normalizedName, knownIds, timeout);
 
   if (clonedVmId) {
-    await finalizeClonedVm(tenant, clonedVmId);
+    await finalizeClonedVm(tenant, clonedVmId, onProgress);
     return { vmId: clonedVmId, name: normalizedName };
   }
 
-  // Clon lento: el post-proceso continúa en background (hasta 30 min) y la VM
-  // queda etiquetada/apagada/desconectada cuando aparezca. No se bloquea al usuario.
-  const bgTimeout = Number(process.env.CLONE_TIMEOUT_MS) || 1_800_000;
-  void (async () => {
-    try {
-      const id = await findClonedVmId(tenantId, sourceVmId, normalizedName, bgTimeout);
-      if (id) await finalizeClonedVm(tenant, id);
-    } catch {
-      // best-effort: si falla, la VM queda creada pero sin post-proceso.
-    }
-  })();
-
-  return { vmId: null, name: normalizedName, pending: true };
+  throw new Error(`La VM clonada no apareció antes del timeout (${timeout} ms)`);
 };
 
 type CreateVmInput = {

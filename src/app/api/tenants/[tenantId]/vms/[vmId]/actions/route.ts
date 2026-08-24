@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { logActivity } from "@/lib/activityStore";
+import { createCloneJob, runCloneJob, serializeCloneJob } from "@/lib/cloneJobService";
 import {
-  cloneVm,
   enforceVmTagPolicy,
   isSupportedAction,
   runOnceFromCd,
@@ -47,17 +47,16 @@ export async function POST(request: Request, context: Params) {
           { status: 400 },
         );
       }
-      const cloned = await cloneVm(tenantId, vmId, cloneName);
-      await logActivity({
-        tenantId,
-        userEmail: session.user.email ?? "portal",
-        origin: "portal",
-        action: "clone",
-        status: "ok",
-        vmId,
-        detail: `→ ${cloneName}`,
+      const job = await createCloneJob({
+        tenantId, sourceVmId: vmId,
+        sourceVmName: typeof body?.sourceVmName === "string" ? body.sourceVmName.trim() : undefined,
+        cloneName, requestedBy: session.user.email ?? "portal", origin: "portal",
       });
-      return NextResponse.json({ ok: true, cloned });
+      void runCloneJob(job.id).catch(() => undefined);
+      const statusUrl = `/api/tenants/${tenantId}/clone-jobs/${job.id}`;
+      return NextResponse.json({ ok: true, job: serializeCloneJob(job), statusUrl }, {
+        status: 202, headers: { Location: statusUrl },
+      });
     }
 
     if (action === "run_once_cd") {

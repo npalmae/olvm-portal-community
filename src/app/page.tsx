@@ -55,6 +55,11 @@ type ActionLog = {
   timestamp: number; message?: string;
 };
 
+type CloneJob = {
+  id: string; tenantId: string; sourceVmId: string; cloneName: string; origin: "portal" | "api";
+  status: "queued" | "running" | "completed" | "failed"; stage: string; progress: number; error?: string | null;
+};
+
 type RfbCtor = any;
 type RfbInstance = any;
 
@@ -294,6 +299,8 @@ export default function Home() {
     open: boolean; sourceVmId: string; sourceVmName: string;
     newName: string; submitting: boolean; error: string | null;
   }>({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
+  const [cloneJobs, setCloneJobs] = useState<CloneJob[]>([]);
+  const knownCloneStatuses = useRef<Record<string, string>>({});
 
   const [powerTransition, setPowerTransition] = useState<{ vmId: string; action: string } | null>(null);
   const powerPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -449,6 +456,30 @@ export default function Home() {
     if (!selectedTenant || selectedTenant === "undefined") return;
     loadVms(selectedTenant);
   };
+
+  useEffect(() => {
+    if (!selectedTenant || selectedTenant === "undefined" || !tenants.length) return;
+    let cancelled = false;
+    const poll = async () => {
+      const tenantIds = selectedTenant === ALL_TENANTS ? tenants.map((tenant) => tenant.id) : [selectedTenant];
+      const jobs = (await Promise.all(tenantIds.map(async (tenantId) => {
+        try {
+          const response = await fetch(`/api/tenants/${tenantId}/clone-jobs?limit=25`, { cache: "no-store" });
+          const data = await parseJsonSafe(response);
+          return response.ok && Array.isArray(data) ? data as CloneJob[] : [];
+        } catch { return [] as CloneJob[]; }
+      }))).flat();
+      if (cancelled) return;
+      const completed = jobs.some((job) => knownCloneStatuses.current[job.id]
+        && knownCloneStatuses.current[job.id] !== "completed" && job.status === "completed");
+      knownCloneStatuses.current = Object.fromEntries(jobs.map((job) => [job.id, job.status]));
+      setCloneJobs(jobs.filter((job) => job.status === "queued" || job.status === "running"));
+      if (completed) loadVms(selectedTenant);
+    };
+    void poll();
+    const interval = setInterval(() => void poll(), 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [selectedTenant, tenants]);
 
   // Carga storage domains del tenant actual
   useEffect(() => {
@@ -943,22 +974,12 @@ export default function Home() {
     try {
       const res = await fetch(`/api/tenants/${tid}/vms/${cloneWizard.sourceVmId}/actions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "clone", cloneName }),
+        body: JSON.stringify({ action: "clone", cloneName, sourceVmName: cloneWizard.sourceVmName }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? t("cloneFailed"));
-      const pending = data?.cloned?.pending === true;
-      setSuccess(
-        pending
-          ? t("clonePending", { name: cloneName })
-          : t("cloneCreated", { name: cloneName }),
-      );
-      setActionHistory((p) => [{
-        vmId: cloneWizard.sourceVmId, action: `${t("clone")} → ${cloneName}`,
-        status: "ok", timestamp: Date.now(), message: t("source", { name: cloneWizard.sourceVmName }),
-      }, ...p.slice(0, 2)]);
+      setSuccess(t("cloneQueued", { name: cloneName }));
       setCloneWizard({ open: false, sourceVmId: "", sourceVmName: "", newName: "", submitting: false, error: null });
-      refresh();
     } catch (err) {
       setCloneWizard((p) => ({ ...p, submitting: false, error: (err as Error).message }));
     } finally { setActionLoading(null); }
@@ -1677,6 +1698,17 @@ export default function Home() {
                 </div>
               </div>
             )}
+            {cloneJobs.map((job) => (
+              <div key={job.id} className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <span>{t("cloneProgress", { name: job.cloneName, stage: t(`cloneStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
+                  <span className="tabular-nums">{job.progress}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+                  <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${clampPercent(job.progress)}%` }} />
+                </div>
+              </div>
+            ))}
             {error && (
               <div className="mb-3 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 <span>{error}</span>

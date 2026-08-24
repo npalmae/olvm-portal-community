@@ -35,6 +35,7 @@ model Tenant {
   networkConfig  Json?
   createdAt      DateTime     @default(now())
   memberships    Membership[]
+  cloneJobs      CloneJob[]
 
   @@unique([engineId, tag])
 }
@@ -113,6 +114,29 @@ model BackupJob {
 
   @@index([createdAt])
   @@index([status])
+}
+
+model CloneJob {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceVmId   String
+  sourceVmName String?
+  cloneName    String
+  clonedVmId   String?
+  requestedBy  String
+  origin       String
+  status       String    @default("queued")
+  stage        String    @default("queued")
+  progress     Int       @default(0)
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
 }
 
 model ApiKey {
