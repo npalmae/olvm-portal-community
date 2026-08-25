@@ -68,6 +68,7 @@ export async function PATCH(request: Request, context: Params) {
   const updates: Parameters<typeof updateUser>[1] = {};
 
   if (typeof body.name === "string") updates.name = body.name;
+  if (typeof body.alias === "string") updates.alias = body.alias;
   if (typeof body.email === "string") updates.email = body.email;
   if (typeof body.password === "string" && body.password) {
     updates.password = body.password;

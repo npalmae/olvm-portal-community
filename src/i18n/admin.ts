@@ -10,6 +10,8 @@ export const adminMessages = {
   clusters: { es: "Clusters", en: "Clusters", de: "Cluster", pt: "Clusters" },
   branding: { es: "Branding", en: "Branding", de: "Branding", pt: "Branding" },
   name: { es: "Nombre", en: "Name", de: "Name", pt: "Nome" },
+  alias: { es: "Alias", en: "Alias", de: "Alias", pt: "Alias" },
+  noAlias: { es: "Sin alias", en: "No alias", de: "Kein Alias", pt: "Sem alias" },
   actions: { es: "Acciones", en: "Actions", de: "Aktionen", pt: "Ações" },
   edit: { es: "Editar", en: "Edit", de: "Bearbeiten", pt: "Editar" },
   delete: { es: "Eliminar", en: "Delete", de: "Löschen", pt: "Excluir" },

@@ -16,6 +16,7 @@ type User = {
   id: string;
   email: string;
   name: string;
+  alias: string | null;
   tenantId: string;
   defaultTenantId: string;
   role: "operator" | "user" | "admin" | "superadmin";
@@ -89,6 +90,7 @@ export default function AdminUsersPage() {
     email: "",
     password: "",
     name: "",
+    alias: "",
     tenantId: "",
     role: "user",
   });
@@ -212,13 +214,14 @@ export default function AdminUsersPage() {
           email: form.email,
           password: form.password,
           name: form.name,
+          alias: form.alias,
           tenantId: form.tenantId,
           role: form.role,
         }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error || t("userCreateError"));
-      setForm({ email: "", password: "", name: "", tenantId: tenants[0]?.id ?? "", role: "user" });
+      setForm({ email: "", password: "", name: "", alias: "", tenantId: tenants[0]?.id ?? "", role: "user" });
       setShowForm(false);
       setSuccess(t("userCreated"));
       await loadUsers();
@@ -370,6 +373,16 @@ export default function AdminUsersPage() {
                 />
               </label>
               <label className="block text-sm text-gray-500">
+                {t("alias")}
+                <input
+                  type="text"
+                  value={form.alias}
+                  onChange={(e) => setForm({ ...form, alias: e.target.value })}
+                  required
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                />
+              </label>
+              <label className="block text-sm text-gray-500">
                 {t("email")}
                 <input
                   type="email"
@@ -434,6 +447,7 @@ export default function AdminUsersPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("name")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("alias")}</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("email")}</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("tenants")}</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("role")}</th>
@@ -445,7 +459,7 @@ export default function AdminUsersPage() {
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                     {t("noUsers")}
                   </td>
                 </tr>
@@ -458,6 +472,7 @@ export default function AdminUsersPage() {
                       <span className="ml-2 text-xs text-gray-400">{t("you")}</span>
                     )}
                   </td>
+                  <td className="px-6 py-4 text-gray-600">{user.alias || t("noAlias")}</td>
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
@@ -595,6 +610,7 @@ function EditModal({
 }: EditModalProps) {
   const t = useTranslations(adminMessages);
   const [name, setName] = useState(user.name);
+  const [alias, setAlias] = useState(user.alias ?? "");
   const [email, setEmail] = useState(user.email);
   const [globalRole, setGlobalRole] = useState<"superadmin" | null>(
     user.globalRole,
@@ -701,7 +717,7 @@ function EditModal({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload: Record<string, unknown> = { name, email };
+    const payload: Record<string, unknown> = { name, alias, email };
 
     if (isSuperadmin) {
       payload.globalRole = globalRole === "superadmin" ? "superadmin" : null;
@@ -724,6 +740,16 @@ function EditModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+            />
+          </label>
+          <label className="block text-sm text-gray-600">
+            {t("alias")}
+            <input
+              type="text"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value)}
+              required
               className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             />
           </label>

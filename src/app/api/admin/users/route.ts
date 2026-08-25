@@ -56,12 +56,12 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { email, password, name, tenantId, role } = body;
+    const { email, password, name, alias, tenantId, role } = body;
     if (role !== undefined && !["operator", "user", "admin", "superadmin"].includes(role)) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
     
-    if (!email || !password || !name || !(tenantId || adminTenantId)) {
+    if (!email || !password || !name || typeof alias !== "string" || !alias.trim() || !(tenantId || adminTenantId)) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios" },
         { status: 400 }
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
       email,
       password,
       name,
+      alias,
       tenantId: targetTenantId,
       role: (isSuperadmin ? role : role === "operator" ? "operator" : "user") as UserRole,
       twoFactorEnabled:

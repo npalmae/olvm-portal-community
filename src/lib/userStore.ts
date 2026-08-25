@@ -10,7 +10,7 @@ export const normalizeMembershipRole = (role: unknown): MembershipRole =>
   role === "operator" || role === "admin" ? role : "user";
 
 export type StoredUser = {
-  id: string; email: string; password: string; name: string; tenantId?: string;
+  id: string; email: string; password: string; name: string; alias?: string | null; tenantId?: string;
   role?: UserRole; defaultTenantId?: string; globalRole?: "superadmin" | null;
   memberships?: TenantMembership[]; twoFactorEnabled?: boolean; createdAt: string;
 };
@@ -21,12 +21,12 @@ export type PublicUser = Omit<StoredUser, "password"> & {
 };
 
 type NewUserInput = {
-  email: string; password: string; name: string; tenantId: string;
+  email: string; password: string; name: string; alias?: string; tenantId: string;
   role?: UserRole; twoFactorEnabled?: boolean;
 };
 
 export type UserUpdateInput = {
-  name?: string; email?: string; password?: string; defaultTenantId?: string;
+  name?: string; alias?: string | null; email?: string; password?: string; defaultTenantId?: string;
   globalRole?: "superadmin" | null; memberships?: TenantMembership[]; twoFactorEnabled?: boolean;
 };
 
@@ -44,7 +44,7 @@ const toPublicUser = (user: NonNullable<UserWithMemberships>): PublicUser => {
   const membership = memberships.find((m) => m.tenantId === defaultTenantId) ?? memberships[0];
   const globalRole = user.globalRole === "superadmin" ? "superadmin" : null;
   return {
-    id: user.id, email: user.email, name: user.name, createdAt: user.createdAt.toISOString(),
+    id: user.id, email: user.email, name: user.name, alias: user.alias, createdAt: user.createdAt.toISOString(),
     tenantId: defaultTenantId, role: globalRole ?? membership?.role ?? "user", defaultTenantId,
     globalRole, memberships, twoFactorEnabled: user.twoFactorEnabled,
   };
@@ -62,7 +62,7 @@ export const createUser = async (input: NewUserInput): Promise<PublicUser> => {
   const tenantId = input.tenantId.trim();
   const user = await prisma.user.create({
     data: {
-      id: crypto.randomUUID(), email, password: await bcrypt.hash(input.password, 10), name: input.name.trim(),
+      id: crypto.randomUUID(), email, password: await bcrypt.hash(input.password, 10), name: input.name.trim(), alias: input.alias?.trim() || null,
       defaultTenantId: tenantId || null, globalRole: role === "superadmin" ? "superadmin" : null,
       twoFactorEnabled: input.twoFactorEnabled !== false,
       memberships: tenantId ? { create: [{ tenantId, role: normalizeMembershipRole(role) }] } : undefined,
@@ -90,6 +90,7 @@ export const updateUser = async (id: string, updates: UserUpdateInput): Promise<
   const current = await prisma.user.findUnique({ where: { id }, include: { memberships: true } });
   if (!current) throw new Error("Usuario no encontrado");
   if (updates.name !== undefined && !updates.name.trim()) throw new Error("El nombre no puede estar vacío");
+  if (updates.alias !== undefined && updates.alias !== null && !updates.alias.trim()) throw new Error("El alias no puede estar vacío");
   const email = updates.email?.trim().toLowerCase();
   if (updates.email !== undefined && !email) throw new Error("El email no puede estar vacío");
   if (email && email !== current.email && await prisma.user.findUnique({ where: { email } })) throw new Error("El email ya está en uso");
@@ -108,7 +109,7 @@ export const updateUser = async (id: string, updates: UserUpdateInput): Promise<
     return tx.user.update({
       where: { id },
       data: {
-        name: updates.name?.trim(), email,
+        name: updates.name?.trim(), alias: updates.alias === undefined ? undefined : updates.alias?.trim() || null, email,
         password: updates.password === undefined ? undefined : await bcrypt.hash(updates.password, 10),
         defaultTenantId: updates.defaultTenantId === undefined ? undefined : updates.defaultTenantId.trim() || null,
         globalRole: updates.globalRole, twoFactorEnabled: updates.twoFactorEnabled,
