@@ -56,7 +56,7 @@ type ActionLog = {
 };
 
 type CloneJob = {
-  id: string; tenantId: string; action: string; targetVmId?: string; targetVmName?: string; requestedBy: string; origin: "portal" | "api";
+  id: string; tenantId: string; action: string; targetVmId?: string; targetVmName?: string; requestedBy: string; requesterLabel?: string; origin: "portal" | "api";
   status: "queued" | "running" | "completed" | "failed"; stage: string; progress: number; error?: string | null;
 };
 
@@ -1704,7 +1704,7 @@ export default function Home() {
                   <span className="flex min-w-0 items-center gap-2">
                      <span>{t("operationProgress", { action: t(`operationAction${job.action[0].toUpperCase()}${job.action.slice(1)}`), name: job.targetVmName || job.targetVmId || "", stage: t(`operationStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
                     <span className="shrink-0 rounded border border-blue-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600">
-                       {t(job.origin === "api" ? "operationOriginApi" : "operationOriginPortal", { email: job.requestedBy })}
+                        {t(job.origin === "api" ? "operationOriginApi" : "operationOriginPortal", { email: job.requesterLabel || job.requestedBy.split("@", 1)[0] })}
                     </span>
                   </span>
                   <span className="tabular-nums">{job.progress}%</span>

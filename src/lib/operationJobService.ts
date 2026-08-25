@@ -11,6 +11,24 @@ export const serializeOperationJob = (job: OperationJob) => ({
   startedAt: job.startedAt?.toISOString() ?? null, finishedAt: job.finishedAt?.toISOString() ?? null,
 });
 
+const fallbackRequesterLabel = (email: string) => email.split("@", 1)[0] || email;
+
+export const serializeOperationJobsWithRequester = async (jobs: OperationJob[]) => {
+  const emails = [...new Set(jobs.map((job) => job.requestedBy.toLowerCase()))];
+  const users = await prisma.user.findMany({
+    where: { email: { in: emails } },
+    select: { email: true, alias: true },
+  });
+  const aliases = new Map(users.map((user) => [user.email.toLowerCase(), user.alias?.trim()]));
+  return jobs.map((job) => ({
+    ...serializeOperationJob(job),
+    requesterLabel: aliases.get(job.requestedBy.toLowerCase()) || fallbackRequesterLabel(job.requestedBy),
+  }));
+};
+
+export const serializeOperationJobWithRequester = async (job: OperationJob) =>
+  (await serializeOperationJobsWithRequester([job]))[0];
+
 export const createOperationJob = (input: {
   tenantId: string; action: string; targetVmId?: string; targetVmName?: string;
   requestedBy: string; origin: ActivityOrigin; input?: JobInput;
