@@ -62,6 +62,8 @@ export const dashboardMessages: Messages = {
   operationStageStopping: msg("apagando", "powering off", "wird ausgeschaltet", "a desligar"),
   operationStageNetworking: msg("desconectando red", "disconnecting network", "Netzwerk wird getrennt", "a desligar a rede"),
   operationStageDisks: msg("esperando discos", "waiting for disks", "Warten auf Datenträger", "a aguardar pelos discos"),
+  operationStageCompleted: msg("completado", "completed", "abgeschlossen", "concluído"),
+  operationStageFailed: msg("falló", "failed", "fehlgeschlagen", "falhou"),
   operationActionDeploy: msg("Creando", "Creating", "Erstellen", "A criar"),
   operationActionStart: msg("Encendiendo", "Starting", "Starten", "A iniciar"),
   operationActionStop: msg("Deteniendo", "Stopping", "Stoppen", "A parar"),

@@ -1,9 +1,25 @@
 import type { OperationJob, Prisma } from "@prisma/client";
 import { logActivity, type ActivityOrigin } from "./activityStore";
-import { cloneVm, createVm, deleteVm, runOnceFromCd, sendVmAction } from "./olvmClient";
+import { cloneVm, createVm, deleteVm, fetchVmById, runOnceFromCd, sendVmAction } from "./olvmClient";
 import { prisma } from "./prisma";
 
 type JobInput = Record<string, unknown>;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForPowerState = async (tenantId: string, vmId: string, action: string) => {
+  const expected = action === "start" ? "up"
+    : action === "stop" || action === "shutdown" ? "down"
+    : null;
+  if (!expected) return;
+  const deadline = Date.now() + 180_000;
+  while (Date.now() < deadline) {
+    const vm = await fetchVmById(tenantId, vmId);
+    if (vm?.status?.toLowerCase() === expected) return;
+    await sleep(2_000);
+  }
+  throw new Error(`OLVM no confirmó el estado ${expected} antes del timeout`);
+};
 
 export const serializeOperationJob = (job: OperationJob) => ({
   ...job,
@@ -61,6 +77,8 @@ export const runOperationJob = async (id: string): Promise<void> => {
       await runOnceFromCd(job.tenantId, job.targetVmId!);
     } else {
       await sendVmAction(job.tenantId, job.targetVmId!, job.action === "restart" ? "reboot" : job.action);
+      await prisma.operationJob.update({ where: { id }, data: { stage: "waiting", progress: 60 } });
+      await waitForPowerState(job.tenantId, job.targetVmId!, job.action);
     }
     await prisma.operationJob.update({ where: { id }, data: {
       status: "completed", stage: "completed", progress: 100, resultVmId, finishedAt: new Date(),

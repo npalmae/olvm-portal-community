@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   updateMany: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn(),
-  sendVmAction: vi.fn(), cloneVm: vi.fn(), createVm: vi.fn(), deleteVm: vi.fn(), runOnceFromCd: vi.fn(), logActivity: vi.fn(),
+  sendVmAction: vi.fn(), cloneVm: vi.fn(), createVm: vi.fn(), deleteVm: vi.fn(), fetchVmById: vi.fn(), runOnceFromCd: vi.fn(), logActivity: vi.fn(),
 }));
 vi.mock("./prisma", () => ({ prisma: { operationJob: {
   updateMany: mocks.updateMany, update: mocks.update, findUniqueOrThrow: mocks.findUniqueOrThrow,
 } } }));
 vi.mock("./olvmClient", () => ({ sendVmAction: mocks.sendVmAction, cloneVm: mocks.cloneVm,
-  createVm: mocks.createVm, deleteVm: mocks.deleteVm, runOnceFromCd: mocks.runOnceFromCd }));
+  createVm: mocks.createVm, deleteVm: mocks.deleteVm, fetchVmById: mocks.fetchVmById, runOnceFromCd: mocks.runOnceFromCd }));
 vi.mock("./activityStore", () => ({ logActivity: mocks.logActivity }));
 import { runOperationJob } from "./operationJobService";
 
@@ -30,5 +30,13 @@ describe("runOperationJob", () => {
     await runOperationJob("j1");
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "failed", error: "failed" }) }));
     expect(mocks.logActivity).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
+  });
+  it("waits for OLVM to report up before completing start", async () => {
+    mocks.findUniqueOrThrow.mockResolvedValue({ id: "j1", tenantId: "t1", action: "start", targetVmId: "v1",
+      targetVmName: "vm", requestedBy: "owner@example.com", origin: "api", input: null });
+    mocks.fetchVmById.mockResolvedValue({ status: "up" });
+    await runOperationJob("j1");
+    expect(mocks.fetchVmById).toHaveBeenCalledWith("t1", "v1");
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ data: { stage: "waiting", progress: 60 } }));
   });
 });

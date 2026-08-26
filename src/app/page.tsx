@@ -57,7 +57,7 @@ type ActionLog = {
 
 type CloneJob = {
   id: string; tenantId: string; action: string; targetVmId?: string; targetVmName?: string; requestedBy: string; requesterLabel?: string; origin: "portal" | "api";
-  status: "queued" | "running" | "completed" | "failed"; stage: string; progress: number; error?: string | null;
+  status: "queued" | "running" | "completed" | "failed"; stage: string; progress: number; error?: string | null; finishedAt?: string | null;
 };
 
 type RfbCtor = any;
@@ -473,7 +473,9 @@ export default function Home() {
       const completed = jobs.some((job) => knownCloneStatuses.current[job.id]
         && knownCloneStatuses.current[job.id] !== "completed" && job.status === "completed");
       knownCloneStatuses.current = Object.fromEntries(jobs.map((job) => [job.id, job.status]));
-      setCloneJobs(jobs.filter((job) => job.status === "queued" || job.status === "running"));
+      const recentCutoff = Date.now() - 45_000;
+      setCloneJobs(jobs.filter((job) => job.status === "queued" || job.status === "running"
+        || (job.finishedAt && new Date(job.finishedAt).getTime() >= recentCutoff)));
       if (completed) loadVms(selectedTenant);
     };
     void poll();
@@ -1699,7 +1701,7 @@ export default function Home() {
               </div>
             )}
             {cloneJobs.map((job) => (
-              <div key={job.id} className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              <div key={job.id} className={`mb-3 rounded-md border px-3 py-2 text-xs ${job.status === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : job.status === "failed" ? "border-red-200 bg-red-50 text-red-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
                      <span>{t("operationProgress", { action: t(`operationAction${job.action[0].toUpperCase()}${job.action.slice(1)}`), name: job.targetVmName || job.targetVmId || "", stage: t(`operationStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
@@ -1709,8 +1711,8 @@ export default function Home() {
                   </span>
                   <span className="tabular-nums">{job.progress}%</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
-                  <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${clampPercent(job.progress)}%` }} />
+                <div className={`h-1.5 w-full overflow-hidden rounded-full ${job.status === "completed" ? "bg-emerald-100" : job.status === "failed" ? "bg-red-100" : "bg-blue-100"}`}>
+                  <div className={`h-full rounded-full transition-all duration-300 ${job.status === "completed" ? "bg-emerald-500" : job.status === "failed" ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${clampPercent(job.progress)}%` }} />
                 </div>
               </div>
             ))}
