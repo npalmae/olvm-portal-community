@@ -50,8 +50,9 @@
 - **Auth:** NextAuth.js (JWT + 2FA vía Resend email OTP)
 - **DB:** PostgreSQL 16 (contenedor `olvm-db`)
 - **Multi-tenant:** Aislamiento por tags OLVM. Cada tenant tiene un tag único por engine.
-- **Roles:** `superadmin` (global), `admin` y `user` (por tenant)
-- **API read-only:** `/api/v1/*` con header `X-API-Key`
+- **Roles:** `superadmin` (global), `admin`, `user` y `operator` (solo lectura) por tenant
+- **Visibilidad de operaciones:** norma por tenant, no por usuario. Todos los miembros con acceso al tenant ven acciones, progreso, estado y origen; la barra muestra alias y la auditoría conserva el correo real.
+- **API:** `/api/v1/*` con header `X-API-Key`; incluye lectura y operaciones controladas por rol.
 - **Consola:** noVNC embebida + proxy WS en puerto 3010
 
 ## Funcionalidades Clave
@@ -60,7 +61,8 @@
 - Import OVA → VM (conversión manual VMDK→QCOW2, SCP al host, image transfer)
 - Upload de ISOs (image transfer API)
 - Consola VNC embebida con proxy
-- API read-only documentada con API keys por usuario
+- API documentada con API keys por usuario
+- Operaciones persistentes (`OperationJob`) visibles por tenant con progreso y alias del ejecutor
 
 ## Comandos Útiles
 
@@ -136,11 +138,12 @@ ssh pub 'cd olvm-portal && tar xzf /tmp/sync.tar.gz'
 ssh pub 'sudo docker compose build portal && sudo docker compose up -d portal'
 ```
 
-## Última sincronización: 2026-08-05
+## Estado actual: 2026-08-25
 
-- Bastion commit: `1c02605 fix(security): close cross-tenant VM visibility`
-- Público sincronizado al mismo nivel
-- Features agregadas al público: OVA upload/import, API v1, API keys, security fixes
+- Commit publicado en GitHub `main`: `e190200 fix(operations): mantener visibles resultados de acciones rapidas`
+- Bastion (`10.176.160.124:3000`): mismo nivel desplegado; login `200`, `OperationJob` migrado y 12 usuarios preservados.
+- Portal público (`https://olvmportal.sixmanager.io`): mismo nivel desplegado; login `200`, endpoint `operation-jobs` `200`, 12 usuarios y 3 tenants preservados.
+- Norma de visibilidad: operaciones visibles por tenant; se muestra alias del ejecutor y el correo real solo queda en auditoría.
 
 ## Sesión archivada de OpenCode
 
