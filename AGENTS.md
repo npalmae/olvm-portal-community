@@ -138,12 +138,23 @@ ssh pub 'cd olvm-portal && tar xzf /tmp/sync.tar.gz'
 ssh pub 'sudo docker compose build portal && sudo docker compose up -d portal'
 ```
 
-## Estado actual: 2026-08-25
+## Estado actual: 2026-08-26
 
-- Commit publicado en GitHub `main`: `e190200 fix(operations): mantener visibles resultados de acciones rapidas`
-- Bastion (`10.176.160.124:3000`): mismo nivel desplegado; login `200`, `OperationJob` migrado y 12 usuarios preservados.
-- Portal público (`https://olvmportal.sixmanager.io`): mismo nivel desplegado; login `200`, endpoint `operation-jobs` `200`, 12 usuarios y 3 tenants preservados.
+- Stack de dependencias actualizado y validado en Bastion y producción:
+  - Next `16.3.3`, React/React DOM `19.2.8`, next-auth `5.0.0-beta.32`, Prisma/client `6.19.3` (Prisma 7 diferido), noVNC `1.7.0` (import raíz `@novnc/novnc`), Sharp `0.35.4`, Undici `8.10.0` (con `undici.fetch` para dispatchers), TypeScript `6.0.3`, Node `22.23.2` (imagen pinned por digest multi-arch), PostgreSQL `16.15-alpine` (digest).
+  - `src/middleware.ts` renombrado a `src/proxy.ts` (convención Next 16).
+  - Lockfile regenerado y reproducible (`npm ci`); Docker usa `npm ci`; eliminados `cross-env`, `bufferutil`, `utf-8-validate` y `scripts/patch-novnc.cjs`.
+  - `docker-compose.yml` exige `DB_PASSWORD` obligatoria en `.env`.
+  - `npm audit --omit=dev`: 3 high conocidos vía `@prisma/config`/`deepmerge-ts` (CLI Prisma, config local confiable; no aplicar `npm audit fix --force`).
+  - Lint plano informativo con 126 hallazgos preexistentes; no es bloqueante de release.
+- Validación: `tsc` OK, 80/80 tests, build Next 16 OK, imagen Docker OK; pendiente prueba real de consola noVNC y E2E OLVM en uso.
+- Bastion (`10.176.160.124`): Ubuntu 24.04.4 kernel `6.8.0-138`, SO al día, portal Next 16 desplegado, 12 usuarios/3 tenants preservados.
+- Público (`10.176.160.41`): Ubuntu 22.04.5 kernel `5.15.0-190`, SO al día, portal Next 16 desplegado, 12 usuarios/3 tenants preservados; `https://olvmportal.sixmanager.io` y `https://olvm-portal.sixmanager.io` en `200`.
+- Túnel Cloudflare `olvm-portal-sixmanager` (`d5730207-b36c-45ae-aaf8-a592447e87f0`): conector `cloudflare/cloudflared:2026.8.2`, `--network host`, `healthy`. Token del conector en `/etc/cloudflared/olvm-portal.token` (0400, uid 65532) montado read-only en `/run/secrets/olvm-portal.token`; se recupera vía API `GET /accounts/{account}/cfd_tunnel/{id}/token` con un API Token con permiso Cloudflare Tunnel.
+- DNS del host público: gateway `10.111.126.1` intermittente tras reinicio; añadidos `1.1.1.1`/`1.0.0.1` en netplan (`50-cloud-init.yaml`, respaldo `.bak-pre-dnsfix`) y `FallbackDNS` en `resolved.conf`.
+- Respaldos del día en `s3://olvm-portal/backups/2026-08-26/portal-bastion/` (y copia local `/home/npalma/backups/2026-08-26/portal-public/` en `.41`).
 - Norma de visibilidad: operaciones visibles por tenant; se muestra alias del ejecutor y el correo real solo queda en auditoría.
+- Pendiente: rotar API tokens/secretos expuestos en conversaciones; suite Playwright E2E inexistente; consola noVNC 1.7.0 requiere prueba manual real (teclado, clipboard, resize, reconexión).
 
 ## Sesión archivada de OpenCode
 

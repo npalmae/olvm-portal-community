@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { resolveTenant } from "@/lib/config";
-import { Agent as UndiciAgent } from "undici";
+import { Agent as UndiciAgent, fetch as undiciFetch } from "undici";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -28,7 +28,7 @@ const olvmRaw = async (tenant: Awaited<ReturnType<typeof resolveTenant>>, path: 
   const auth = tenant.token
     ? `Bearer ${tenant.token}`
     : `Basic ${Buffer.from(`${tenant.username}:${tenant.password}`).toString("base64")}`;
-  const res = await fetch(url, {
+  const res = await undiciFetch(url, {
     ...options,
     headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: auth, ...(options?.headers as Record<string, string>) },
     dispatcher: new UndiciAgent({ connect: { rejectUnauthorized: false } }) as unknown as never,
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
     const buf = Buffer.from(await req.arrayBuffer());
     const start = idx * CHUNK_SIZE;
 
-    const upRes = await fetch(s.uploadUrl, {
+    const upRes = await undiciFetch(s.uploadUrl, {
       method: "PUT",
       headers: {
         "Content-Type": "application/octet-stream",

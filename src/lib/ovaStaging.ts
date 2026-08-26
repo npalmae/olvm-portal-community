@@ -17,7 +17,7 @@ export const getOvaUploadPaths = (uploadId: string, format: OvaStagingFormat = "
   if (!UPLOAD_ID_PATTERN.test(uploadId)) throw new Error("Identificador OVA inválido");
   const dir = getOvaStagingDir();
   return {
-    filePath: path.join(dir, `${uploadId}.${format}`),
-    metadataPath: path.join(dir, `${uploadId}.json`),
+    filePath: path.join(/* turbopackIgnore: true */ dir, `${uploadId}.${format}`),
+    metadataPath: path.join(/* turbopackIgnore: true */ dir, `${uploadId}.json`),
   };
 };

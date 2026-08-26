@@ -9,7 +9,7 @@ until node -e 'const {PrismaClient}=require("@prisma/client");const p=new Prisma
   sleep 2
 done
 echo "[startup] PostgreSQL conectado. Aplicando migraciones..."
-npx prisma migrate deploy
+./node_modules/.bin/prisma migrate deploy
 echo "[startup] Esquema listo!"
 
 echo "[startup] Iniciando Next.js en puerto 3001..."

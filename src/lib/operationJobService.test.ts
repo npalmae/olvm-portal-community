@@ -14,7 +14,7 @@ import { runOperationJob } from "./operationJobService";
 
 describe("runOperationJob", () => {
   beforeEach(() => {
-    vi.clearAllMocks(); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.update.mockResolvedValue({});
+    vi.resetAllMocks(); mocks.updateMany.mockResolvedValue({ count: 1 }); mocks.update.mockResolvedValue({});
     mocks.findUniqueOrThrow.mockResolvedValue({ id: "j1", tenantId: "t1", action: "restart", targetVmId: "v1",
       targetVmName: "vm", requestedBy: "owner@example.com", origin: "api", input: null });
   });

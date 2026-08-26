@@ -1,5 +1,5 @@
 import https from "https";
-import { Agent as UndiciAgent } from "undici";
+import { Agent as UndiciAgent, fetch as undiciFetch } from "undici";
 import { getTenantById, type TenantConfig } from "./config";
 
 type RawValue = {
@@ -212,7 +212,7 @@ const acquireSsoToken = async (conn: SsoConnection): Promise<string | null> => {
       username: conn.username,
       password: conn.password,
     }).toString();
-    const res = await fetch(ssoEndpointFor(conn.baseUrl), {
+    const res = await undiciFetch(ssoEndpointFor(conn.baseUrl), {
       method: "POST",
       cache: "no-store",
       headers: {
@@ -270,7 +270,7 @@ export const testConnection = async (input: {
   });
 
   const attempt = async (auth: string) =>
-    fetch(`${baseUrl}/vms?max=1`, {
+    undiciFetch(`${baseUrl}/vms?max=1`, {
       cache: "no-store",
       headers: {
         Accept: "application/json",
@@ -342,7 +342,7 @@ const olvmFetch = async (
     : `${tenant.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 
   const doFetch = (auth?: string) =>
-    fetch(
+    undiciFetch(
       url,
       {
         ...init,
@@ -352,7 +352,7 @@ const olvmFetch = async (
       } as any,
     );
 
-  let response: Response;
+  let response: Awaited<ReturnType<typeof undiciFetch>>;
   try {
     // Con usuario+password se intenta primero token SSO (requerido por OLVM 4.5
     // con internal SSO); si no está disponible cae a Basic (compatibilidad).
@@ -1857,7 +1857,7 @@ export const uploadOvaAsDisk = async (
     bodyTimeout: 0,
     headersTimeout: 0,
   });
-  const uploadRes = await fetch(uploadUrl, {
+  const uploadRes = await undiciFetch(uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": "application/octet-stream", "Content-Length": String(payload.length) },
     body: payload,
@@ -2416,7 +2416,7 @@ export const uploadIso = async (
     headersTimeout: 0,
     keepAliveTimeout: 30000,
   });
-  const uploadRes = await fetch(uploadUrl, {
+  const uploadRes = await undiciFetch(uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": "application/octet-stream", "Content-Length": String(fileSize) },
     body: fileBuffer,

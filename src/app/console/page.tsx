@@ -102,7 +102,7 @@ function ConsolePageContent() {
       try {
         console.log('[console] Conectando a:', effectiveWsUrl);
         
-        const mod = await import('@novnc/novnc/lib/rfb');
+        const mod = await import('@novnc/novnc');
         const RFB = (mod as { default?: any }).default;
         if (!RFB) throw new Error(tRef.current('novncUnavailable'));
 
