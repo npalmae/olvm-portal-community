@@ -68,7 +68,7 @@ Portal web self-service que permite gestionar máquinas virtuales, storage domai
 
 | Capa | Tecnología |
 |------|-----------|
-| **Framework** | Next.js 15 (App Router, SSR) |
+| **Framework** | Next.js 16 (App Router, SSR) |
 | **Lenguaje** | TypeScript |
 | **UI** | React 19, Tailwind CSS |
 | **Auth** | NextAuth.js (JWT + 2FA) |
@@ -91,7 +91,7 @@ Portal web self-service que permite gestionar máquinas virtuales, storage domai
 └────────┼──────────────┼───────────────┼───────────┘
          │              │               │
 ┌────────▼──────────────▼───────────────▼───────────┐
-│              Next.js 15 (Server)                    │
+│              Next.js 16 (Server)                    │
 │  ┌──────────┐  ┌──────────┐  ┌─────────────────┐  │
 │  │ API Routes│  │ Auth/JWT │  │ WS Proxy (3010) │  │
 │  └─────┬─────┘  └──────────┘  └─────────────────┘  │
@@ -297,7 +297,7 @@ olvm-portal/
 │   │   ├── crypto.ts              # Cifrado AES-256-GCM
 │   │   ├── backupService.ts       # Motor de backups
 │   │   └── email.ts               # Cliente Resend
-│   ├── middleware.ts              # Protección de rutas + setup gating
+│   ├── proxy.ts                   # Protección de rutas + setup gating (Next 16)
 │   └── auth.ts / auth-base.ts     # NextAuth config
 └── scripts/
     └── backup-scheduler.cjs       # Scheduler de backups programados
