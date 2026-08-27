@@ -1,0 +1,49 @@
+{
+  "name": "ovm-portal",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.19.0 <23"
+  },
+  "packageManager": "npm@10.9.8",
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:migrate-runtime-data": "node scripts/migrate-json.cjs"
+  },
+  "dependencies": {
+    "@novnc/novnc": "1.7.0",
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "3.0.3",
+    "next": "16.3.3",
+    "next-auth": "5.0.0-beta.32",
+    "prisma": "6.19.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "resend": "6.24.0",
+    "sharp": "0.35.4",
+    "undici": "8.10.0",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.20.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@types/ws": "8.18.1",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

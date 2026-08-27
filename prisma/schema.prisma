@@ -1,0 +1,238 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Engine {
+  id                   String   @id
+  name                 String
+  baseUrl              String
+  username             String?
+  password             String?
+  token                String?
+  allowInsecure        Boolean  @default(false)
+  caCert               String?
+  sharedStorageDomains String[]
+  brandName            String?
+  brandLogoUrl         String?
+  createdAt            DateTime @default(now())
+  tenants              Tenant[]
+}
+
+model Tenant {
+  id             String       @id
+  name           String
+  engineId       String
+  engine         Engine       @relation(fields: [engineId], references: [id])
+  tag            String?
+  storageDomains String[]
+  networks       String[]
+  networkConfig  Json?
+  createdAt      DateTime     @default(now())
+  memberships    Membership[]
+  cloneJobs      CloneJob[]
+  operationJobs  OperationJob[]
+
+  @@unique([engineId, tag])
+}
+
+model User {
+  id               String       @id @default(uuid())
+  email            String       @unique
+  password         String
+  name             String
+  alias            String?
+  globalRole       String?
+  defaultTenantId  String?
+  twoFactorEnabled Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  memberships      Membership[]
+  apiKeys          ApiKey[]
+}
+
+model Membership {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role     String @default("user")
+
+  @@unique([userId, tenantId])
+}
+
+model EmailConfig {
+  id          Int      @id @default(1)
+  provider    String   @default("resend")
+  apiKey      String?
+  fromAddress String?
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
+
+model BackupStorageConfig {
+  id              Int      @id @default(1)
+  provider        String   @default("s3")
+  endpoint        String
+  region          String
+  bucket          String
+  prefix          String   @default("backups/bastion")
+  accessKey       String
+  secretKey       String
+  forcePathStyle  Boolean  @default(true)
+  enabled         Boolean  @default(true)
+  scheduleEnabled Boolean  @default(false)
+  frequency       String   @default("daily")
+  scheduleHour    Int      @default(2)
+  scheduleWeekday Int      @default(0)
+  retentionDays   Int      @default(30)
+  retentionCount  Int      @default(30)
+  defaultProfile  String   @default("operational")
+  lastScheduledAt DateTime?
+  nextRunAt       DateTime?
+  updatedAt       DateTime @updatedAt
+}
+
+model BackupJob {
+  id          String    @id @default(uuid())
+  profile     String
+  trigger     String
+  status      String    @default("queued")
+  stage       String    @default("queued")
+  progress    Int       @default(0)
+  requestedBy String
+  objectKey   String?
+  sizeBytes   BigInt?
+  checksum    String?
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model CloneJob {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceVmId   String
+  sourceVmName String?
+  cloneName    String
+  clonedVmId   String?
+  requestedBy  String
+  origin       String
+  status       String    @default("queued")
+  stage        String    @default("queued")
+  progress     Int       @default(0)
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+model OperationJob {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  action       String
+  targetVmId   String?
+  targetVmName String?
+  requestedBy  String
+  origin       String
+  status       String    @default("queued")
+  stage        String    @default("queued")
+  progress     Int       @default(0)
+  input        Json?
+  resultVmId   String?
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+model ApiKey {
+  id        String    @id
+  keyHash   String    @unique
+  keyPrefix String
+  name      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  lastUsed  DateTime?
+
+  @@index([userId])
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  email     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model TwoFactorChallenge {
+  email     String   @id
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model SystemSecret {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Singleton (id=1): branding global del portal (login, register, etc.)
+model PortalBranding {
+  id         Int      @id @default(1)
+  brandName  String?
+  logoData   Bytes?
+  logoMime   String?
+  logoWidth  Int?
+  logoHeight Int?
+  logoSize   Int?
+  updatedAt  DateTime @updatedAt
+}
+
+/// Registro de actividades: operaciones ejecutadas desde el portal o via API
+model Activity {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenantName String?
+  vmId       String?
+  vmName     String?
+  userEmail  String
+  origin     String   // "portal" | "api"
+  action     String   // deploy | start | stop | reboot | shutdown | run_once_cd | clone | delete
+  status     String   // ok | error
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+}

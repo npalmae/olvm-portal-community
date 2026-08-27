@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    container_name: olvm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: olvm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD requerida en .env}
+      POSTGRES_DB: olvm_portal
+    volumes:
+      - olvm-pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  portal:
+    build: .
+    container_name: olvm-portal
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://olvm:${DB_PASSWORD:?DB_PASSWORD requerida en .env}@127.0.0.1:5432/olvm_portal?schema=public
+      AUTH_SECRET: ${AUTH_SECRET}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
+      AUTH_URL: ${AUTH_URL}
+      NEXTAUTH_URL: ${AUTH_URL}
+      CONSOLE_PROXY_PUBLIC_HOST_PORT: ${CONSOLE_PROXY_PUBLIC_HOST_PORT}
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      REQUIRE_2FA: ${REQUIRE_2FA:-true}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM: ${RESEND_FROM}
+      OLVM_TENANTS: ${OLVM_TENANTS}
+      OLVM_SHARED_SDS: ${OLVM_SHARED_SDS:-[]}
+      OVA_STAGING_DIR: ${OVA_STAGING_DIR:-/mnt/ova}
+      OVA_HOST_STAGING_DIR: ${OVA_HOST_STAGING_DIR:-/mnt/ova}
+      OLVM_HOST_SSH_USER: ${OLVM_HOST_SSH_USER:-root}
+      OLVM_HOST_SSH_PASSWORD: ${OLVM_HOST_SSH_PASSWORD}
+      API_READ_KEY: ${API_READ_KEY}
+    volumes:
+      - ${OVA_STAGING_HOST_PATH:-./data/ova-staging}:${OVA_STAGING_DIR:-/mnt/ova}
+
+volumes:
+  olvm-pgdata:
+    name: ${POSTGRES_VOLUME_NAME:-olvm-portal_olvm-pgdata}
