@@ -86,6 +86,20 @@ export const getUserById = async (id: string): Promise<PublicUser | null> => {
   return user ? toPublicUser(user) : null;
 };
 
+export const updateMembershipRole = async (
+  userId: string,
+  tenantId: string,
+  role: MembershipRole,
+): Promise<PublicUser> => {
+  await prisma.membership.update({
+    where: { userId_tenantId: { userId, tenantId } },
+    data: { role: normalizeMembershipRole(role) },
+  });
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { memberships: true } });
+  if (!user) throw new Error("Usuario no encontrado");
+  return toPublicUser(user);
+};
+
 export const updateUser = async (id: string, updates: UserUpdateInput): Promise<PublicUser> => {
   const current = await prisma.user.findUnique({ where: { id }, include: { memberships: true } });
   if (!current) throw new Error("Usuario no encontrado");

@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
   }
 
   const token = await createResetToken(user.email);
-  const origin = process.env.AUTH_URL
-    || (req.headers.get("x-forwarded-host")
-      ? `${req.headers.get("x-forwarded-proto") ?? "https"}://${req.headers.get("x-forwarded-host")}`
-      : new URL(req.url).origin);
+  const configuredOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  if (!configuredOrigin && process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Servicio de recuperación no configurado" }, { status: 503 });
+  }
+  const origin = configuredOrigin ? new URL(configuredOrigin).origin : new URL(req.url).origin;
   const resetUrl = `${origin}/reset-password?token=${token}`;
 
   const result = await sendPasswordResetEmail(user.email, resetUrl);

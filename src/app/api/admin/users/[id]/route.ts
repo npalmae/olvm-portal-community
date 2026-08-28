@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
-import { deleteUser, getUserById, updateUser } from "@/lib/userStore";
+import { deleteUser, getUserById, updateMembershipRole, updateUser } from "@/lib/userStore";
 import {
   getDefaultTenantId,
   hasTenantAccess,
@@ -65,6 +65,38 @@ export async function PATCH(request: Request, context: Params) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
+  if (!isSuperadmin) {
+    const forbiddenFields = [
+      "name",
+      "alias",
+      "email",
+      "password",
+      "globalRole",
+      "memberships",
+      "defaultTenantId",
+      "twoFactorEnabled",
+    ];
+    if (forbiddenFields.some((field) => field in body)) {
+      return NextResponse.json(
+        { error: "Un admin de tenant solo puede cambiar el rol de su tenant" },
+        { status: 403 },
+      );
+    }
+    if (! ["operator", "user", "admin"].includes(String(body.membershipRole))) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    }
+    try {
+      const updated = await updateMembershipRole(
+        id,
+        adminTenantId,
+        body.membershipRole as TenantMembership["role"],
+      );
+      return NextResponse.json(updated);
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    }
+  }
+
   const updates: Parameters<typeof updateUser>[1] = {};
 
   if (typeof body.name === "string") updates.name = body.name;
@@ -93,17 +125,6 @@ export async function PATCH(request: Request, context: Params) {
     if (body.twoFactorEnabled !== undefined) {
       updates.twoFactorEnabled = body.twoFactorEnabled === true;
     }
-  } else if (body.membershipRole !== undefined) {
-    // Tenant admin: solo ajusta el rol dentro de su tenant
-    if (!["operator", "user", "admin"].includes(String(body.membershipRole))) {
-      return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
-    }
-    const role = body.membershipRole as TenantMembership["role"];
-    updates.memberships = target.memberships.map((membership) =>
-      membership.tenantId === adminTenantId
-        ? { tenantId: membership.tenantId, role }
-        : membership,
-    );
   }
 
   if (Object.keys(updates).length === 0) {

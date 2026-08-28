@@ -717,9 +717,12 @@ function EditModal({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload: Record<string, unknown> = { name, alias, email };
+    const payload: Record<string, unknown> = {};
 
     if (isSuperadmin) {
+      payload.name = name;
+      payload.alias = alias;
+      payload.email = email;
       payload.globalRole = globalRole === "superadmin" ? "superadmin" : null;
       payload.memberships = memberships.filter((m) => m.tenantId);
       payload.defaultTenantId = defaultTenantId;
@@ -740,6 +743,7 @@ function EditModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={!isSuperadmin}
               className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             />
           </label>
@@ -749,6 +753,7 @@ function EditModal({
               type="text"
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
+              disabled={!isSuperadmin}
               required
               className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             />
@@ -759,6 +764,7 @@ function EditModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={!isSuperadmin}
               className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
             />
           </label>

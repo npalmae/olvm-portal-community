@@ -31,12 +31,6 @@ server.on("upgrade", (req, socket, head) => {
   const isConsole = (req.url || "").startsWith("/console-proxy/");
   const targetPort = isConsole ? WS_PORT : NEXT_PORT;
 
-  console.log("[proxy] upgrade", {
-    url: req.url?.substring(0, 100),
-    target: targetPort,
-    headers: Object.keys(req.headers).join(","),
-  });
-
   const proxy = net.connect(targetPort, "localhost", () => {
     let raw = `${req.method} ${req.url} HTTP/1.1\r\n`;
     for (const [key, value] of Object.entries(req.headers)) {
@@ -52,8 +46,8 @@ server.on("upgrade", (req, socket, head) => {
     socket.pipe(proxy);
     proxy.pipe(socket);
   });
-  proxy.on("error", (err) => {
-    console.error("[proxy] WS connect error:", err.message, "port:", targetPort);
+  proxy.on("error", () => {
+    console.error("[proxy] WebSocket upstream unavailable");
     socket.destroy();
   });
 });

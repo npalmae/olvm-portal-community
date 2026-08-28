@@ -34,21 +34,11 @@ export async function GET(request: Request, context: Params) {
     });
     const host = info.host ?? info.websocket?.engineHost;
     const port = info.tlsPort ?? info.port;
-    let novncUrl: string | undefined;
 
-    if (info.websocket?.wsUrl && host && port && info.ticket) {
-      const base = info.websocket.wsUrl.replace(/\?$/, "");
-      const sep = base.includes("?") ? "&" : "?";
-      novncUrl = `${base}${sep}host=${encodeURIComponent(host)}&port=${encodeURIComponent(port.toString())}&ticket=${encodeURIComponent(info.ticket)}`;
-    }
-
-    return NextResponse.json({
-      ...info,
-      host,
-      port,
-      novncUrl,
-      consoleId: info.consoleId,
-    });
+    return NextResponse.json(
+      { ...info, host, port, consoleId: info.consoleId },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     const message = (error as Error).message;
     const lower = message.toLowerCase();
