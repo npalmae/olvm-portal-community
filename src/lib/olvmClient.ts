@@ -1115,11 +1115,8 @@ export const fetchVmConsoleInfo = async (
     tlsPort = tlsPort ?? proxyTicket.port;
   }
 
-  // Construir URL para WebSocket proxy local
   const finalHost = host ?? engineHost;
   const finalPort = port ?? defaultPort;
-  const wsProtocol = "ws:";
-  const wsUrl = `${wsProtocol}//localhost:3010/?targets=${encodeURIComponent(`tcp://${finalHost}:${finalPort}`)}&insecure=1`;
 
   return {
     protocol: (selected.protocol ?? protocol).toLowerCase(),
@@ -1130,7 +1127,6 @@ export const fetchVmConsoleInfo = async (
     ticket,
     proxyTicket,
     websocket: {
-      wsUrl,
       engineHost: finalHost,
     },
   };

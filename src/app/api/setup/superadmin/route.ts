@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { isSetupComplete } from "@/lib/setupState";
-import { createUser } from "@/lib/userStore";
+import { createInitialSuperadmin } from "@/lib/setupState";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (await isSetupComplete()) {
-    return NextResponse.json({ error: "El setup ya fue completado" }, { status: 403 });
-  }
-
   const body = await request.json().catch(() => ({}));
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -23,15 +18,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await createUser({
+    const userId = await createInitialSuperadmin({
       name,
       email,
       password,
-      role: "superadmin",
-      tenantId: "",
-      twoFactorEnabled: false,
     });
-    return NextResponse.json({ ok: true, userId: user.id });
+    if (!userId) {
+      return NextResponse.json({ error: "El setup ya fue completado" }, { status: 403 });
+    }
+    return NextResponse.json({ ok: true, userId });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 });
   }

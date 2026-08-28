@@ -30,7 +30,6 @@ function ConsolePageContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [errorMsg, setErrorMsg] = useState<string>('');
-  const [debugInfo, setDebugInfo] = useState<string>('');
   const [renderInfo, setRenderInfo] = useState<string>('');
   const [showOnboardKb, setShowOnboardKb] = useState(false);
   const [showClipboard, setShowClipboard] = useState(false);
@@ -41,53 +40,31 @@ function ConsolePageContent() {
 
   const wsUrl = searchParams.get('wsUrl') || '';
   const ticket = searchParams.get('ticket') || '';
-  const vmId = searchParams.get('vmId') || '';
   const isPreview = searchParams.get('preview') === '1';
   const showToolbar = searchParams.get('show_toolbar') !== '0';
 
   useEffect(() => {
     const buildEffectiveWsUrl = () => {
-      if (!wsUrl) return '';
-      if (typeof window === 'undefined') return wsUrl;
+      if (!wsUrl || typeof window === 'undefined') return '';
 
       try {
         const parsed = new URL(wsUrl);
-        const currentProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const currentOrigin = `${currentProtocol}//${window.location.host}`;
-        // Si la URL ya apunta al proxy WS (path /console-proxy/, incluso en otro
-        // puerto, p.ej. ws://host:3010/console-proxy/), se usa tal cual.
-        const isProxyUrl = parsed.pathname.startsWith('/console-proxy/');
-
-        if (isProxyUrl) {
-          return wsUrl;
-        }
-
-        if (parsed.protocol === 'ws:' || parsed.protocol === 'wss:') {
-          return `${currentOrigin}/console-proxy/?targets=${encodeURIComponent(wsUrl)}&insecure=1`;
-        }
-
-        return wsUrl;
+        const expectedProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const isAuthorizedProxy =
+          parsed.protocol === expectedProtocol &&
+          parsed.host === window.location.host &&
+          parsed.pathname.startsWith('/console-proxy/') &&
+          parsed.searchParams.getAll('session').length === 1;
+        return isAuthorizedProxy ? parsed.toString() : '';
       } catch {
-        return wsUrl;
+        return '';
       }
     };
 
     const effectiveWsUrl = buildEffectiveWsUrl();
-
-    // Debug: mostrar la URL recibida
-    console.log('[console] URL params:', { wsUrl, effectiveWsUrl, ticket: ticket ? 'present' : 'missing', vmId });
-    setDebugInfo(
-      `wsUrl: ${effectiveWsUrl.substring(0, 80)}... ticket: ${ticket ? 'OK' : 'MISSING'}`,
-    );
     
     if (!effectiveWsUrl || !containerRef.current) {
       setErrorMsg(tRef.current('missingConnection'));
-      setStatus('error');
-      return;
-    }
-
-    if (effectiveWsUrl.includes(':0/') || effectiveWsUrl.includes('localhost:0')) {
-      setErrorMsg(tRef.current('invalidProxyPort'));
       setStatus('error');
       return;
     }
@@ -100,8 +77,6 @@ function ConsolePageContent() {
 
     const connect = async () => {
       try {
-        console.log('[console] Conectando a:', effectiveWsUrl);
-        
         const mod = await import('@novnc/novnc');
         const RFB = (mod as { default?: any }).default;
         if (!RFB) throw new Error(tRef.current('novncUnavailable'));
@@ -113,7 +88,6 @@ function ConsolePageContent() {
         container.style.width = '100%';
         container.style.height = '100%';
 
-        console.log('[console] Creando RFB con URL:', effectiveWsUrl);
         rfb = new RFB(container, effectiveWsUrl, {
           credentials: { password: ticket },
           shared: true,
@@ -217,7 +191,6 @@ function ConsolePageContent() {
         }
 
         rfb.addEventListener('connect', () => {
-          console.log('[console] Conectado!');
           setStatus('connected');
           rfbRef.current = rfb;
           rfb.addEventListener('clipboard', (e: any) => {
@@ -282,10 +255,8 @@ function ConsolePageContent() {
               const h = anyRfb?._fbHeight ?? 2160;
               if ((RFB as any)?.messages && anyRfb?._sock) {
                 (RFB as any).messages.fbUpdateRequest(anyRfb._sock, false, 0, 0, w, h);
-                console.log('[console] fbUpdateRequest enviado', { w, h, attempts });
               }
-            } catch (e) {
-              console.warn('[console] fbUpdateRequest failed:', e);
+            } catch {
               clearInterval(timer);
             }
             if (attempts >= 10) {
@@ -295,30 +266,23 @@ function ConsolePageContent() {
           }, 1200);
         });
 
-        rfb.addEventListener('disconnect', (evt: any) => {
-          console.log('[console] Desconectado:', evt);
+        rfb.addEventListener('disconnect', () => {
           setStatus('error');
-          setErrorMsg(`${tRef.current('disconnected')}: ${JSON.stringify(evt?.detail || {})}`);
+          setErrorMsg(tRef.current('disconnected'));
         });
 
-        rfb.addEventListener('securityfailure', (evt: any) => {
-          console.log('[console] Security failure:', evt);
+        rfb.addEventListener('securityfailure', () => {
           setStatus('error');
           setErrorMsg(tRef.current('securityFailure'));
         });
 
         rfb.addEventListener('credentialsrequired', () => {
-          console.log('[console] Credentials required');
           focusConsole();
         });
 
-        rfb.addEventListener('desktopname', (evt: any) => {
-          console.log('[console] desktopname', evt?.detail);
-        });
-      } catch (err) {
-        console.error('[console] Error:', err);
+      } catch {
         setStatus('error');
-        setErrorMsg((err as Error).message);
+        setErrorMsg(tRef.current('missingConnection'));
       }
     };
 

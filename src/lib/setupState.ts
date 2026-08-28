@@ -1,4 +1,36 @@
+import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+
+type InitialSuperadminInput = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+// PostgreSQL advisory locking makes the first-admin claim atomic even when two
+// unauthenticated setup requests arrive at the same time.
+export const createInitialSuperadmin = async (input: InitialSuperadminInput) => {
+  const email = input.email.trim().toLowerCase();
+  const password = await bcrypt.hash(input.password, 10);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(718214963)");
+    const existing = await tx.user.count({ where: { globalRole: "superadmin" } });
+    if (existing > 0) return null;
+
+    const user = await tx.user.create({
+      data: {
+        email,
+        password,
+        name: input.name.trim(),
+        globalRole: "superadmin",
+        twoFactorEnabled: false,
+      },
+      select: { id: true },
+    });
+    return user.id;
+  });
+};
 
 export const isSetupComplete = async (): Promise<boolean> => {
   const count = await prisma.user.count({ where: { globalRole: "superadmin" } });

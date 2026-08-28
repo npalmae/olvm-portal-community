@@ -4,17 +4,13 @@ import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { fetchVmConsoleInfo } from "@/lib/olvmClient";
 import { enforceVmTagPolicy } from "@/lib/olvmClient";
 import { getTenantById } from "@/lib/config";
-import { ensureConsoleProxy } from "@/lib/wsProxy";
+import { createConsoleProxySession, ensureConsoleProxy } from "@/lib/wsProxy";
 
 export const dynamic = "force-dynamic";
 
 const getExternalOrigin = (request: Request) => {
-  const url = new URL(request.url);
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? request.headers.get("host") ?? url.host;
-  const protocol = forwardedProto ?? url.protocol.replace(":", "");
-  return `${protocol}://${host}`;
+  const configuredOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  return configuredOrigin ? new URL(configuredOrigin).origin : new URL(request.url).origin;
 };
 
 const getEngineMeta = (baseUrl: string) => {
@@ -198,7 +194,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const { port } = await ensureConsoleProxy({
+    const { port } = await ensureConsoleProxy();
+    const sessionToken = createConsoleProxySession({
+      targets: uniqueTargets,
       ca: tenant.caCert,
       allowInsecure: tenant.allowInsecure,
     });
@@ -207,22 +205,22 @@ export async function GET(request: Request) {
     const proxyPath = process.env.CONSOLE_PROXY_PUBLIC_PATH ?? "/console-proxy/";
     const normalizedProxyPath = proxyPath.endsWith("/") ? proxyPath : `${proxyPath}/`;
     const wsProtocol = externalUrl.protocol === "https:" ? "wss:" : "ws:";
-    // El proxy WS escucha en su propio puerto (3010); se expone ese puerto
-    // al navegador (salvo override vía CONSOLE_PROXY_PUBLIC_HOST_PORT para
-    // despliegues con reverse proxy que mapeen /console-proxy/ al 3010).
+    // The public WebSocket always goes through the same-origin reverse proxy.
+    // A local development override can still expose a dedicated host:port.
     const proxyAuthority =
       process.env.CONSOLE_PROXY_PUBLIC_HOST_PORT ||
-      `${externalUrl.hostname}:${port}`;
-    const proxyUrl = `${wsProtocol}//${proxyAuthority}${normalizedProxyPath}?targets=${encodeURIComponent(uniqueTargets.join("|"))}&insecure=${tenant.allowInsecure ? "1" : "0"}`;
+      externalUrl.host;
+    const proxyUrl = `${wsProtocol}//${proxyAuthority}${normalizedProxyPath}?session=${encodeURIComponent(sessionToken)}`;
 
-    return NextResponse.json({
-      proxyWsUrl: proxyUrl,
-      proxyPort: port,
-      targetWsUrl: uniqueTargets[0],
-      targets: uniqueTargets,
-    });
+    return NextResponse.json(
+      { proxyWsUrl: proxyUrl, proxyPort: port },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
-    const message = (error as Error).message;
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("[console-proxy] failed to create session", error);
+    return NextResponse.json(
+      { error: "No se pudo crear la sesión de consola" },
+      { status: 502, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
