@@ -158,7 +158,7 @@ export default function AdminClustersPage() {
                   <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
                   <path d="M6 14.5V9h4v5.5"/>
                 </svg>
-                OLVM-PORTAL
+                VIRTUAL-PORTAL
               </button>
               <span className="shrink-0 text-gray-400">/</span>
               <span className="truncate text-gray-700">{t("settings")}</span>

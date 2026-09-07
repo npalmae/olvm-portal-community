@@ -284,7 +284,7 @@ export default function AdminBackupsPage() {
             <div className="mb-1 flex items-center gap-1 text-[13px] font-semibold text-gray-800">
               <button onClick={() => router.push("/")} className="flex items-center gap-1 hover:text-blue-600" title={t("home")}>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/><path d="M6 14.5V9h4v5.5"/></svg>
-                OLVM-PORTAL
+                VIRTUAL-PORTAL
               </button>
               <span className="text-gray-400">/</span>
               <button onClick={() => router.push("/admin/clusters")} className="text-gray-600 hover:text-blue-600">{t("settings")}</button>

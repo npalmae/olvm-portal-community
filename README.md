@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="docs/olvm-logo.svg" alt="OLVM Portal" width="300">
+  <img src="docs/olvm-logo.svg" alt="VIRTUAL-PORTAL" width="300">
 </p>
 
-# 🖥️ OLVM Portal
+# 🖥️ VIRTUAL-PORTAL
 
-**Plataforma de administración multitenant para OLVM / oVirt**
+**Plataforma de administración multitenant para VMware vSphere**
 
-Portal web self-service que permite gestionar máquinas virtuales, storage domains, ISOs y usuarios sobre motores OLVM/oVirt, con aislamiento por tenant y control de acceso basado en roles.
+Portal web self-service que permite gestionar máquinas virtuales, datastores, ISOs y usuarios sobre VMware vSphere (vCenter), con aislamiento por tenant y control de acceso basado en roles.
 
 ---
 

@@ -1483,7 +1483,7 @@ export default function Home() {
           {!showLabels && (() => {
             const tt = tenants.find((x) => x.id === selectedTenant) ?? tenants[0];
             const logo = tt?.brandLogoUrl || (portalBranding.hasLogo ? portalBranding.logoUrl : null);
-            const brand = tt?.brandName || portalBranding.brandName || "OLVM-PORTAL";
+            const brand = tt?.brandName || portalBranding.brandName || "VIRTUAL-PORTAL";
             return (
               <button
                 onClick={() => setSidebarCollapsed(false)}
@@ -1506,13 +1506,13 @@ export default function Home() {
                 const tenantLogo = t?.brandLogoUrl;
                 const globalLogo = portalBranding.hasLogo ? portalBranding.logoUrl : null;
                 const logo = tenantLogo || globalLogo;
-                const brand = t?.brandName || portalBranding.brandName || "OLVM-PORTAL";
+                const brand = t?.brandName || portalBranding.brandName || "VIRTUAL-PORTAL";
                 return (
                   <div className="leading-tight text-center">
                     {logo && // eslint-disable-next-line @next/next/no-img-element
                       <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />}
                     <div className="text-[13px] font-bold text-white">{brand}</div>
-                    <div className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "var(--sidebar-muted)" }}>OLVM-PORTAL</div>
+                    <div className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "var(--sidebar-muted)" }}>VIRTUAL-PORTAL</div>
                   </div>
                 );
               })()}
@@ -1745,7 +1745,7 @@ export default function Home() {
                 <path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/>
                 <path d="M6 14.5V9h4v5.5"/>
               </svg>
-              OLVM-PORTAL
+              VIRTUAL-PORTAL
             </button>
             {tenantName && <><span className="shrink-0">/</span><span className="truncate">{tenantName}</span></>}
             {selectedVm && <><span className="shrink-0">/</span><span className="truncate text-gray-700">{selectedVm.name}</span></>}

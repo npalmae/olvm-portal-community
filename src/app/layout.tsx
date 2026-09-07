@@ -7,8 +7,8 @@ import { LocaleProvider, type Locale } from "@/components/LocaleProvider";
 import "./globals.css";
 
 const localeMetadata: Record<Locale, Pick<Metadata, "title" | "description">> = {
-  es: { title: "Portal de administración OLVM", description: "Portal de administración multitenant para OLVM/oVirt" },
-  en: { title: "OLVM Administration Portal", description: "Multitenant administration portal for OLVM/oVirt" },
+  es: { title: "Portal de administración Virtual", description: "Portal de administración multitenant para VMware vSphere" },
+  en: { title: "Virtual Administration Portal", description: "Multitenant administration portal for VMware vSphere" },
   de: { title: "OLVM-Verwaltungsportal", description: "Mandantenfähiges Verwaltungsportal für OLVM/oVirt" },
   pt: { title: "Portal de administração OLVM", description: "Portal de administração multitenant para OLVM/oVirt" },
 };
