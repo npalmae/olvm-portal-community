@@ -1571,8 +1571,11 @@ export default function Home() {
           {/* Vista general */}
           <button
             onClick={() => setSelectedVmId("")}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-colors"
+            className="flex w-full items-center gap-2.5 py-2 text-left text-xs font-medium transition-colors"
             style={{
+              paddingLeft: showLabels ? 12 : 0,
+              paddingRight: showLabels ? 12 : 0,
+              justifyContent: showLabels ? undefined : "center",
               background: !selectedVm ? "var(--sidebar-active)" : "transparent",
               color: !selectedVm ? "#93c5fd" : "var(--sidebar-text)",
             }}
@@ -1598,8 +1601,13 @@ export default function Home() {
           {/* Refresh */}
           <button
             onClick={refresh}
-            className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors"
-            style={{ color: "var(--sidebar-muted)" }}
+            className="flex w-full items-center gap-2.5 py-1.5 text-left text-xs transition-colors"
+            style={{
+              paddingLeft: showLabels ? 12 : 0,
+              paddingRight: showLabels ? 12 : 0,
+              justifyContent: showLabels ? undefined : "center",
+              color: "var(--sidebar-muted)",
+            }}
             title={t("refreshInventory")}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1609,8 +1617,8 @@ export default function Home() {
             {showLabels && <span>{loading ? t("loading") : t("refresh")}</span>}
           </button>
 
-          {/* Tree */}
-          {inventoryExpanded && (
+          {/* Tree — solo con labels (expandido u hover-peek); el rail muestra iconos esenciales */}
+          {showLabels && inventoryExpanded && (
             selectedTenant === ALL_TENANTS ? (
               inventoryByTenant.map((t) => {
                 const tOpen = expandedTenants[t.id] ?? true;
@@ -1658,7 +1666,17 @@ export default function Home() {
 
         {/* Bottom stats */}
         {!showLabels && (
-          <div className="border-t px-2 py-2.5 flex flex-col items-center gap-1.5" style={{ borderColor: "var(--sidebar-border)" }}>
+          <div className="border-t py-2 flex flex-col items-center gap-2" style={{ borderColor: "var(--sidebar-border)" }}>
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white/10"
+              style={{ color: "var(--sidebar-muted)" }}
+              title={t("expand")}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M3 7h8M7 3l4 4-4 4"/>
+              </svg>
+            </button>
             <span className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "var(--sidebar-muted)" }}
               title={`${totals.up} up / ${totals.down} down / ${totals.total} ${t("total")}`}>
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{totals.up}
