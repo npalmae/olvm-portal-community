@@ -245,6 +245,7 @@ export default function Home() {
   const [uploadFileName, setUploadFileName] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarPeek, setSidebarPeek] = useState(false);
+  const sidebarHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showLabels = !sidebarCollapsed || sidebarPeek;
 
   useEffect(() => {
@@ -1442,7 +1443,7 @@ export default function Home() {
         style={{
           width: SIDEBAR_W,
           minWidth: 0,
-          transition: "width 0.2s ease, transform 0.2s ease",
+          transition: "width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease",
         }}
         className={`
           fixed left-0 top-0 z-40 h-full flex-col
@@ -1450,21 +1451,30 @@ export default function Home() {
           ${sidebarCollapsed ? "-translate-x-full sm:translate-x-0" : "translate-x-0 flex"}
           ${peeking ? "overflow-visible" : "overflow-hidden"}
         `}
-        onMouseEnter={() => { if (sidebarCollapsed && canHover()) setSidebarPeek(true); }}
-        onMouseLeave={() => setSidebarPeek(false)}
+        onMouseEnter={() => {
+          if (!sidebarCollapsed || !canHover()) return;
+          if (sidebarHoverTimer.current) clearTimeout(sidebarHoverTimer.current);
+          sidebarHoverTimer.current = setTimeout(() => setSidebarPeek(true), 180);
+        }}
+        onMouseLeave={() => {
+          if (sidebarHoverTimer.current) clearTimeout(sidebarHoverTimer.current);
+          setSidebarPeek(false);
+        }}
       >
         <div
           style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            zIndex: peeking ? 50 : undefined,
             width: peeking ? 240 : SIDEBAR_W,
             height: "100%",
             background: "var(--sidebar-bg)",
             borderRight: "1px solid var(--sidebar-border)",
             display: "flex",
             flexDirection: "column",
-            transition: "width 0.15s ease",
-            ...(peeking
-              ? { position: "absolute", left: 0, top: 0, zIndex: 50, boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }
-              : {}),
+            transition: "width 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: peeking ? "0 12px 32px rgba(0,0,0,0.35)" : "0 0 0 rgba(0,0,0,0)",
           }}
         >
         {/* Logo row */}
