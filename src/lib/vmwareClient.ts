@@ -96,6 +96,14 @@ export const invalidateDispatcherCache = (tenantId?: string) => {
   else dispatcherCache.clear();
   if (tenantId) sessionCache.delete(tenantId);
   else sessionCache.clear();
+  invalidateVersionCache(tenantId);
+  if (tenantId) {
+    for (const key of capabilityCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) capabilityCache.delete(key);
+    }
+  } else {
+    capabilityCache.clear();
+  }
 };
 
 const getDispatcher = (tenant: TenantConfig) => {
@@ -138,6 +146,112 @@ const getSessionToken = async (tenant: TenantConfig, forceNew = false): Promise<
   const cached = sessionCache.get(tenant.id);
   if (!forceNew && cached && Date.now() - cached.createdAt < SESSION_TTL_MS) return cached.token;
   return login(tenant);
+};
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Version de vCenter + matriz de capacidades (7.x / 8.x / 9.x)
+ *
+ * vSphere 9 (VCF 9) ELIMINA los endpoints legacy /rest (vAPI JSON-RPC).
+ * 7.x/8.x exponen REST moderno (/api) parcialmente: algunas operaciones solo
+ * existen como vAPI. Estrategia: detectar version y resolver cada operacion
+ * con "candidatos" ordenados; el primer endpoint que responde queda cacheado
+ * por engine+capacidad (sin re-probar en cada llamada).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const versionCache = new Map<string, string>();
+
+/** Ej. "7.0.3-xxxx", "8.0.2-xxxx", "9.0.0-xxxx"; "" si no se pudo determinar. */
+export const getVcenterVersion = async (tenant: TenantConfig): Promise<string> => {
+  if (versionCache.has(tenant.id)) return versionCache.get(tenant.id)!;
+  let version = "";
+  try {
+    const info = await viFetch<{ version?: string }>(
+      tenant,
+      "/api/appliance/system/version",
+    );
+    version = info?.version ?? "";
+  } catch {
+    version = "";
+  }
+  versionCache.set(tenant.id, version);
+  return version;
+};
+
+const invalidateVersionCache = (tenantId?: string) => {
+  if (tenantId) versionCache.delete(tenantId);
+  else versionCache.clear();
+};
+
+const majorOf = (version: string) => Number.parseInt(version.split(".")[0] ?? "0", 10) || 0;
+
+export const isVsphere9 = async (tenant: TenantConfig) => {
+  const v = await getVcenterVersion(tenant);
+  return v !== "" && majorOf(v) >= 9;
+};
+
+type CapabilityRequest = {
+  /** Endpoint REST moderno (/api). Requerido en 9.x. */
+  api?: { method: string; path: string; build?: (payload: unknown) => unknown };
+  /** Servicio vAPI legacy (/rest). Solo 7.x/8.x. */
+  vapi?: { service: string; action: string; build?: (payload: unknown) => unknown };
+};
+
+const capabilityCache = new Map<string, "api" | "vapi">();
+
+/**
+ * Ejecuta una operacion probando candidatos por version:
+ *   - 9.x: solo `api` (vAPI /rest fue removido)
+ *   - 7/8: `api` primero si existe, fallback `vapi`
+ * La resolucion exitosa se cachea por engine+capacidad.
+ */
+const runCapability = async <T>(
+  tenant: TenantConfig,
+  capability: string,
+  spec: CapabilityRequest,
+  payload: unknown,
+): Promise<T> => {
+  const cacheKey = `${tenant.id}:${capability}`;
+  const is9 = await isVsphere9(tenant);
+  const order: ("api" | "vapi")[] = is9
+    ? spec.api ? ["api"] : []
+    : spec.api && spec.vapi ? ["api", "vapi"]
+    : spec.api ? ["api"]
+    : ["vapi"];
+
+  if (!order.length) {
+    throw new Error(`Capacidad ${capability} sin endpoint para vSphere ${is9 ? "9.x" : "7/8.x"}`);
+  }
+
+  // Respetar resolucion cacheada (evita re-probar el fallback en cada llamada)
+  const resolved = capabilityCache.get(cacheKey);
+  const attempts = resolved ? [resolved] : order;
+  let lastError: unknown = null;
+
+  for (const transport of attempts) {
+    try {
+      if (transport === "api" && spec.api) {
+        const body = spec.api.build ? spec.api.build(payload) : payload;
+        const result = await viFetch<T>(tenant, spec.api.path, {
+          method: spec.api.method,
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        capabilityCache.set(cacheKey, "api");
+        return result;
+      }
+      if (transport === "vapi" && spec.vapi) {
+        const body = spec.vapi.build ? spec.vapi.build(payload) : payload;
+        const result = await vapi<T>(tenant, spec.vapi.service, spec.vapi.action, body);
+        capabilityCache.set(cacheKey, "vapi");
+        return result;
+      }
+    } catch (error) {
+      lastError = error;
+      // 404/405 = endpoint no existe en esta version: probar el siguiente transporte
+    }
+  }
+  throw lastError instanceof Error
+    ? new Error(`${capability} fallo en todos los transports: ${lastError.message}`)
+    : new Error(`${capability} fallo`);
 };
 
 type ViFetchInit = RequestInit & { raw?: boolean };
@@ -564,7 +678,9 @@ type CreateVmInput = {
   networkId?: string;
 };
 
-/** Creacion de VM "blank" via vAPI com.vmware.vcenter.VM.create. */
+/** Creacion de VM "blank". 9.x: REST POST /api/vcenter/vm; 7/8: vAPI VM.create.
+ *  TODO(lab): confirmar shape exacto del REST create en 9 (alternativa: deploy
+ *  desde Content Library, camino recomendado por VMware para 9.x). */
 export const createVm = async (tenantId: string, input: CreateVmInput): Promise<string> => {
   const tenant = await getTenantById(tenantId);
   const placement: Record<string, string> = {};
@@ -574,14 +690,26 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
   if (input.datastoreId) placement.datastore = input.datastoreId;
   if (input.resourcePoolId) placement.resource_pool = input.resourcePoolId;
 
-  const vmId = await vapi<string>(tenant, "vcenter.VM", "create", {
-    spec: {
-      name: input.name,
-      guest_OS: input.guestOsType || "OTHER_GUEST",
-      placement,
-      cpu: { count: input.cpuCores ?? 1 },
-      memory: { size_MiB: input.memoryMB ?? 2048 },
+  const spec = {
+    name: input.name,
+    guest_OS: input.guestOsType || "OTHER_GUEST",
+    placement,
+    cpu: { count: input.cpuCores ?? 1 },
+    memory: { size_MiB: input.memoryMB ?? 2048 },
+  };
+
+  const vmId = await runCapability<string | { vm?: string }>(
+    tenant,
+    "vm.create",
+    {
+      api: { method: "POST", path: "/api/vcenter/vm", build: () => ({ spec }) },
+      vapi: { service: "vcenter.VM", action: "create", build: () => ({ spec }) },
     },
+    { spec },
+  ).then((r) => {
+    const id = typeof r === "string" ? r : r?.vm;
+    if (!id) throw new Error("Create no devolvio vm id");
+    return id;
   });
   await applyTenantTag(tenant, vmId);
   return vmId;
@@ -593,8 +721,9 @@ export type CloneVmStage =
   | "submitting" | "waiting" | "tagging" | "stopping" | "networking" | "disks";
 
 /**
- * Clone via vAPI com.vmware.vcenter.vm.{vm}.clone (funciona 6.7->8.x).
- * Paridad con el flujo OLVM: clona, espera, taggea y apaga la copia.
+ * Clone. 9.x: REST POST /api/vcenter/vm/{vm}/action/clone; 7/8: vAPI
+ * com.vmware.vcenter.vm.clone. Paridad OLVM: clona, espera, taggea y apaga.
+ * TODO(lab): confirmar shape del clone REST en 9.x.
  */
 export const cloneVm = async (
   tenantId: string,
@@ -606,10 +735,23 @@ export const cloneVm = async (
   await enforceVmTagPolicy(tenantId, sourceVmId);
 
   await onProgress?.("submitting", 10);
-  const newVmId = await vapi<{ vm?: string }>(tenant, "vcenter.vm", "clone", {
-    source: sourceVmId,
-    spec: { name: cloneName },
-  }).then((r) => {
+  const newVmId = await runCapability<string | { vm?: string }>(
+    tenant,
+    "vm.clone",
+    {
+      api: {
+        method: "POST",
+        path: `/api/vcenter/vm/${sourceVmId}/action/clone`,
+        build: () => ({ spec: { name: cloneName } }),
+      },
+      vapi: {
+        service: "vcenter.vm",
+        action: "clone",
+        build: () => ({ source: sourceVmId, spec: { name: cloneName } }),
+      },
+    },
+    { source: sourceVmId, spec: { name: cloneName } },
+  ).then((r) => {
     const id = typeof r === "string" ? r : r?.vm;
     if (!id) throw new Error("Clone no devolvio vm id");
     return id;
@@ -635,6 +777,8 @@ export const cloneVm = async (
 
 type UpdateVmInput = { memoryMB?: number; cpuCores?: number; sockets?: number };
 
+/** CPU/RAM. 9.x: REST action endpoints; 7/8: vAPI hardware.update.
+ *  TODO(lab): confirmar shapes exactos en 9.x. */
 export const updateVmResources = async (
   tenantId: string,
   vmId: string,
@@ -643,16 +787,32 @@ export const updateVmResources = async (
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
   if (payload.cpuCores) {
-    await vapi(tenant, "vcenter.vm.hardware.cpu", "update", {
-      vm: vmId,
-      spec: { count: payload.cpuCores },
-    });
+    await runCapability(tenant, "vm.cpu.update", {
+      api: {
+        method: "POST",
+        path: `/api/vcenter/vm/${vmId}/hardware/cpu?action=update`,
+        build: () => ({ spec: { count: payload.cpuCores } }),
+      },
+      vapi: {
+        service: "vcenter.vm.hardware.cpu",
+        action: "update",
+        build: () => ({ vm: vmId, spec: { count: payload.cpuCores } }),
+      },
+    }, { vm: vmId, spec: { count: payload.cpuCores } });
   }
   if (payload.memoryMB) {
-    await vapi(tenant, "vcenter.vm.hardware.memory", "update", {
-      vm: vmId,
-      spec: { size_MiB: payload.memoryMB },
-    });
+    await runCapability(tenant, "vm.memory.update", {
+      api: {
+        method: "POST",
+        path: `/api/vcenter/vm/${vmId}/hardware/memory?action=update`,
+        build: () => ({ spec: { size_MiB: payload.memoryMB } }),
+      },
+      vapi: {
+        service: "vcenter.vm.hardware.memory",
+        action: "update",
+        build: () => ({ vm: vmId, spec: { size_MiB: payload.memoryMB } }),
+      },
+    }, { vm: vmId, spec: { size_MiB: payload.memoryMB } });
   }
 };
 

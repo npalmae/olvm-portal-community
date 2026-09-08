@@ -1,8 +1,30 @@
 # VIRTUAL-PORTAL — Arquitectura de la edición VMware vSphere
 
 > Derivado del portal OLVM (mismo código base, fork `virtual-portal`).
-> Estado: **Fase 0 completada** (seam de engine + cliente VMware núcleo).
-> Pendiente: validación contra vCenter real del laboratorio (marcada `TODO(lab)`).
+> Estado: **Fase 0 completada** (seam de engine + cliente VMware núcleo con
+> soporte 7.x/8.x/9.x). Pendiente: validación contra vCenter real del
+> laboratorio (marcada `TODO(lab)`).
+
+## 0. Soporte multi-versión (7.x / 8.x / 9.x)
+
+vSphere 9 (VCF 9) **elimina los endpoints legacy `/rest` (vAPI JSON-RPC)**;
+7.x/8.x exponen REST moderno (`/api`) solo parcialmente. El cliente resuelve
+esto con una **matriz de capacidades**:
+
+- `getVcenterVersion()` detecta la versión al conectar (`/api/appliance/system/version`, cacheada por engine).
+- Cada operación (`vm.create`, `vm.clone`, `vm.cpu.update`, `vm.memory.update`, …) declara **candidatos**: endpoint REST moderno (`/api`, único camino en 9.x) + servicio vAPI (`/rest`, 7/8).
+- `runCapability()` ejecuta el primer candidato soportado por la versión detectada y **cachea la resolución** por engine+capacidad (sin re-probar).
+- Endpoints estables en las tres versiones (sin candidatos): sesión, tagging `cis`, vcenter/vms, power, cluster/host/datastore/network, console tickets, Content Library.
+
+| Operación | 7.x / 8.x | 9.x |
+|---|---|---|
+| Sesión `/api/session` (Basic) | ✅ | ✅ (opcional: API tokens de servicio) |
+| Tagging `/api/cis/tagging/*` | ✅ | ✅ |
+| VMs / power / delete | ✅ | ✅ |
+| Console tickets (WEBMKS) | ✅ (7.0U2+) | ✅ |
+| **Create / Clone / CPU / RAM** | vAPI `/rest` | REST `/api` (shapes `TODO(lab)`) |
+| Content Library (ISO/OVF/templates) | ✅ | ✅ |
+| vAPI `/rest` | ✅ (deprecated en 8) | ❌ **removido** |
 
 ## 1. Principio rector
 
