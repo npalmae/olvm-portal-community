@@ -244,6 +244,16 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadFileName, setUploadFileName] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarPeek, setSidebarPeek] = useState(false);
+  const showLabels = !sidebarCollapsed || sidebarPeek;
+
+  useEffect(() => {
+    try { setSidebarCollapsed(window.localStorage.getItem("olvm-sidebar-collapsed") === "1"); } catch {}
+  }, []);
+  useEffect(() => {
+    try { window.localStorage.setItem("olvm-sidebar-collapsed", sidebarCollapsed ? "1" : "0"); } catch {}
+  }, [sidebarCollapsed]);
+
   const [inventoryExpanded, setInventoryExpanded] = useState(true);
   const [expandedClusters, setExpandedClusters] = useState<Record<string, boolean>>({});
   const [expandedHosts, setExpandedHosts] = useState<Record<string, boolean>>({});
@@ -1150,26 +1160,29 @@ export default function Home() {
     const cOpen = expandedClusters[cluster.key] ?? true;
     return (
       <div key={cluster.key}>
-        <button
-          onClick={() => setExpandedClusters((p) => ({ ...p, [cluster.key]: !cOpen }))}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors"
-          style={{ color: "var(--sidebar-text)" }}
-          title={cluster.label}
-        >
+                <button
+                  onClick={() => setExpandedClusters((p) => ({ ...p, [cluster.key]: !cOpen }))}
+                  className="flex w-full items-center gap-2 py-1.5 text-left text-xs transition-colors"
+                  style={{ paddingLeft: showLabels ? 12 : 0, paddingRight: showLabels ? 12 : 0, justifyContent: showLabels ? undefined : "center", color: "var(--sidebar-text)" }}
+                  title={cluster.label}
+                >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: cOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
             <path d="M3 2l4 3-4 3V2z" />
           </svg>
-          {!sidebarCollapsed ? (
-            <span className="truncate font-medium">{cluster.label}</span>
-          ) : (
-            <span className="font-bold" style={{ color: "var(--sidebar-muted)" }}>C</span>
-          )}
-          {!sidebarCollapsed && (
-            <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
-              style={{ background: "rgba(255,255,255,0.08)", color: "var(--sidebar-muted)" }}>
-              {cluster.up + cluster.down}
-            </span>
-          )}
+                  {showLabels ? (
+                    <span className="truncate font-medium">{cluster.label}</span>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ opacity: 0.55, flexShrink: 0 }}>
+                      <rect x="1.5" y="1.5" width="13" height="5" rx="1"/><rect x="1.5" y="9.5" width="13" height="5" rx="1"/>
+                      <circle cx="4" cy="4" r="0.6" fill="currentColor"/><circle cx="4" cy="12" r="0.6" fill="currentColor"/>
+                    </svg>
+                  )}
+                  {showLabels && (
+                    <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
+                      style={{ background: "rgba(255,255,255,0.08)", color: "var(--sidebar-muted)" }}>
+                      {cluster.up + cluster.down}
+                    </span>
+                  )}
         </button>
 
         {cOpen && cluster.hosts.map((host) => {
@@ -1179,7 +1192,7 @@ export default function Home() {
               <button
                 onClick={() => setExpandedHosts((p) => ({ ...p, [host.key]: !hOpen }))}
                 className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
-                style={{ paddingLeft: sidebarCollapsed ? 12 : 24, color: "var(--sidebar-muted)" }}
+                  style={{ paddingLeft: showLabels ? 24 : 0, paddingRight: showLabels ? undefined : 0, justifyContent: showLabels ? undefined : "center", color: "var(--sidebar-muted)" }}
                 title={host.label}
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.4, flexShrink: 0, transform: hOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
@@ -1195,14 +1208,15 @@ export default function Home() {
                   title={vm.name}
                   className="flex w-full items-center gap-2 py-1 text-left text-xs transition-colors"
                   style={{
-                    paddingLeft: sidebarCollapsed ? 16 : 36,
-                    paddingRight: 8,
+                    paddingLeft: showLabels ? 36 : 0,
+                    paddingRight: showLabels ? 8 : 0,
+                    justifyContent: showLabels ? undefined : "center",
                     background: selectedVmId === vm.id ? "var(--sidebar-active)" : "transparent",
                     color: selectedVmId === vm.id ? "#93c5fd" : "var(--sidebar-text)",
                   }}
                 >
                   <StatusDot status={vm.status} />
-                  {!sidebarCollapsed && <span className="truncate">{vm.name}</span>}
+                  {showLabels && <span className="truncate">{vm.name}</span>}
                 </button>
               ))}
             </div>
@@ -1406,6 +1420,10 @@ export default function Home() {
      ════════════════════════════════════════════════════════════════════ */
 
   const SIDEBAR_W = sidebarCollapsed ? 56 : 240;
+  const peeking = sidebarCollapsed && sidebarPeek;
+  const canHover = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (min-width: 640px)").matches;
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   return (
@@ -1424,20 +1442,54 @@ export default function Home() {
         style={{
           width: SIDEBAR_W,
           minWidth: 0,
-          background: "var(--sidebar-bg)",
-          borderRight: "1px solid var(--sidebar-border)",
           transition: "width 0.2s ease, transform 0.2s ease",
         }}
         className={`
-          fixed left-0 top-0 z-40 h-full flex-col overflow-hidden
+          fixed left-0 top-0 z-40 h-full flex-col
           sm:sticky sm:h-screen sm:flex sm:shrink-0
           ${sidebarCollapsed ? "-translate-x-full sm:translate-x-0" : "translate-x-0 flex"}
+          ${peeking ? "overflow-visible" : "overflow-hidden"}
         `}
+        onMouseEnter={() => { if (sidebarCollapsed && canHover()) setSidebarPeek(true); }}
+        onMouseLeave={() => setSidebarPeek(false)}
       >
+        <div
+          style={{
+            width: peeking ? 240 : SIDEBAR_W,
+            height: "100%",
+            background: "var(--sidebar-bg)",
+            borderRight: "1px solid var(--sidebar-border)",
+            display: "flex",
+            flexDirection: "column",
+            transition: "width 0.15s ease",
+            ...(peeking
+              ? { position: "absolute", left: 0, top: 0, zIndex: 50, boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }
+              : {}),
+          }}
+        >
         {/* Logo row */}
         <div className="flex items-center justify-between border-b px-3 py-3"
           style={{ borderColor: "var(--sidebar-border)" }}>
-          {!sidebarCollapsed && (
+          {!showLabels && (() => {
+            const tt = tenants.find((x) => x.id === selectedTenant) ?? tenants[0];
+            const logo = tt?.brandLogoUrl || (portalBranding.hasLogo ? portalBranding.logoUrl : null);
+            const brand = tt?.brandName || portalBranding.brandName || "OLVM-PORTAL";
+            return (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="mx-auto flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white/10"
+                title={`${brand} — ${t("expand")}`}
+              >
+                {logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logo} alt={brand} className="h-6 w-6 object-contain" />
+                ) : (
+                  <span className="text-sm font-bold text-white">{brand.slice(0, 1).toUpperCase()}</span>
+                )}
+              </button>
+            );
+          })()}
+          {showLabels && (
             <div className="min-w-0 flex-1 flex items-center justify-center">
               {(() => {
                 const t = tenants.find((t) => t.id === selectedTenant) ?? tenants[0];
@@ -1456,6 +1508,7 @@ export default function Home() {
               })()}
             </div>
           )}
+          {showLabels && (
           <button
             onClick={() => setSidebarCollapsed((p) => !p)}
             className="rounded-md p-1.5 transition-colors"
@@ -1468,10 +1521,29 @@ export default function Home() {
                 : <><path d="M11 7H3M7 3L3 7l4 4"/></>}
             </svg>
           </button>
+          )}
         </div>
 
         {/* Tenant selector */}
-        {!sidebarCollapsed && (
+        {!showLabels && (
+          <div className="border-b py-2" style={{ borderColor: "var(--sidebar-border)" }}>
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="mx-auto flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1.5 transition-colors hover:bg-white/5"
+              style={{ color: "var(--sidebar-text)" }}
+              title={`${t("activeTenant")}: ${tenants.find((x) => x.id === selectedTenant)?.name ?? tenants[0]?.name ?? ""}`}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <circle cx="8" cy="8" r="6.2"/>
+                <path d="M2 8h12M8 1.8c-2 2-2 10.4 0 12.4M8 1.8c2 2 2 10.4 0 12.4"/>
+              </svg>
+              <span className="text-[9px] font-semibold tracking-wide" style={{ color: "var(--sidebar-muted)" }}>
+                {((tenants.find((x) => x.id === selectedTenant) ?? tenants[0])?.name ?? "").slice(0, 3).toUpperCase()}
+              </span>
+            </button>
+          </div>
+        )}
+        {showLabels && (
           <div className="border-b px-3 py-2.5" style={{ borderColor: "var(--sidebar-border)" }}>
             <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5"
               style={{ color: "var(--sidebar-muted)" }}>{t("activeTenant")}</p>
@@ -1499,8 +1571,11 @@ export default function Home() {
           {/* Vista general */}
           <button
             onClick={() => setSelectedVmId("")}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-colors"
+            className="flex w-full items-center gap-2.5 py-2 text-left text-xs font-medium transition-colors"
             style={{
+              paddingLeft: showLabels ? 12 : 0,
+              paddingRight: showLabels ? 12 : 0,
+              justifyContent: showLabels ? undefined : "center",
               background: !selectedVm ? "var(--sidebar-active)" : "transparent",
               color: !selectedVm ? "#93c5fd" : "var(--sidebar-text)",
             }}
@@ -1510,11 +1585,11 @@ export default function Home() {
               <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
               <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
             </svg>
-            {!sidebarCollapsed && <span>{t("overview")}</span>}
+            {showLabels && <span>{t("overview")}</span>}
           </button>
 
           {/* Separator + label */}
-          {!sidebarCollapsed && (
+          {showLabels && (
             <div className="px-3 pt-3 pb-1">
               <p className="text-[10px] font-semibold uppercase tracking-widest"
                 style={{ color: "var(--sidebar-muted)" }}>
@@ -1526,19 +1601,24 @@ export default function Home() {
           {/* Refresh */}
           <button
             onClick={refresh}
-            className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors"
-            style={{ color: "var(--sidebar-muted)" }}
+            className="flex w-full items-center gap-2.5 py-1.5 text-left text-xs transition-colors"
+            style={{
+              paddingLeft: showLabels ? 12 : 0,
+              paddingRight: showLabels ? 12 : 0,
+              justifyContent: showLabels ? undefined : "center",
+              color: "var(--sidebar-muted)",
+            }}
             title={t("refreshInventory")}
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4"/>
               <path d="M12 4l0.5-2.5 2 1.5M4 12l-0.5 2.5-2-1.5"/>
             </svg>
-            {!sidebarCollapsed && <span>{loading ? t("loading") : t("refresh")}</span>}
+            {showLabels && <span>{loading ? t("loading") : t("refresh")}</span>}
           </button>
 
-          {/* Tree */}
-          {inventoryExpanded && (
+          {/* Tree — solo con labels (expandido u hover-peek); el rail muestra iconos esenciales */}
+          {showLabels && inventoryExpanded && (
             selectedTenant === ALL_TENANTS ? (
               inventoryByTenant.map((t) => {
                 const tOpen = expandedTenants[t.id] ?? true;
@@ -1546,19 +1626,22 @@ export default function Home() {
                   <div key={t.id}>
                     <button
                       onClick={() => setExpandedTenants((p) => ({ ...p, [t.id]: !tOpen }))}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold transition-colors"
-                      style={{ color: "var(--sidebar-text)" }}
+                      className="flex w-full items-center gap-2 py-2 text-left text-xs font-semibold transition-colors"
+                      style={{ paddingLeft: showLabels ? 12 : 0, paddingRight: showLabels ? 12 : 0, justifyContent: showLabels ? undefined : "center", color: "var(--sidebar-text)" }}
                       title={t.name}
                     >
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ opacity: 0.7, flexShrink: 0, transform: tOpen ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s" }}>
                         <path d="M3 2l4 3-4 3V2z" />
                       </svg>
-                      {!sidebarCollapsed ? (
+                      {showLabels ? (
                         <span className="truncate">{t.name}</span>
                       ) : (
-                        <span style={{ color: "var(--sidebar-muted)" }}>▣</span>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ opacity: 0.55, flexShrink: 0 }}>
+                          <path d="M2 13.5V5l6-2.5 6 2.5v8.5"/>
+                          <path d="M2 8.5h12M6 13.5v-3h4v3"/>
+                        </svg>
                       )}
-                      {!sidebarCollapsed && (
+                      {showLabels && (
                         <span className="ml-auto shrink-0 rounded px-1 text-[10px]"
                           style={{ background: "rgba(37,99,235,0.3)", color: "var(--sidebar-text)" }}>
                           {t.up + t.down}
@@ -1574,7 +1657,7 @@ export default function Home() {
             )
           )}
 
-          {vms.length === 0 && !loading && !sidebarCollapsed && (
+          {vms.length === 0 && !loading && showLabels && (
             <p className="px-4 py-3 text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
               {t("noVisibleVms")}
             </p>
@@ -1582,7 +1665,26 @@ export default function Home() {
         </div>
 
         {/* Bottom stats */}
-        {!sidebarCollapsed && (
+        {!showLabels && (
+          <div className="border-t py-2 flex flex-col items-center gap-2" style={{ borderColor: "var(--sidebar-border)" }}>
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white/10"
+              style={{ color: "var(--sidebar-muted)" }}
+              title={t("expand")}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M3 7h8M7 3l4 4-4 4"/>
+              </svg>
+            </button>
+            <span className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "var(--sidebar-muted)" }}
+              title={`${totals.up} up / ${totals.down} down / ${totals.total} ${t("total")}`}>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{totals.up}
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{totals.down}
+            </span>
+          </div>
+        )}
+        {showLabels && (
           <div className="border-t px-3 py-2" style={{ borderColor: "var(--sidebar-border)" }}>
             <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />{totals.up} up</span>
@@ -1602,6 +1704,7 @@ export default function Home() {
             </div>
           </div>
         )}
+        </div>
       </aside>
 
       {/* ── Main ──────────────────────────────────────────────────────── */}
