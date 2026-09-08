@@ -11,6 +11,7 @@ datasource db {
 model Engine {
   id                   String   @id
   name                 String
+  type                 String   @default("olvm") // "olvm" | "vmware"
   baseUrl              String
   username             String?
   password             String?

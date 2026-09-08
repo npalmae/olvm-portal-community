@@ -7,6 +7,8 @@ import { getEngineById } from "@/lib/engineStore";
 export type TenantConfig = {
   id: string;
   name: string;
+  /** Tipo de engine: despacha el cliente (engineClient) sin tocar las rutas. */
+  engineType: "olvm" | "vmware";
   baseUrl: string;
   username?: string;
   password?: string;
@@ -35,6 +37,7 @@ const toTenant = async (cluster: ClusterConnection): Promise<TenantConfig> => {
     id: cluster.id,
     name: cluster.name,
     engineId: engine.id,
+    engineType: engine.type === "vmware" ? "vmware" : "olvm",
     baseUrl: engine.baseUrl,
     username: engine.username,
     password: engine.password,

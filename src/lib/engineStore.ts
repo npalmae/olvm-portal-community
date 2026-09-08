@@ -4,6 +4,7 @@ import { decryptField, encryptField } from "./crypto";
 export type OlvmEngine = {
   id: string;
   name: string;
+  type: "olvm" | "vmware";
   baseUrl: string;
   username?: string;
   password?: string;
@@ -31,6 +32,7 @@ const sanitizeBaseUrl = (url: string) => {
 const toEngine = (row: NonNullable<EngineRow>): OlvmEngine => ({
   id: row.id,
   name: row.name,
+  type: row.type === "vmware" ? "vmware" : "olvm",
   baseUrl: row.baseUrl,
   username: row.username ?? undefined,
   password: decryptField(row.password),
@@ -68,6 +70,7 @@ export const createEngine = async (input: EngineInput): Promise<OlvmEngine> => {
     data: {
       id,
       name: input.name!.trim(),
+      type: input.type === "vmware" ? "vmware" : "olvm",
       baseUrl: sanitizeBaseUrl(input.baseUrl!),
       username: input.username?.trim() || null,
       password: encryptField(input.password),
@@ -91,6 +94,7 @@ export const updateEngine = async (id: string, input: EngineInput): Promise<Olvm
     where: { id },
     data: {
       name: merged.name.trim(),
+      type: merged.type === "vmware" ? "vmware" : "olvm",
       baseUrl: sanitizeBaseUrl(merged.baseUrl),
       username: merged.username?.trim() || null,
       password: encryptField(merged.password),
