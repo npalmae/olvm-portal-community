@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isPlatformSuperadmin } from "@/lib/authz";
 import { getEngineById } from "@/lib/engineStore";
-import { testConnection } from "@/lib/olvmClient";
+import { testEngineConnection } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ export async function POST(request: Request, context: Params) {
     body = {};
   }
 
-  const result = await testConnection({
+  const result = await testEngineConnection(existing.type ?? "olvm", {
     baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : existing.baseUrl,
     username: typeof body.username === "string" ? body.username : existing.username,
     password:

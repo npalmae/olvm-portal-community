@@ -150,6 +150,60 @@ const getSessionToken = async (tenant: TenantConfig, forceNew = false): Promise<
   return login(tenant);
 };
 
+// Prueba una conexión (guardada o no) contra el vCenter. Mismo contrato que olvmClient.
+export const testConnection = async (input: {
+  baseUrl: string;
+  username?: string;
+  password?: string;
+  token?: string;
+  allowInsecure?: boolean;
+  caCert?: Buffer | string;
+}): Promise<import("./olvmClient").ConnectionTestResult> => {
+  const baseUrl = input.baseUrl.trim().replace(/\/$/, "");
+  const ca = input.caCert
+    ? typeof input.caCert === "string"
+      ? input.caCert
+      : input.caCert.toString()
+    : undefined;
+  const dispatcher = new UndiciAgent({
+    connect: input.allowInsecure ? { rejectUnauthorized: false } : ca ? { ca } : undefined,
+  });
+
+  if (!input.username || !input.password) {
+    return { ok: false, status: 401, detail: "Usuario y password requeridos (sesión vCenter)" };
+  }
+  try {
+    const basic = Buffer.from(`${input.username}:${input.password}`, "utf-8").toString("base64");
+    const res = await undiciFetch(`${baseUrl}/api/session`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${basic}` },
+      dispatcher: dispatcher as never,
+    });
+    if (res.status === 401) return { ok: false, status: 401, detail: "Credenciales inválidas" };
+    if (!res.ok) {
+      return { ok: false, status: res.status, detail: `Respuesta inesperada (HTTP ${res.status})` };
+    }
+    const token = (await res.json()) as string;
+
+    let detail = "Conexión exitosa";
+    try {
+      const vres = await undiciFetch(`${baseUrl}/api/appliance/system/version`, {
+        headers: { "vmware-api-session-id": token },
+        dispatcher: dispatcher as never,
+      });
+      if (vres.ok) {
+        const v = (await vres.json()) as { product?: string; version?: string };
+        detail = `Conexión exitosa — ${v.product ?? "vCenter"} ${v.version ?? ""}`.trim();
+      }
+    } catch {
+      // sin versión no invalida el test
+    }
+    return { ok: true, status: 200, detail };
+  } catch (error) {
+    return { ok: false, status: 0, detail: `No se pudo conectar: ${(error as Error).message}` };
+  }
+};
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Version de vCenter + matriz de capacidades (7.x / 8.x / 9.x)
  *

@@ -49,6 +49,20 @@ const modules: Record<EngineType, EngineModule> = {
 
 export const engineFor = (type: EngineType): EngineModule => modules[type];
 
+/* ── Test de conexión con dispatch por tipo de engine ─────────────────── */
+
+type TestConnectionInput = {
+  baseUrl: string;
+  username?: string;
+  password?: string;
+  token?: string;
+  allowInsecure?: boolean;
+  caCert?: Buffer | string;
+};
+
+export const testEngineConnection = (type: EngineType, input: TestConnectionInput) =>
+  type === "vmware" ? vmware.testConnection(input) : olvm.testConnection(input);
+
 /* ── Re-exports tipados (superficie comun) ─────────────────────────────── */
 
 export type { VmSummary, ConsoleInfo, VmMetric } from "./olvmClient";

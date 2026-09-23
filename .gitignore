@@ -8,3 +8,4 @@ data/branding-logo.*
 .env.local
 *.log
 .DS_Store
+tsconfig.tsbuildinfo

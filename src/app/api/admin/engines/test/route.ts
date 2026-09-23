@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isPlatformSuperadmin } from "@/lib/authz";
-import { testConnection } from "@/lib/olvmClient";
+import { testEngineConnection } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   if (typeof body.baseUrl !== "string" || !body.baseUrl.trim())
     return NextResponse.json({ error: "baseUrl es obligatorio para probar" }, { status: 400 });
 
-  const result = await testConnection({
+  const result = await testEngineConnection(body.type === "vmware" ? "vmware" : "olvm", {
     baseUrl: body.baseUrl,
     username: typeof body.username === "string" ? body.username : undefined,
     password: typeof body.password === "string" ? body.password : undefined,
