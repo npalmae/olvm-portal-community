@@ -644,11 +644,11 @@ const toSummary = (vm: VcenterVm, tagNames: string[]): VmSummary => ({
   tags: tagNames,
 });
 
-const listAllVms = (tenant: TenantConfig) => viFetch<VcenterVm[]>(tenant, "/api/vcenter/vms");
+const listAllVms = (tenant: TenantConfig) => viFetch<VcenterVm[]>(tenant, "/api/vcenter/vm");
 
 /**
  * Lista las VMs del tenant: objetos attachados al tag del tenant, joineados
- * contra /api/vcenter/vms. En entornos muy grandes se puede cachear el listado
+ * contra /api/vcenter/vm. En entornos muy grandes se puede cachear el listado
  * (TODO(lab): medir latencia y decidir cache con TTL).
  */
 export const fetchVms = async (tenantId: string): Promise<VmSummary[]> => {
@@ -928,7 +928,7 @@ export const cloneVm = async (
   });
 
   await onProgress?.("waiting", 40);
-  // Espera: la VM clonada aparece en /api/vcenter/vms
+  // Espera: la VM clonada aparece en /api/vcenter/vm
   for (let i = 0; i < 60; i++) {
     const all = await listAllVms(tenant);
     if (all.some((v) => v.vm === newVmId)) break;
