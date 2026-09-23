@@ -104,6 +104,8 @@ export const invalidateDispatcherCache = (tenantId?: string) => {
   } else {
     capabilityCache.clear();
   }
+  if (tenantId) taggingTransportCache.delete(tenantId);
+  else taggingTransportCache.clear();
 };
 
 const getDispatcher = (tenant: TenantConfig) => {
@@ -319,80 +321,183 @@ const bytesToGB = (bytes: number) => Math.round((bytes / GB) * 10) / 10;
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Tagging (cis/tagging) — base del multi-tenant
+ *
+ * vSphere 7/8 expone estos servicios en dos transportes:
+ *   - REST nuevo: /api/cis/tagging/... (arrays/objetos directos)
+ *   - vAPI historico: /rest/com/vmware/cis/tagging/... (sobre {value}, listas de IDs)
+ * En 9.x solo existe el REST nuevo; este lab (8.0.3) 404a el REST nuevo, asi
+ * que cada operacion prueba `api` y cae a `vapi` (cacheado por engine).
  * ──────────────────────────────────────────────────────────────────────── */
 
 type TaggingCategory = { id: string; name: string; cardinality: string };
 type TaggingTag = { id: string; name: string; category_id: string };
 type TaggableObject = { id: string; type: string };
 
-const ensureCategory = async (tenant: TenantConfig): Promise<TaggingCategory> => {
-  const categories = await viFetch<TaggingCategory[]>(tenant, "/api/cis/tagging/categories");
-  const found = categories.find((c) => c.name === TENANT_CATEGORY);
-  if (found) return found;
-  return viFetch<TaggingCategory>(tenant, "/api/cis/tagging/categories", {
-    method: "POST",
-    body: JSON.stringify({
-      create_spec: {
-        name: TENANT_CATEGORY,
-        description: "Tenant tags managed by VIRTUAL-PORTAL",
-        cardinality: "MULTIPLE",
-        associable_types: ["VirtualMachine"],
-      },
-    }),
-  });
+type TaggingTransport = "api" | "vapi";
+const taggingTransportCache = new Map<string, TaggingTransport>();
+
+/** Ejecuta la operacion de tagging en el transporte que funcione para el engine. */
+const withTagging = async <T>(
+  tenant: TenantConfig,
+  apiCall: () => Promise<T>,
+  vapiCall: () => Promise<T>,
+): Promise<T> => {
+  const cached = taggingTransportCache.get(tenant.id);
+  const order: TaggingTransport[] = cached ? [cached] : ["api", "vapi"];
+  let lastError: unknown = null;
+  for (const transport of order) {
+    try {
+      const result = transport === "api" ? await apiCall() : await vapiCall();
+      taggingTransportCache.set(tenant.id, transport);
+      return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? new Error(`tagging fallo en ambos transports: ${lastError.message}`)
+    : new Error("tagging fallo");
 };
 
-const listTags = (tenant: TenantConfig) =>
-  viFetch<TaggingTag[]>(tenant, "/api/cis/tagging/tags");
+const ensureCategory = async (tenant: TenantConfig): Promise<TaggingCategory> => {
+  const createSpec = {
+    create_spec: {
+      name: TENANT_CATEGORY,
+      description: "Tenant tags managed by VIRTUAL-PORTAL",
+      cardinality: "MULTIPLE",
+      associable_types: ["VirtualMachine"],
+    },
+  };
+  return withTagging(
+    tenant,
+    async () => {
+      const categories = await viFetch<TaggingCategory[]>(tenant, "/api/cis/tagging/categories");
+      const found = categories.find((c) => c.name === TENANT_CATEGORY);
+      if (found) return found;
+      return viFetch<TaggingCategory>(tenant, "/api/cis/tagging/categories", {
+        method: "POST",
+        body: JSON.stringify(createSpec),
+      });
+    },
+    async () => {
+      const ids = (await vapi<string[]>(tenant, "cis.tagging.category", "list")) ?? [];
+      for (const id of ids) {
+        const cat = await vapi<{ name: string; cardinality: string }>(
+          tenant, "cis.tagging.category", "get", { category_id: id },
+        );
+        if (cat?.name === TENANT_CATEGORY) {
+          return { id, name: cat.name, cardinality: cat.cardinality };
+        }
+      }
+      const id = await vapi<string>(tenant, "cis.tagging.category", "create", createSpec);
+      return { id, name: TENANT_CATEGORY, cardinality: "MULTIPLE" };
+    },
+  );
+};
+
+const listTags = (tenant: TenantConfig): Promise<TaggingTag[]> =>
+  withTagging(
+    tenant,
+    () => viFetch<TaggingTag[]>(tenant, "/api/cis/tagging/tags"),
+    async () => {
+      const ids = (await vapi<string[]>(tenant, "cis.tagging.tag", "list")) ?? [];
+      const tags: TaggingTag[] = [];
+      for (const id of ids) {
+        const tag = await vapi<{ name: string; category_id: string }>(
+          tenant, "cis.tagging.tag", "get", { tag_id: id },
+        );
+        if (tag) tags.push({ id, name: tag.name, category_id: tag.category_id });
+      }
+      return tags;
+    },
+  );
 
 const ensureTenantTag = async (tenant: TenantConfig, tagName: string): Promise<TaggingTag> => {
   const category = await ensureCategory(tenant);
   const tags = await listTags(tenant);
   const found = tags.find((t) => t.name === tagName && t.category_id === category.id);
   if (found) return found;
-  return viFetch<TaggingTag>(tenant, "/api/cis/tagging/tags", {
-    method: "POST",
-    body: JSON.stringify({
-      create_spec: { name: tagName, description: `Tenant ${tagName}`, category_id: category.id },
-    }),
-  });
-};
-
-const attachTag = (tenant: TenantConfig, tagId: string, objectId: string, objectType = "VirtualMachine") =>
-  viFetch(tenant, "/api/cis/tagging/tag-association?~action=attach", {
-    method: "POST",
-    body: JSON.stringify({
-      tag_id: tagId,
-      object_id: { id: objectId, type: objectType },
-    }),
-  });
-
-const detachTag = (tenant: TenantConfig, tagId: string, objectId: string, objectType = "VirtualMachine") =>
-  viFetch(tenant, "/api/cis/tagging/tag-association?~action=detach", {
-    method: "POST",
-    body: JSON.stringify({
-      tag_id: tagId,
-      object_id: { id: objectId, type: objectType },
-    }),
-  });
-
-const listAttachedObjects = async (tenant: TenantConfig, tagId: string): Promise<TaggableObject[]> => {
-  const res = await viFetch<{ associated_objects?: TaggableObject[] }>(
+  const createSpec = {
+    create_spec: { name: tagName, description: `Tenant ${tagName}`, category_id: category.id },
+  };
+  return withTagging(
     tenant,
-    "/api/cis/tagging/tag-association?~action=list-attached-objects",
-    { method: "POST", body: JSON.stringify({ tag_id: tagId }) },
+    () =>
+      viFetch<TaggingTag>(tenant, "/api/cis/tagging/tags", {
+        method: "POST",
+        body: JSON.stringify(createSpec),
+      }),
+    async () => {
+      const id = await vapi<string>(tenant, "cis.tagging.tag", "create", createSpec);
+      return { id, name: tagName, category_id: category.id };
+    },
   );
-  return res.associated_objects ?? [];
 };
 
-const listVmTagIds = async (tenant: TenantConfig, vmId: string): Promise<string[]> => {
-  const res = await viFetch<{ tag_ids?: string[] }>(
+const attachTag = (tenant: TenantConfig, tagId: string, objectId: string, objectType = "VirtualMachine") => {
+  const payload = { tag_id: tagId, object_id: { id: objectId, type: objectType } };
+  return withTagging(
     tenant,
-    "/api/cis/tagging/tag-association?~action=list-attached-tags",
-    { method: "POST", body: JSON.stringify({ object_id: { id: vmId, type: "VirtualMachine" } }) },
+    () =>
+      viFetch(tenant, "/api/cis/tagging/tag-association?~action=attach", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    () => vapi(tenant, "cis.tagging.tag_association", "attach", payload),
   );
-  return res.tag_ids ?? [];
 };
+
+const detachTag = (tenant: TenantConfig, tagId: string, objectId: string, objectType = "VirtualMachine") => {
+  const payload = { tag_id: tagId, object_id: { id: objectId, type: objectType } };
+  return withTagging(
+    tenant,
+    () =>
+      viFetch(tenant, "/api/cis/tagging/tag-association?~action=detach", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    () => vapi(tenant, "cis.tagging.tag_association", "detach", payload),
+  );
+};
+
+const listAttachedObjects = async (tenant: TenantConfig, tagId: string): Promise<TaggableObject[]> =>
+  withTagging(
+    tenant,
+    async () => {
+      const res = await viFetch<{ associated_objects?: TaggableObject[] }>(
+        tenant,
+        "/api/cis/tagging/tag-association?~action=list-attached-objects",
+        { method: "POST", body: JSON.stringify({ tag_id: tagId }) },
+      );
+      return res.associated_objects ?? [];
+    },
+    async () => {
+      const res = await vapi<TaggableObject[]>(
+        tenant, "cis.tagging.tag_association", "list_attached_objects", { tag_id: tagId },
+      );
+      return res ?? [];
+    },
+  );
+
+const listVmTagIds = async (tenant: TenantConfig, vmId: string): Promise<string[]> =>
+  withTagging(
+    tenant,
+    async () => {
+      const res = await viFetch<{ tag_ids?: string[] }>(
+        tenant,
+        "/api/cis/tagging/tag-association?~action=list-attached-tags",
+        { method: "POST", body: JSON.stringify({ object_id: { id: vmId, type: "VirtualMachine" } }) },
+      );
+      return res.tag_ids ?? [];
+    },
+    async () => {
+      const res = await vapi<string[]>(
+        tenant, "cis.tagging.tag_association", "list_attached_tags",
+        { object_id: { id: vmId, type: "VirtualMachine" } },
+      );
+      return res ?? [];
+    },
+  );
 
 /** Tag esperado del tenant (fail-closed: sin tag configurado, nada pasa). */
 const expectedTenantTagName = (tenant: TenantConfig) => tenant.tag?.trim();
