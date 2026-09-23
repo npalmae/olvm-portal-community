@@ -29,7 +29,7 @@ export function LanguageSelector() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-7 items-center gap-1 rounded border border-gray-200 bg-white px-2 text-[11px] font-medium text-gray-600 transition hover:border-blue-300 hover:bg-blue-50"
+        className="inline-flex h-7 items-center gap-1 rounded border border-gray-200 bg-white px-2 text-[11px] font-medium text-gray-600 transition hover:border-violet-300 hover:bg-violet-50"
         aria-haspopup="menu"
         aria-expanded={open}
         title={active.label}
@@ -50,7 +50,7 @@ export function LanguageSelector() {
                 setLocale(language.locale);
                 setOpen(false);
               }}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-gray-50 ${language.locale === locale ? "bg-blue-50 font-semibold text-blue-700" : "text-gray-700"}`}
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-gray-50 ${language.locale === locale ? "bg-violet-50 font-semibold text-violet-700" : "text-gray-700"}`}
               role="menuitem"
             >
               <span className="text-base leading-none" aria-hidden="true">{language.flag}</span>

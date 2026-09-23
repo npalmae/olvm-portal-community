@@ -440,7 +440,7 @@ function ConsolePageContent() {
             <span className="text-xs text-red-400">{t('error')}: {errorMsg}</span>
           )}
           {infoMsg && (
-            <span className="text-xs text-blue-300">{infoMsg}</span>
+            <span className="text-xs text-violet-300">{infoMsg}</span>
           )}
           <button onClick={sendCtrlAltDel} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('ctrlAltDel')}>{t('ctrlAltDel')}</button>
           <button onClick={() => sendCombo([{keysym: XK_CTRL_L, label: 'ControlLeft'}, {keysym: XK_ALT_L, label: 'AltLeft'}, {keysym: XK_F1, label: 'F1'}])} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('ctrlAltF1')}>{t('ctrlAltF1')}</button>

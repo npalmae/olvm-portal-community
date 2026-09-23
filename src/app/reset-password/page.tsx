@@ -95,7 +95,7 @@ function ResetPasswordContent() {
                   type="password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="••••••••"
                 />
               </div>
@@ -107,15 +107,15 @@ function ResetPasswordContent() {
                   type="password" value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
-                  className={`w-full rounded-md border px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:ring-2 placeholder-gray-400 ${
-                    mismatch ? "border-red-400" : "border-gray-200 focus:border-blue-400"
+                  className={`w-full rounded-md border px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:ring-2 placeholder-gray-400 ${
+                    mismatch ? "border-red-400" : "border-gray-200 focus:border-violet-400"
                   }`}
                   placeholder="••••••••"
                 />
               </div>
               <button
                 type="submit" disabled={loading || mismatch}
-                className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="w-full rounded-md bg-violet-600 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
               >
                 {loading ? t("reset.saving") : t("reset.submit")}
               </button>
@@ -124,7 +124,7 @@ function ResetPasswordContent() {
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-500">
-          <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">{t("common.backToLogin")}</Link>
+          <Link href="/login" className="font-semibold text-violet-600 hover:text-violet-700">{t("common.backToLogin")}</Link>
         </p>
       </div>
     </main>

@@ -15,20 +15,25 @@ export function SixmanagerMark({
 
   return (
     <div className={isCenter ? "text-center" : ""}>
-      <div className={`flex ${isCenter ? "justify-center" : ""}`}>
+      <div className={`flex items-center gap-3 ${isCenter ? "justify-center" : ""}`}>
         <Image
-          src="/sixmanager-logo.png"
-          alt="Sixmanager"
-          width={589}
-          height={393}
+          src="/ovp-favicon.svg"
+          alt="Virtual Portal"
+          width={64}
+          height={64}
           priority
-          className={`h-auto ${
-            compact ? "w-[90px] sm:w-[110px]" : "w-[130px] sm:w-[160px]"
-          } drop-shadow-[0_18px_35px_rgba(0,0,0,0.35)]`}
+          className={`h-auto ${compact ? "w-11" : "w-14"} drop-shadow-[0_18px_35px_rgba(0,0,0,0.35)]`}
         />
+        <span
+          className={`bg-gradient-to-r from-violet-600 via-purple-600 to-violet-500 bg-clip-text font-semibold tracking-tight text-transparent ${
+            compact ? "text-lg" : "text-xl"
+          }`}
+        >
+          Virtual Portal
+        </span>
       </div>
       {subtitle ? (
-        <p className="mt-3 text-xs uppercase tracking-[0.18em] text-emerald-200/70">
+        <p className="mt-3 text-xs uppercase tracking-[0.18em] text-violet-300/70">
           {subtitle}
         </p>
       ) : null}

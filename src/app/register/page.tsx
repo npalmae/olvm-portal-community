@@ -97,7 +97,7 @@ export default function RegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                 placeholder={t("register.namePlaceholder")}
               />
             </label>
@@ -108,7 +108,7 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                 placeholder={t("common.emailPlaceholder")}
               />
             </label>
@@ -119,7 +119,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                 placeholder="••••••••"
               />
             </label>
@@ -130,7 +130,7 @@ export default function RegisterPage() {
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
                   required
-                  className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="default"
                 />
               </label>
@@ -139,7 +139,7 @@ export default function RegisterPage() {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2"
+                  className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2"
                 >
                   <option value="user">{t("register.userRole")}</option>
                   <option value="admin">{t("register.adminRole")}</option>
@@ -154,7 +154,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className="mt-1 w-full rounded-md bg-violet-600 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
             >
               {loading ? t("register.creating") : t("register.submit")}
             </button>
@@ -163,7 +163,7 @@ export default function RegisterPage() {
 
         <p className="mt-3 text-center text-xs text-gray-500">
           {t("register.haveAccount")}{" "}
-          <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+          <Link href="/login" className="font-semibold text-violet-600 hover:text-violet-700">
             {t("register.signIn")}
           </Link>
         </p>

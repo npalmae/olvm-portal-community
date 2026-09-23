@@ -115,7 +115,7 @@ export default function EmailConfigPage() {
           <div className="mb-2 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
             <button
               onClick={() => router.push("/")}
-              className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+              className="flex shrink-0 items-center gap-1 hover:text-violet-600"
               title={t("home")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -127,7 +127,7 @@ export default function EmailConfigPage() {
             <span className="shrink-0 text-gray-400">/</span>
             <button
               onClick={() => router.push("/admin/clusters")}
-              className="shrink-0 text-gray-600 hover:text-blue-600"
+              className="shrink-0 text-gray-600 hover:text-violet-600"
             >
               {t("settings")}
             </button>
@@ -177,9 +177,9 @@ export default function EmailConfigPage() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
                placeholder={config?.hasApiKey ? t("currentKeep", { value: config.apiKeyHint }) : "re_xxxxxxxxxxxx"}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
             />
-            <p className="mt-1 text-[10px] text-gray-400">{t("getApiKey")} <a href="https://resend.com/api-keys" target="_blank" rel="noopener" className="text-blue-500 hover:underline">resend.com/api-keys</a></p>
+            <p className="mt-1 text-[10px] text-gray-400">{t("getApiKey")} <a href="https://resend.com/api-keys" target="_blank" rel="noopener" className="text-violet-500 hover:underline">resend.com/api-keys</a></p>
           </div>
 
           <div>
@@ -191,7 +191,7 @@ export default function EmailConfigPage() {
               value={fromAddress}
               onChange={(e) => setFromAddress(e.target.value)}
               placeholder="noreply@tudominio.com"
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
             />
             <p className="mt-1 text-[10px] text-gray-400">{t("verifiedDomain")}</p>
           </div>
@@ -212,7 +212,7 @@ export default function EmailConfigPage() {
           <button
             onClick={save}
             disabled={saving}
-            className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+            className="w-full rounded-md bg-violet-600 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
           >
             {saving ? t("saving") : t("saveConfiguration")}
           </button>
@@ -226,12 +226,12 @@ export default function EmailConfigPage() {
               value={testEmail}
               onChange={(e) => setTestEmail(e.target.value)}
               placeholder="destino@ejemplo.com"
-              className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+              className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
             />
             <button
               onClick={sendTest}
               disabled={testing}
-              className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+              className="rounded-md border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-60"
             >
               {testing ? t("sending") : t("test")}
             </button>

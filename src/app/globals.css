@@ -12,9 +12,9 @@
   --text-secondary: #6b7280;
   --text-muted:     #9ca3af;
 
-  --accent:       #2563eb;
-  --accent-light: #eff6ff;
-  --accent-hover: #1d4ed8;
+  --accent:       #7c3aed;
+  --accent-light: #f5f3ff;
+  --accent-hover: #6d28d9;
 
   --success:       #10b981;
   --success-light: #ecfdf5;
@@ -26,7 +26,7 @@
   /* Sidebar */
   --sidebar-bg:      #1e2535;
   --sidebar-hover:   rgba(255,255,255,0.06);
-  --sidebar-active:  rgba(37,99,235,0.25);
+  --sidebar-active:  rgba(124,58,237,0.25);
   --sidebar-text:    #e5e7eb;
   --sidebar-muted:   rgba(229,231,235,0.5);
   --sidebar-border:  rgba(255,255,255,0.07);

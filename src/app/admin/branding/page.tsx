@@ -170,7 +170,7 @@ export default function AdminBrandingPage() {
             <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
               <button
                 onClick={() => router.push("/")}
-                className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+                className="flex shrink-0 items-center gap-1 hover:text-violet-600"
                 title={t("home")}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -182,7 +182,7 @@ export default function AdminBrandingPage() {
               <span className="shrink-0 text-gray-400">/</span>
               <button
                 onClick={() => router.push("/admin/clusters")}
-                className="shrink-0 text-gray-600 hover:text-blue-600"
+                className="shrink-0 text-gray-600 hover:text-violet-600"
               >
                 {t("settings")}
               </button>
@@ -259,7 +259,7 @@ export default function AdminBrandingPage() {
                 onChange={(e) => setBrandName(e.target.value)}
                 maxLength={80}
                 placeholder={t("brandPlaceholder")}
-                className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
               />
               <span className="block mt-1 text-[11px] text-gray-400">
                 {t("brandNameHelp")}
@@ -273,7 +273,7 @@ export default function AdminBrandingPage() {
                 type="file"
                 accept=".png,.jpg,.jpeg,.webp,.gif"
                 onChange={(e) => onSelectFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-xs text-gray-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                className="block w-full text-xs text-gray-500 file:mr-3 file:rounded-md file:border-0 file:bg-violet-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-violet-700 hover:file:bg-violet-100"
               />
               <p className="mt-1 text-[11px] text-gray-400">
                 {t("logoRules", { max: state ? Math.round(state.maxBytes / 1024 / 1024) : 2 })}
@@ -298,14 +298,14 @@ export default function AdminBrandingPage() {
                 type="button"
                 onClick={save}
                 disabled={saving || (!selectedFile && brandName === (state?.brandName ?? ""))}
-                className="px-6 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50"
+                className="px-6 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg disabled:opacity-50"
               >
                 {saving ? t("saving") : t("save")}
               </button>
             </div>
           </div>
 
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
+          <div className="rounded-lg border border-violet-200 bg-violet-50 p-4 text-xs text-violet-800">
             <p className="font-semibold mb-1">{t("validations")}</p>
             <ul className="list-disc pl-4 space-y-0.5">
               <li>{t("validationExtensions")}</li>

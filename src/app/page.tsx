@@ -118,7 +118,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   </span>;
 };
 
-const MiniBar = ({ value, color = "bg-blue-500" }: { value?: number; color?: string }) => {
+const MiniBar = ({ value, color = "bg-violet-500" }: { value?: number; color?: string }) => {
   const pct = clampPercent(value);
   const missing = value === undefined || Number.isNaN(value);
   return (
@@ -163,13 +163,13 @@ const StatCard = ({
   label, value, sub, accent = false, warning = false,
 }: { label: string; value: string | number; sub?: string; accent?: boolean; warning?: boolean }) => (
   <div className={`rounded-lg border p-3 ${
-    accent ? "border-blue-200 bg-blue-50" :
+    accent ? "border-violet-200 bg-violet-50" :
     warning ? "border-amber-200 bg-amber-50" :
     "border-[--border] bg-white"
   }`}>
     <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{label}</p>
     <p className={`mt-1 text-2xl font-bold tabular-nums ${
-      accent ? "text-blue-700" : warning ? "text-amber-700" : "text-gray-900"
+      accent ? "text-violet-700" : warning ? "text-amber-700" : "text-gray-900"
     }`}>{value}</p>
     {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}
   </div>
@@ -186,7 +186,7 @@ const ActionButton = ({
   const base = "rounded-md border px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 hover:-translate-y-px";
   const cls =
     variant === "primary"
-      ? `${base} border-blue-300 bg-blue-600 text-white hover:bg-blue-700`
+      ? `${base} border-violet-300 bg-violet-600 text-white hover:bg-violet-700`
       : variant === "danger"
       ? `${base} border-red-300 bg-red-50 text-red-700 hover:bg-red-100`
       : `${base} border-[--border] bg-white text-gray-700 hover:bg-gray-50`;
@@ -206,7 +206,7 @@ const Field = ({
   </label>
 );
 
-const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-1.5 text-xs text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400";
+const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-1.5 text-xs text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400";
 
 /* ════════════════════════════════════════════════════════════════════════
    Main component
@@ -1738,7 +1738,7 @@ export default function Home() {
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 overflow-hidden">
             <button
               onClick={() => { setSelectedVmId(""); setSelectedTenant(isSuperadmin ? ALL_TENANTS : tenants[0]?.id ?? ""); }}
-              className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 hover:text-blue-600"
+              className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 hover:text-violet-600"
               title={t("home")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -1804,28 +1804,28 @@ export default function Home() {
 
             {/* Toasts */}
             {uploadProgress !== null && (
-              <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              <div className="mb-3 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700">
                 <div className="mb-1 flex items-center justify-between">
                   <span>{uploadProgress < 100 ? t("uploadingFile", { name: uploadFileName, progress: uploadProgress }) : t("processingFile", { name: uploadFileName })}</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
-                  <div className={`h-full rounded-full ${uploadProgress < 100 ? "bg-blue-500" : "bg-blue-400 animate-pulse"} transition-all duration-300`} style={{ width: `${uploadProgress}%` }} />
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-violet-100">
+                  <div className={`h-full rounded-full ${uploadProgress < 100 ? "bg-violet-500" : "bg-violet-400 animate-pulse"} transition-all duration-300`} style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
             )}
             {cloneJobs.map((job) => (
-              <div key={job.id} className={`mb-3 rounded-md border px-3 py-2 text-xs ${job.status === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : job.status === "failed" ? "border-red-200 bg-red-50 text-red-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
+              <div key={job.id} className={`mb-3 rounded-md border px-3 py-2 text-xs ${job.status === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : job.status === "failed" ? "border-red-200 bg-red-50 text-red-700" : "border-violet-200 bg-violet-50 text-violet-700"}`}>
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
                      <span>{t("operationProgress", { action: t(`operationAction${job.action[0].toUpperCase()}${job.action.slice(1)}`), name: job.targetVmName || job.targetVmId || "", stage: t(`operationStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
-                    <span className="shrink-0 rounded border border-blue-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600">
+                    <span className="shrink-0 rounded border border-violet-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-600">
                         {t(job.origin === "api" ? "operationOriginApi" : "operationOriginPortal", { email: job.requesterLabel || job.requestedBy.split("@", 1)[0] })}
                     </span>
                   </span>
                   <span className="tabular-nums">{job.progress}%</span>
                 </div>
-                <div className={`h-1.5 w-full overflow-hidden rounded-full ${job.status === "completed" ? "bg-emerald-100" : job.status === "failed" ? "bg-red-100" : "bg-blue-100"}`}>
-                  <div className={`h-full rounded-full transition-all duration-300 ${job.status === "completed" ? "bg-emerald-500" : job.status === "failed" ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${clampPercent(job.progress)}%` }} />
+                <div className={`h-1.5 w-full overflow-hidden rounded-full ${job.status === "completed" ? "bg-emerald-100" : job.status === "failed" ? "bg-red-100" : "bg-violet-100"}`}>
+                  <div className={`h-full rounded-full transition-all duration-300 ${job.status === "completed" ? "bg-emerald-500" : job.status === "failed" ? "bg-red-500" : "bg-violet-500"}`} style={{ width: `${clampPercent(job.progress)}%` }} />
                 </div>
               </div>
             ))}
@@ -1963,7 +1963,7 @@ export default function Home() {
                               <span className="text-[11px] text-gray-400">{t("freeOf", { total: formatNumber(sd.totalGB, { maximumFractionDigits: 0 }) })}</span>
                             </div>
                             <div className="mb-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                              <div className={`h-full rounded-full ${usedPct > 80 ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${Math.min(100, usedPct)}%` }} />
+                              <div className={`h-full rounded-full ${usedPct > 80 ? "bg-red-500" : "bg-violet-500"}`} style={{ width: `${Math.min(100, usedPct)}%` }} />
                             </div>
                             <p className="text-[10px] text-gray-400">{t("inUse", { used: formatNumber(sd.usedGB, { maximumFractionDigits: 0 }), percent: formatNumber(usedPct, { maximumFractionDigits: 0 }) })}</p>
                           </div>
@@ -1985,7 +1985,7 @@ export default function Home() {
                           <button
                             key={tenantSummary.id}
                             onClick={() => setSelectedTenant(tenantSummary.id)}
-                            className="rounded-lg border bg-white p-3 text-left transition hover:border-blue-300 hover:shadow-sm"
+                            className="rounded-lg border bg-white p-3 text-left transition hover:border-violet-300 hover:shadow-sm"
                             style={{ borderColor: "var(--border)" }}
                           >
                             <div className="mb-2 flex items-center justify-between">
@@ -2002,7 +2002,7 @@ export default function Home() {
                                   <span className="text-gray-700">{formatNumber(tenantSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU · {formatNumber(cpuPct)}%</span>
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
-                                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(100, cpuPct)}%` }} />
+                                  <div className="h-full rounded-full bg-violet-500" style={{ width: `${Math.min(100, cpuPct)}%` }} />
                                 </div>
                               </div>
                               <div>
@@ -2076,7 +2076,7 @@ export default function Home() {
                             <span className="truncate text-[11px] text-gray-700">{vm.name}</span>
                             <span className="ml-2 shrink-0 text-[11px] text-gray-400">{vm.label}</span>
                           </div>
-                          <MiniBar value={vm.value} color="bg-blue-500" />
+                          <MiniBar value={vm.value} color="bg-violet-500" />
                         </div>
                       ))}
                   </div>
@@ -2120,7 +2120,7 @@ export default function Home() {
                             <td className="hidden md:table-cell px-3 py-2 text-gray-500 max-w-[100px] truncate">{vm.cluster || "—"}</td>
                             <td className="hidden lg:table-cell px-3 py-2 text-gray-500 max-w-[100px] truncate">{vm.host || "—"}</td>
                             <td className="hidden sm:table-cell px-3 py-2 w-28">
-                              <MiniBar value={vm.metrics?.cpuPercent} color="bg-blue-400" />
+                              <MiniBar value={vm.metrics?.cpuPercent} color="bg-violet-400" />
                             </td>
                             <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.memoryPercent} color="bg-emerald-400" />
@@ -2178,7 +2178,7 @@ export default function Home() {
                         {selectedVm.tags && selectedVm.tags.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {selectedVm.tags.map((tag) => (
-                              <span key={tag} className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">{tag}</span>
+                              <span key={tag} className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">{tag}</span>
                             ))}
                           </div>
                         ) : (
@@ -2214,7 +2214,7 @@ export default function Home() {
                     <button
                       onClick={() => { setConsolePreviewIframe(null); openEmbeddedConsole(selectedVm.id); }}
                       disabled={consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"}
-                      className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                      className="w-full rounded-md bg-violet-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
                     >
                       {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting" ? t("connecting") : t("openConsole")}
                     </button>
@@ -2412,7 +2412,7 @@ export default function Home() {
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
                                   <div
-                                    className="h-full rounded-full bg-blue-500"
+                                    className="h-full rounded-full bg-violet-500"
                                     style={{ width: `${d.sizeGB > 0 ? Math.min(100, ((d.usedGB ?? 0) / d.sizeGB) * 100) : 0}%` }}
                                   />
                                 </div>
@@ -2460,24 +2460,24 @@ export default function Home() {
                         : status === "powering_up" || status === "powering_down" || status === "reboot_in_progress" ? 1
                         : (isStop ? status === "down" : status === "up") ? 2 : 0;
                       return (
-                        <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-2 space-y-2">
+                        <div className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-2 space-y-2">
                           <div className="flex items-center justify-between">
                             {phases.map((phase, i) => (
                               <div key={i} className="flex items-center gap-1">
                                 <div className={`h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-bold transition-all ${
                                   i < step ? "bg-emerald-500 text-white" :
-                                  i === step ? "bg-blue-500 text-white animate-pulse" :
+                                  i === step ? "bg-violet-500 text-white animate-pulse" :
                                   "bg-gray-200 text-gray-400"
                                 }`}>{i < step ? "✓" : i + 1}</div>
-                                <span className={`text-[10px] font-medium ${i <= step ? "text-blue-700" : "text-gray-400"}`}>{phase}</span>
+                                <span className={`text-[10px] font-medium ${i <= step ? "text-violet-700" : "text-gray-400"}`}>{phase}</span>
                               </div>
                             ))}
                           </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-blue-100">
-                            <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-1000"
+                          <div className="h-1.5 overflow-hidden rounded-full bg-violet-100">
+                            <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-violet-600 transition-all duration-1000"
                               style={{ width: `${((step + 1) / 3) * 100}%` }} />
                           </div>
-                           <p className="text-[10px] text-blue-600">{t("currentStatus", { status: selectedVm.status })}</p>
+                           <p className="text-[10px] text-violet-600">{t("currentStatus", { status: selectedVm.status })}</p>
                         </div>
                       );
                     })()}
@@ -2601,7 +2601,7 @@ export default function Home() {
                                 <span className="flex-1 truncate text-[10px] text-gray-600">{d.name}</span>
                                 <span className="shrink-0 text-[10px] text-gray-400">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })}GB</span>
                                 <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{d.interface || "?"}</span>
-                                {d.bootable && <span className="shrink-0 rounded bg-blue-50 px-1 py-0.5 text-[9px] text-blue-600">boot</span>}
+                                {d.bootable && <span className="shrink-0 rounded bg-violet-50 px-1 py-0.5 text-[9px] text-violet-600">boot</span>}
                                 <button
                                   onClick={() => {
                                      if (window.confirm(t("deleteDiskConfirm", { name: d.name, size: formatNumber(d.sizeGB, { maximumFractionDigits: 0 }) }))) {
@@ -2729,7 +2729,7 @@ export default function Home() {
                           <button
                             onClick={() => updateResources(selectedVm.id)}
                             disabled={actionLoading === `${selectedVm.id}-update`}
-                            className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                            className="w-full rounded-md bg-violet-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
                           >
                              {actionLoading === `${selectedVm.id}-update` ? t("updating") : t("updateResources")}
                           </button>
@@ -2776,7 +2776,7 @@ export default function Home() {
                         <button
                           onClick={() => vmNics.filter(n => !n.plugged).forEach(n => handleToggleNic(selectedVm.id, n.id, true))}
                           disabled={actionLoading === `${selectedVm.id}-nic`}
-                          className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                          className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-600 hover:bg-violet-100 disabled:opacity-50"
                         >
                            {t("connectAll")}
                         </button>
@@ -2793,7 +2793,7 @@ export default function Home() {
                               <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{n.name}</span>
                               <span className="shrink-0 text-[10px] text-gray-500">{n.networkName || "?"}</span>
                               {n.ipv4 && (
-                                <span className="shrink-0 rounded bg-blue-50 px-1 text-[9px] font-medium text-blue-600">{n.ipv4}</span>
+                                <span className="shrink-0 rounded bg-violet-50 px-1 text-[9px] font-medium text-violet-600">{n.ipv4}</span>
                               )}
                               {canAdmin && (
                                 <>
@@ -2919,9 +2919,9 @@ export default function Home() {
                             ))}
                           </select>
                           {ovaUploadProgress !== null && (
-                            <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] text-blue-700">
+                            <div className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] text-violet-700">
                                <div className="mb-1 flex justify-between"><span>{t("uploading")}</span><span>{ovaUploadProgress}%</span></div>
-                              <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
                           <div className="flex items-center gap-2 py-0.5">
@@ -2937,9 +2937,9 @@ export default function Home() {
                       ) : (
                         <div className="space-y-2">
                           {ovaUploadProgress !== null && (
-                            <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] text-blue-700">
+                            <div className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] text-violet-700">
                                <div className="mb-1 flex justify-between"><span>{t("uploading")}</span><span>{ovaUploadProgress}%</span></div>
-                              <div className="h-1.5 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-3 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
@@ -3015,7 +3015,7 @@ export default function Home() {
                         </label>
                       )}
                       {newVmSource !== "ova" && useCloudInit && (
-                        <div className="grid grid-cols-2 gap-2 rounded-md border border-blue-100 bg-blue-50 p-2.5">
+                        <div className="grid grid-cols-2 gap-2 rounded-md border border-violet-100 bg-violet-50 p-2.5">
                           <Field label="IP">
                             <input value={cloudInit.ip}
                               onChange={(e) => setCloudInit((v) => ({ ...v, ip: e.target.value }))}
@@ -3066,20 +3066,20 @@ export default function Home() {
                   </div>
 
                   {ovaImportProgress !== null && (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] text-blue-700">
+                    <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-[11px] text-violet-700">
                       <div className="mb-1.5 flex justify-between font-medium">
                          <span>{ovaImportProgress < 40 ? t("copyingOva") : ovaImportProgress < 75 ? t("importingOlvm") : t("waitingConversion")}</span>
                         <span>{Math.round(ovaImportProgress)}%</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-blue-100">
-                        <div className="h-full rounded-full bg-blue-500 transition-all duration-1000" style={{ width: `${ovaImportProgress}%` }} />
+                      <div className="h-2 overflow-hidden rounded-full bg-violet-100">
+                        <div className="h-full rounded-full bg-violet-500 transition-all duration-1000" style={{ width: `${ovaImportProgress}%` }} />
                       </div>
                     </div>
                   )}
                   <button
                     onClick={handleNewVm}
                     disabled={actionLoading === "create"}
-                    className="w-full rounded-md bg-blue-600 py-2 text-[12px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                    className="w-full rounded-md bg-violet-600 py-2 text-[12px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
                   >
                      {actionLoading === "create" ? (newVmSource === "ova" ? t("importingOva") : t("creating")) : t("createVm")}
                   </button>
@@ -3148,7 +3148,7 @@ export default function Home() {
                         <button
                           onClick={() => { setConsolePreviewIframe(null); openEmbeddedConsole(selectedVm.id); }}
                           disabled={consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"}
-                          className="w-full rounded-md bg-blue-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                          className="w-full rounded-md bg-violet-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
                         >
                           {consoleLoading === selectedVm.id || embeddedConsole.status === "connecting"
                              ? t("connecting")
@@ -3199,7 +3199,7 @@ export default function Home() {
               <button
                 onClick={submitCloneWizard}
                 disabled={cloneWizard.submitting}
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
                >{cloneWizard.submitting ? t("cloning") : t("clone")}</button>
             </div>
           </div>

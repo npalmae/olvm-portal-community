@@ -9,8 +9,8 @@ import "./globals.css";
 const localeMetadata: Record<Locale, Pick<Metadata, "title" | "description">> = {
   es: { title: "Portal de administración Virtual", description: "Portal de administración multitenant para VMware vSphere" },
   en: { title: "Virtual Administration Portal", description: "Multitenant administration portal for VMware vSphere" },
-  de: { title: "OLVM-Verwaltungsportal", description: "Mandantenfähiges Verwaltungsportal für OLVM/oVirt" },
-  pt: { title: "Portal de administração OLVM", description: "Portal de administração multitenant para OLVM/oVirt" },
+  de: { title: "Virtual Portal", description: "Mandantenfähiges Verwaltungsportal für VMware vSphere" },
+  pt: { title: "Virtual Portal", description: "Portal de administração multilocatário para VMware vSphere" },
 };
 
 const getRequestLocale = async (): Promise<Locale> => {
@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     ...localeMetadata[locale],
     icons: {
-      icon: "/sixmanager-favicon.png",
-      shortcut: "/sixmanager-favicon.png",
-      apple: "/sixmanager-favicon.png",
+      icon: "/ovp-favicon.svg",
+      shortcut: "/ovp-favicon.svg",
+      apple: "/ovp-favicon.svg",
     },
   };
 }

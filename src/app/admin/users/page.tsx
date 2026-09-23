@@ -61,7 +61,7 @@ const roleBadge = (role: string) => {
   if (role === "superadmin")
     return "bg-amber-100 text-amber-800 border-amber-300";
   if (role === "admin")
-    return "bg-blue-100 text-blue-800 border-blue-300";
+    return "bg-violet-100 text-violet-800 border-violet-300";
   if (role === "operator")
     return "bg-emerald-50 text-emerald-700 border-emerald-200";
   return "bg-gray-100 text-gray-600 border-gray-200";
@@ -288,7 +288,7 @@ export default function AdminUsersPage() {
             <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
               <button
                 onClick={() => router.push("/")}
-                className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+                className="flex shrink-0 items-center gap-1 hover:text-violet-600"
                 title={t("home")}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -300,7 +300,7 @@ export default function AdminUsersPage() {
               <span className="shrink-0 text-gray-400">/</span>
               <button
                 onClick={() => router.push("/admin/clusters")}
-                className="shrink-0 text-gray-600 hover:text-blue-600"
+                className="shrink-0 text-gray-600 hover:text-violet-600"
               >
                 {t("settings")}
               </button>
@@ -369,7 +369,7 @@ export default function AdminUsersPage() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
               <label className="block text-sm text-gray-500">
@@ -379,7 +379,7 @@ export default function AdminUsersPage() {
                   value={form.alias}
                   onChange={(e) => setForm({ ...form, alias: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
               <label className="block text-sm text-gray-500">
@@ -389,7 +389,7 @@ export default function AdminUsersPage() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
               <label className="block text-sm text-gray-500">
@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
               <label className="block text-sm text-gray-500">
@@ -408,7 +408,7 @@ export default function AdminUsersPage() {
                   value={form.tenantId}
                   onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 >
                   {tenants.length === 0 && <option value="">{t("noTenants")}</option>}
                   {tenants.map((t) => (
@@ -423,7 +423,7 @@ export default function AdminUsersPage() {
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 >
                   <option value="operator">{t("operatorRole")}</option>
                   <option value="user">{t("userRole")}</option>
@@ -435,7 +435,7 @@ export default function AdminUsersPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-60"
+              className="mt-4 px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg disabled:opacity-60"
             >
               {submitting ? t("creating") : t("create")}
             </button>
@@ -484,7 +484,7 @@ export default function AdminUsersPage() {
                           key={m.tenantId}
                           className={`px-2 py-1 rounded text-xs border ${
                             m.role === "admin"
-                              ? "bg-blue-100 text-blue-700 border-blue-300"
+                              ? "bg-violet-100 text-violet-700 border-violet-300"
                               : m.role === "operator"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-gray-100 text-gray-700 border-gray-200"
@@ -953,7 +953,7 @@ function EditModal({
                       <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
                         {k.active ? "ON" : "OFF"}
                       </span>
-                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-blue-600">{k.active ? t("deactivateShort") : t("activateShort")}</button>
+                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-violet-600">{k.active ? t("deactivateShort") : t("activateShort")}</button>
                        <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">{t("deleteShort")}</button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-2">
@@ -970,7 +970,7 @@ function EditModal({
                               try { document.execCommand("copy"); } catch {}
                               document.body.removeChild(ta);
                             }}
-                            className="shrink-0 text-[10px] bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-1 hover:bg-blue-100"
+                            className="shrink-0 text-[10px] bg-violet-50 text-violet-700 border border-violet-200 rounded px-2 py-1 hover:bg-violet-100"
                            >{t("copy")}</button>
                            <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 hover:text-gray-700">{t("hide")}</button>
                         </>
@@ -978,7 +978,7 @@ function EditModal({
                         <>
                           <code className="text-[11px] text-gray-400 font-mono">{k.keyPreview}</code>
                           {k.key && (
-                             <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-blue-600 hover:text-blue-800">{t("show")}</button>
+                             <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-violet-600 hover:text-violet-800">{t("show")}</button>
                           )}
                         </>
                       )}

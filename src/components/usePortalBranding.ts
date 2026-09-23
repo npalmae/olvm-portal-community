@@ -11,7 +11,7 @@ export type PortalBranding = {
 };
 
 const FALLBACK: PortalBranding = {
-  brandName: "OLVM Portal",
+  brandName: "Virtual Portal",
   hasLogo: false,
   logoUrl: null,
   logoWidth: 0,

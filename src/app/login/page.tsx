@@ -139,7 +139,7 @@ function LoginPageContent() {
                 className="h-auto w-[130px] sm:w-[160px] object-contain"
               />
             ) : (
-              <SixmanagerMark subtitle="OLVM Portal" />
+              <SixmanagerMark subtitle="Virtual Portal" />
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900">
@@ -185,13 +185,13 @@ function LoginPageContent() {
                     type="email" value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     required autoFocus
-                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                     placeholder={t("common.emailPlaceholder")}
                   />
                 </div>
                 <button
                   type="submit" disabled={loading}
-                  className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  className="w-full rounded-md bg-violet-600 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
                 >
                   {loading ? t("login.sending") : t("login.sendRecoveryLink")}
                 </button>
@@ -207,7 +207,7 @@ function LoginPageContent() {
                   type="email" value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder={t("common.emailPlaceholder")}
                 />
               </div>
@@ -220,7 +220,7 @@ function LoginPageContent() {
                     type={showPassword ? "text" : "password"} value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 pr-10 text-sm text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 pr-10 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="••••••••"
                 />
                 <button
@@ -240,7 +240,7 @@ function LoginPageContent() {
               </div>
               <button
                 type="submit" disabled={loading}
-                className="mt-1 w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="mt-1 w-full rounded-md bg-violet-600 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
               >
                 {loading ? t("login.sendingCode") : t("login.continue")}
               </button>
@@ -256,13 +256,13 @@ function LoginPageContent() {
                   maxLength={6} value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   required autoFocus
-                  className="w-full rounded-md border border-gray-200 px-3 py-2.5 text-center text-lg tracking-[0.5em] text-gray-900 outline-none ring-blue-500/30 focus:border-blue-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 px-3 py-2.5 text-center text-lg tracking-[0.5em] text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="000000"
                 />
               </div>
               <button
                 type="submit" disabled={loading || code.length !== 6}
-                className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="w-full rounded-md bg-violet-600 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
               >
                 {loading ? t("login.verifying") : t("login.verifyAndSignIn")}
               </button>
@@ -288,19 +288,19 @@ function LoginPageContent() {
               <>
                 <p>
                   {t("login.noAccount")}{" "}
-                  <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                  <Link href="/register" className="font-semibold text-violet-600 hover:text-violet-700">
                     {t("login.createUser")}
                   </Link>
                 </p>
                 <p>
-                  <button onClick={() => { setStep("forgot"); setForgotSent(false); setError(null); setForgotEmail(email); }} className="text-gray-400 hover:text-blue-600">
+                  <button onClick={() => { setStep("forgot"); setForgotSent(false); setError(null); setForgotEmail(email); }} className="text-gray-400 hover:text-violet-600">
                     {t("login.forgotPassword")}
                   </button>
                 </p>
               </>
             )}
             {step === "forgot" && (
-              <button onClick={() => setStep(1)} className="text-gray-400 hover:text-blue-600">
+              <button onClick={() => setStep(1)} className="text-gray-400 hover:text-violet-600">
                 {t("common.backToLogin")}
               </button>
             )}

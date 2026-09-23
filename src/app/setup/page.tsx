@@ -7,9 +7,9 @@ import { SixmanagerMark } from "@/components/SixmanagerMark";
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-const inputCls = "mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30";
+const inputCls = "mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
 const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500";
-const btnPrimary = "rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50";
+const btnPrimary = "rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50";
 const btnSecondary = "rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50";
 
 export default function SetupPage() {
@@ -133,11 +133,11 @@ export default function SetupPage() {
           <div className="mb-6 flex items-center justify-center gap-2">
             {steps.filter(s => s.n < 6).map((s) => (
               <div key={s.n} className="flex items-center gap-2">
-                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step >= s.n ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-400"}`}>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step >= s.n ? "bg-violet-600 text-white" : "bg-gray-200 text-gray-400"}`}>
                   {step > s.n ? "✓" : s.n}
                 </div>
                 <span className={`text-xs ${step >= s.n ? "font-medium text-gray-700" : "text-gray-400"}`}>{s.label}</span>
-                {s.n < 5 && <div className={`h-px w-6 ${step > s.n ? "bg-blue-400" : "bg-gray-200"}`} />}
+                {s.n < 5 && <div className={`h-px w-6 ${step > s.n ? "bg-violet-400" : "bg-gray-200"}`} />}
               </div>
             ))}
           </div>
@@ -190,7 +190,7 @@ export default function SetupPage() {
                 <div><label className={labelCls}>URL del engine</label><input className={inputCls} type="url" value={engUrl} onChange={(e) => setEngUrl(e.target.value)} placeholder="https://engine.example.com/ovirt-engine/api" /></div>
                 <div><label className={labelCls}>Usuario</label><input className={inputCls} value={engUser} onChange={(e) => setEngUser(e.target.value)} placeholder="admin@internal" /></div>
                 <div><label className={labelCls}>Contraseña</label><input className={inputCls} type="password" value={engPass} onChange={(e) => setEngPass(e.target.value)} placeholder="••••••••" /></div>
-                <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-blue-600" /> Permitir certificados self-signed</label>
+                <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-violet-600" /> Permitir certificados self-signed</label>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <button onClick={handleEngineTest} disabled={loading || !engUrl || !engPass} className={btnSecondary}>Probar conexión</button>

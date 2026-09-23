@@ -58,7 +58,7 @@ const json = async (res: Response) => {
 };
 
 const inputCls =
-  "w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30";
+  "w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
 const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500";
 
 /* ── Page ─────────────────────────────────────────────────────────────── */
@@ -151,7 +151,7 @@ export default function AdminClustersPage() {
             <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
               <button
                 onClick={() => router.push("/")}
-                className="flex shrink-0 items-center gap-1 hover:text-blue-600"
+                className="flex shrink-0 items-center gap-1 hover:text-violet-600"
                 title={t("home")}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -246,7 +246,7 @@ export default function AdminClustersPage() {
                     </td>
                     <td className="px-3 py-2.5 text-gray-600 text-xs">{e.baseUrl}</td>
                     <td className="px-3 py-2.5">
-                      <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[11px] text-blue-700">
+                      <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700">
                         {e.authMethod === "token" ? "Token" : t("usernameAuth")}
                       </span>
                       {e.allowInsecure && <span className="ml-1 text-[11px] text-amber-600">insecure</span>}
@@ -575,7 +575,7 @@ function EngineForm({
           )}
 
           <div>
-            <button type="button" onClick={() => setShowCa((s) => !s)} className="text-[11px] text-blue-600 hover:underline">
+            <button type="button" onClick={() => setShowCa((s) => !s)} className="text-[11px] text-violet-600 hover:underline">
               {showCa ? t("hideCa") : t("optionalCa")}
             </button>
             {showCa && (
@@ -780,14 +780,14 @@ function TenantForm({
                           value={networkPrefixes[netName]?.prefix ?? ""}
                           onChange={(e) => setNetworkPrefixes((pp) => ({ ...pp, [netName]: { prefix: e.target.value, mask: pp[netName]?.mask ?? "" } }))}
                           placeholder="192.168.1"
-                          className="w-24 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-blue-400"
+                          className="w-24 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-violet-400"
                         />
                         <input
                           type="text"
                           value={networkPrefixes[netName]?.mask ?? ""}
                           onChange={(e) => setNetworkPrefixes((pp) => ({ ...pp, [netName]: { prefix: pp[netName]?.prefix ?? "", mask: e.target.value } }))}
                           placeholder="255.255.255.0"
-                          className="w-28 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-blue-400"
+                          className="w-28 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-violet-400"
                         />
                       </div>
                     )}
