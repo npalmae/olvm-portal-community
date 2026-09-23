@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
-import { fetchAllStorageDomains, fetchStorageDomains } from "@/lib/olvmClient";
+import { fetchAllStorageDomains, fetchStorageDomains as olvmFetchStorageDomains } from "@/lib/olvmClient";
+import { engineTypeForTenant, fetchStorageDomains } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,9 @@ export async function GET(request: Request, context: Params) {
 
     const sds = isPlatformSuperadmin(session.user) && showAll
       ? await fetchAllStorageDomains(tenantId)
-      : await fetchStorageDomains(tenantId);
+      : (await engineTypeForTenant(tenantId)) === "vmware"
+        ? await fetchStorageDomains(tenantId)
+        : await olvmFetchStorageDomains(tenantId);
 
     return NextResponse.json(sds);
   } catch (error) {

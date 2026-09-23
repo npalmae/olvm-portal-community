@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { fetchVms } from "@/lib/olvmClient";
+import { fetchVms } from "@/lib/engineClient";
 import { assertTenantAccess } from "@/lib/authz";
 import { createOperationJob, runOperationJob, serializeOperationJob } from "@/lib/operationJobService";
 

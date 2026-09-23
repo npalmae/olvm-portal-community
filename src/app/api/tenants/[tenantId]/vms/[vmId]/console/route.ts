@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
-import { enforceVmTagPolicy, fetchVmConsoleFile } from "@/lib/olvmClient";
+import { fetchVmConsoleFile } from "@/lib/olvmClient";
+import { enforceVmTagPolicy, engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,12 @@ export async function GET(request: Request, context: Params) {
       await enforceVmTagPolicy(tenantId, vmId);
     }
 
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      return NextResponse.json(
+        { error: "Consola descargable no aplica a VMware. Usa la consola embebida (WebMKS)." },
+        { status: 501 },
+      );
+    }
     const vv = await fetchVmConsoleFile(tenantId, vmId, protocol);
     const filename = `${vmId}-${protocol}.vv`;
     return new Response(vv, {

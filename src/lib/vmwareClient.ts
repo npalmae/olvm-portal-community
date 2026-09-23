@@ -573,6 +573,17 @@ export const removeTenantTag = async (tenant: TenantConfig, vmId: string) => {
   if (tag) await detachTag(tenant, tag.id, vmId).catch(() => undefined);
 };
 
+/** Wrappers tenantId-based (paridad con la superficie comun del dispatcher). */
+export const assignTagToVm = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  await applyTenantTag(tenant, vmId);
+};
+
+export const removeTagFromVm = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  await removeTenantTag(tenant, vmId);
+};
+
 export const vmMatchesTenantTag = (tagNames: string[], expectedTag?: string) => {
   const expected = expectedTag?.trim().toLowerCase();
   if (!expected) return false;

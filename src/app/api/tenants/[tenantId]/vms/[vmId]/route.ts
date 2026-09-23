@@ -6,7 +6,7 @@ import {
   enforceVmTagPolicy,
   fetchVmById,
   updateVmResources,
-} from "@/lib/olvmClient";
+} from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 

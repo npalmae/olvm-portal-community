@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isPlatformSuperadmin } from "@/lib/authz";
-import { assignTagToVm, removeTagFromVm } from "@/lib/olvmClient";
+import { assignTagToVm, removeTagFromVm } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 

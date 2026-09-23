@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
-import { enforceVmTagPolicy, fetchVmConsoleInfo } from "@/lib/olvmClient";
+import { enforceVmTagPolicy, fetchVmConsoleInfo } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { fetchIsos } from "@/lib/olvmClient";
+import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ export async function GET(_req: NextRequest, context: Params) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     assertTenantAccess(session.user, tenantId, "operator");
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      return NextResponse.json([]);
+    }
     const isos = await fetchIsos(tenantId);
     return NextResponse.json(isos);
   } catch (error) {

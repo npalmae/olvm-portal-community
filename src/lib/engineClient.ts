@@ -38,6 +38,9 @@ type EngineModule = {
   fetchNetworks: typeof olvm.fetchNetworks;
   fetchVnicProfiles: typeof olvm.fetchVnicProfiles;
   fetchTemplates: typeof olvm.fetchTemplates;
+  isSupportedAction: (action: string) => boolean;
+  assignTagToVm: (tenantId: string, vmId: string) => Promise<void>;
+  removeTagFromVm: (tenantId: string, vmId: string) => Promise<void>;
 };
 
 /** El modulo VMware implementa (sub)conjunto compatible; lo tipamos como olvm
@@ -96,7 +99,27 @@ export const fetchVmConsoleInfo = (
   tenantId: string,
   vmId: string,
   protocol?: "spice" | "vnc",
-) => engineForTenant(tenantId).then((m) => m.fetchVmConsoleInfo(tenantId, vmId, protocol));
+  opts?: Parameters<typeof olvm.fetchVmConsoleInfo>[3],
+) => engineForTenant(tenantId).then((m) => m.fetchVmConsoleInfo(tenantId, vmId, protocol, opts));
+export const createVm = (tenantId: string, input: Parameters<typeof olvm.createVm>[1]) =>
+  engineForTenant(tenantId).then((m) => m.createVm(tenantId, input));
+export const cloneVm = (
+  tenantId: string,
+  sourceVmId: string,
+  cloneName: string,
+  onProgress?: Parameters<typeof olvm.cloneVm>[3],
+) => engineForTenant(tenantId).then((m) => m.cloneVm(tenantId, sourceVmId, cloneName, onProgress));
+export const updateVmResources = (
+  tenantId: string,
+  vmId: string,
+  payload: Parameters<typeof olvm.updateVmResources>[2],
+) => engineForTenant(tenantId).then((m) => m.updateVmResources(tenantId, vmId, payload));
+export const isSupportedAction = (tenantId: string, action: string) =>
+  engineForTenant(tenantId).then((m) => m.isSupportedAction(action));
+export const assignTagToVm = (tenantId: string, vmId: string) =>
+  engineForTenant(tenantId).then((m) => m.assignTagToVm(tenantId, vmId));
+export const removeTagFromVm = (tenantId: string, vmId: string) =>
+  engineForTenant(tenantId).then((m) => m.removeTagFromVm(tenantId, vmId));
 
 const engineForTenant = async (tenantId: string): Promise<EngineModule> => {
   const type = await engineTypeForTenant(tenantId);

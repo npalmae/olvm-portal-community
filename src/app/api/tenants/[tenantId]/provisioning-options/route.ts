@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
-import { fetchClusters, fetchTemplates, fetchNetworks, fetchVnicProfiles, fetchHosts } from "@/lib/olvmClient";
+import { fetchClusters, fetchTemplates, fetchNetworks, fetchVnicProfiles, fetchHosts } from "@/lib/engineClient";
 import { getTenantById } from "@/lib/config";
 
 export const dynamic = "force-dynamic";

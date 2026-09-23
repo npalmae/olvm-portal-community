@@ -1,6 +1,7 @@
 import type { OperationJob, Prisma } from "@prisma/client";
 import { logActivity, type ActivityOrigin } from "./activityStore";
-import { cloneVm, createVm, deleteVm, fetchVmById, runOnceFromCd, sendVmAction } from "./olvmClient";
+import { cloneVm, createVm, deleteVm, fetchVmById, sendVmAction } from "./engineClient";
+import { runOnceFromCd } from "./olvmClient";
 import { prisma } from "./prisma";
 
 type JobInput = Record<string, unknown>;

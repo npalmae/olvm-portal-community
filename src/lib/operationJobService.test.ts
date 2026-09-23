@@ -7,8 +7,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./prisma", () => ({ prisma: { operationJob: {
   updateMany: mocks.updateMany, update: mocks.update, findUniqueOrThrow: mocks.findUniqueOrThrow,
 } } }));
-vi.mock("./olvmClient", () => ({ sendVmAction: mocks.sendVmAction, cloneVm: mocks.cloneVm,
-  createVm: mocks.createVm, deleteVm: mocks.deleteVm, fetchVmById: mocks.fetchVmById, runOnceFromCd: mocks.runOnceFromCd }));
+vi.mock("./engineClient", () => ({ sendVmAction: mocks.sendVmAction, cloneVm: mocks.cloneVm,
+  createVm: mocks.createVm, deleteVm: mocks.deleteVm, fetchVmById: mocks.fetchVmById }));
+vi.mock("./olvmClient", () => ({ runOnceFromCd: mocks.runOnceFromCd }));
 vi.mock("./activityStore", () => ({ logActivity: mocks.logActivity }));
 import { runOperationJob } from "./operationJobService";
 

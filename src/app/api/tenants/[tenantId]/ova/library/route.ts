@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { fetchOvaDisks, deleteOvaDisk } from "@/lib/olvmClient";
+import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ tenantId: string 
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId, "operator");
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      return NextResponse.json([]);
+    }
     const ovas = await fetchOvaDisks(tenantId);
     return NextResponse.json(ovas);
   } catch (error) {
@@ -29,6 +33,9 @@ export async function DELETE(request: Request, ctx: { params: Promise<{ tenantId
     const diskId = searchParams.get("id") ?? "";
     if (!diskId) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      return NextResponse.json({ error: "Libreria OVA no aplica a engines VMware" }, { status: 501 });
+    }
     await deleteOvaDisk(tenantId, diskId);
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -6,7 +6,7 @@ import {
   enforceVmTagPolicy,
   fetchVmById,
   isSupportedAction,
-} from "@/lib/olvmClient";
+} from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +48,7 @@ export async function POST(request: Request, context: Params) {
       }
       input = { cloneName };
     }
-    if (action !== "clone" && action !== "run_once_cd" && action !== "restart" && !isSupportedAction(action)) {
+    if (action !== "clone" && action !== "run_once_cd" && action !== "restart" && !(await isSupportedAction(tenantId, action))) {
       return NextResponse.json(
         { error: `Unsupported action ${action}` },
         { status: 400 },
