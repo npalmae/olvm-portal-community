@@ -497,7 +497,7 @@ const attachTag = (tenant: TenantConfig, tagId: string, objectId: string, object
         method: "POST",
         body: JSON.stringify(payload),
       }),
-    () => vapi(tenant, "cis.tagging.tag_association", "attach", payload),
+    () => vapi(tenant, "cis.tagging.tag-association", "attach", payload),
   );
 };
 
@@ -510,7 +510,7 @@ const detachTag = (tenant: TenantConfig, tagId: string, objectId: string, object
         method: "POST",
         body: JSON.stringify(payload),
       }),
-    () => vapi(tenant, "cis.tagging.tag_association", "detach", payload),
+    () => vapi(tenant, "cis.tagging.tag-association", "detach", payload),
   );
 };
 
@@ -527,7 +527,7 @@ const listAttachedObjects = async (tenant: TenantConfig, tagId: string): Promise
     },
     async () => {
       const res = await vapi<TaggableObject[]>(
-        tenant, "cis.tagging.tag_association", "list-attached-objects", { tag_id: tagId },
+        tenant, "cis.tagging.tag-association", "list-attached-objects", { tag_id: tagId },
       );
       return res ?? [];
     },
@@ -546,7 +546,7 @@ const listVmTagIds = async (tenant: TenantConfig, vmId: string): Promise<string[
     },
     async () => {
       const res = await vapi<string[]>(
-        tenant, "cis.tagging.tag_association", "list-attached-tags",
+        tenant, "cis.tagging.tag-association", "list-attached-tags",
         { object_id: { id: vmId, type: "VirtualMachine" } },
       );
       return res ?? [];
