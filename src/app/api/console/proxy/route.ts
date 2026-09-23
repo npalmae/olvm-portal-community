@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
-import { fetchVmConsoleInfo } from "@/lib/olvmClient";
-import { enforceVmTagPolicy } from "@/lib/olvmClient";
+import { enforceVmTagPolicy, fetchVmConsoleInfo } from "@/lib/engineClient";
 import { getTenantById } from "@/lib/config";
 import { createConsoleProxySession, ensureConsoleProxy } from "@/lib/wsProxy";
 
