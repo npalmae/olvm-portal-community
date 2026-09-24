@@ -1406,7 +1406,9 @@ export default function Home() {
       );
       const proxy = await parseJsonSafe(proxyRes);
       if (!proxyRes.ok || !proxy?.proxyWsUrl) throw new Error(proxy?.error ?? t("websocketUnavailable"));
-      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=1`;
+      const engineType = tenants.find((tt) => tt.id === tid)?.engineType;
+      const clientParam = engineType === "vmware" ? "&client=webmks" : "";
+      const iframeUrl = `/console?wsUrl=${encodeURIComponent(proxy.proxyWsUrl)}&ticket=${encodeURIComponent(ticket)}&vmId=${encodeURIComponent(vmId)}&tenantId=${encodeURIComponent(tid)}&show_fb=0&show_toolbar=1${clientParam}`;
       setEmbeddedConsole({ vmId, status: "connected", error: null, rfb: null, iframeUrl });
     } catch (err) {
       if (embeddedConsoleSession.current !== sid) return;
@@ -2520,9 +2522,10 @@ export default function Home() {
                     )}
                     {(tenants.find((tt) => tt.id === tenantForVm(selectedVm.id))?.engineType ?? (tenants.find((tt) => tt.id === selectedTenant)?.engineType)) === "vmware" ? (
                       <ActionButton
-                        label={t("vmrcConsole")}
-                        onClick={() => openVmrcConsole(selectedVm.id)}
+                        label={t("openConsole")}
+                        onClick={() => openEmbeddedConsole(selectedVm.id)}
                         loading={consoleLoading === selectedVm.id}
+                        disabled={(selectedVm.status?.toLowerCase?.() ?? "") !== "up"}
                       />
                     ) : (
                       <ActionButton
@@ -2531,7 +2534,7 @@ export default function Home() {
                         loading={consoleLoading === selectedVm.id}
                       />
                     )}
-                    {showExperimentalConsole && (
+                    {showExperimentalConsole && (tenants.find((tt) => tt.id === tenantForVm(selectedVm.id))?.engineType ?? (tenants.find((tt) => tt.id === selectedTenant)?.engineType)) !== "vmware" && (
                       <ActionButton
                          label={t("embeddedConsole")}
                         onClick={() => openEmbeddedConsole(selectedVm.id)}

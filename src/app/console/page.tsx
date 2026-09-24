@@ -40,6 +40,63 @@ function ConsolePageContent() {
 
   const wsUrl = searchParams.get('wsUrl') || '';
   const ticket = searchParams.get('ticket') || '';
+  const clientMode = searchParams.get('client') || 'vnc';
+
+  const connectWebmks = async (wssUrl: string) => {
+    const loadCss = (href: string) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    };
+    const loadScript = (src: string) =>
+      new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`No se pudo cargar ${src}`));
+        document.head.appendChild(script);
+      });
+
+    loadCss('/webmks/wmks-all.css');
+    if (!(window as any).$) await loadScript('/webmks/jquery.min.js');
+    if (!(window as any).WMKS) await loadScript('/webmks/wmks.min.js');
+
+    const WMKSlib = (window as any).WMKS;
+    if (!WMKSlib) throw new Error('WebMKS no disponible');
+
+    const container = containerRef.current!;
+    container.innerHTML = '';
+    const widget = document.createElement('div');
+    widget.id = 'wmks-console-widget';
+    widget.style.width = '100%';
+    widget.style.height = '100%';
+    container.appendChild(widget);
+
+    const wmks = WMKSlib.createWMKS('wmks-console-widget', {
+      wssUrl,
+      fitParent: true,
+      useNativePixels: true,
+    });
+    rfbRef.current = wmks;
+    wmks.addEventCallback(
+      WMKSlib.CONST.ConnectionEventEnum.connected,
+      () => setStatus('connected'),
+    );
+    wmks.addEventCallback(
+      WMKSlib.CONST.ConnectionEventEnum.error,
+      (e: unknown) => {
+        setErrorMsg(`WebMKS: ${JSON.stringify(e)?.slice(0, 200)}`);
+        setStatus('error');
+      },
+    );
+    wmks.addEventCallback(
+      WMKSlib.CONST.ConnectionEventEnum.disconnected,
+      () => setStatus('error'),
+    );
+    wmks.connect();
+    setStatus('connected');
+  };
   const isPreview = searchParams.get('preview') === '1';
   const showToolbar = searchParams.get('show_toolbar') !== '0';
 
@@ -77,6 +134,10 @@ function ConsolePageContent() {
 
     const connect = async () => {
       try {
+        if (clientMode === 'webmks') {
+          await connectWebmks(effectiveWsUrl);
+          return;
+        }
         const mod = await import('@novnc/novnc');
         const RFB = (mod as { default?: any }).default;
         if (!RFB) throw new Error(tRef.current('novncUnavailable'));
