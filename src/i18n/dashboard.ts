@@ -188,6 +188,7 @@ export const dashboardMessages: Messages = {
   reboot: msg("Reiniciar", "Reboot", "Neu starten", "Reiniciar"),
   cloneVm: msg("Clonar VM", "Clone VM", "VM klonen", "Clonar VM"),
   vncConsole: msg("Consola VNC", "VNC console", "VNC-Konsole", "Console VNC"),
+  vmrcConsole: msg("Consola VMRC", "VMRC console", "VMRC-Konsole", "Console VMRC"),
   embeddedConsole: msg("Consola embebida", "Embedded console", "Eingebettete Konsole", "Console incorporada"),
   assignTenantTag: msg("Asignar tag del tenant", "Assign tenant tag", "Tenant-Tag zuweisen", "Atribuir tag do tenant"),
   removeTenantTag: msg("Quitar tag del tenant", "Remove tenant tag", "Tenant-Tag entfernen", "Remover tag do tenant"),

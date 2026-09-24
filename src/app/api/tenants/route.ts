@@ -16,6 +16,7 @@ export async function GET() {
     name: tenant.name,
     baseUrl: tenant.baseUrl,
     allowInsecure: tenant.allowInsecure,
+    engineType: tenant.engineType,
     brandName: tenant.brandName,
     brandLogoUrl: tenant.brandLogoUrl,
   }));

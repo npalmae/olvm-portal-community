@@ -756,6 +756,24 @@ export const fetchVmConsoleInfo = async (
   };
 };
 
+/**
+ * Ticket VMRC (VMware Remote Console): abre la app de escritorio con un clic.
+ * POST /api/vcenter/vm/{vm}/console/tickets {"type":"VMRC"} -> vmrc://clone:...
+ */
+export const fetchVmrcConsoleUrl = async (tenantId: string, vmId: string): Promise<string> => {
+  await enforceVmTagPolicy(tenantId, vmId);
+  const tenant = await getTenantById(tenantId);
+  const res = await viFetch<{ ticket: string }>(
+    tenant,
+    `/api/vcenter/vm/${vmId}/console/tickets`,
+    { method: "POST", body: JSON.stringify({ type: "VMRC" }) },
+  );
+  if (!res?.ticket?.startsWith("vmrc://")) {
+    throw new Error("El vCenter no devolvió un ticket VMRC válido");
+  }
+  return res.ticket;
+};
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Inventario — clusters, hosts, datastores, redes
  * ──────────────────────────────────────────────────────────────────────── */

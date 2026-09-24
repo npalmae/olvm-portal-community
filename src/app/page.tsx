@@ -12,7 +12,7 @@ import { dashboardMessages } from "@/i18n/dashboard";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
-type Tenant = { id: string; name: string; baseUrl: string; brandName?: string; brandLogoUrl?: string };
+type Tenant = { id: string; name: string; baseUrl: string; brandName?: string; brandLogoUrl?: string; engineType?: "olvm" | "vmware" };
 type MembershipRole = "operator" | "user" | "admin";
 
 type Vm = {
@@ -1414,6 +1414,23 @@ export default function Home() {
     } finally { setConsoleLoading(null); }
   };
 
+  const openVmrcConsole = async (vmId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setConsoleLoading(vmId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/console/vmrc`, { cache: "no-store" });
+      const data = await parseJsonSafe(res);
+      if (!res.ok || !data?.url) throw new Error(data?.error ?? "No se pudo obtener el ticket VMRC");
+      window.location.href = data.url as string;
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setConsoleLoading(null);
+    }
+  };
+
   const handleSignOut = async () => { setSigningOut(true); await signOut({ callbackUrl: "/login" }); };
 
   /* ════════════════════════════════════════════════════════════════════
@@ -2501,11 +2518,19 @@ export default function Home() {
                         loading={actionLoading === `${selectedVm.id}-clone`}
                       />
                     )}
-                    <ActionButton
-                       label={t("vncConsole")}
-                      onClick={() => downloadConsole(selectedVm.id, "vnc")}
-                      loading={consoleLoading === selectedVm.id}
-                    />
+                    {(tenants.find((tt) => tt.id === tenantForVm(selectedVm.id))?.engineType ?? (tenants.find((tt) => tt.id === selectedTenant)?.engineType)) === "vmware" ? (
+                      <ActionButton
+                        label={t("vmrcConsole")}
+                        onClick={() => openVmrcConsole(selectedVm.id)}
+                        loading={consoleLoading === selectedVm.id}
+                      />
+                    ) : (
+                      <ActionButton
+                        label={t("vncConsole")}
+                        onClick={() => downloadConsole(selectedVm.id, "vnc")}
+                        loading={consoleLoading === selectedVm.id}
+                      />
+                    )}
                     {showExperimentalConsole && (
                       <ActionButton
                          label={t("embeddedConsole")}
