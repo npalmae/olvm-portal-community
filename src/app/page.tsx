@@ -1525,11 +1525,18 @@ export default function Home() {
                 const globalLogo = portalBranding.hasLogo ? portalBranding.logoUrl : null;
                 const logo = tenantLogo || globalLogo;
                 const brand = t?.brandName || portalBranding.brandName || "VIRTUAL-PORTAL";
+                const hasCustomBrand = Boolean(brand && brand !== "Virtual Portal");
                 return (
                   <div className="leading-tight text-center">
                     {logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />
+                    ) : hasCustomBrand ? (
+                      <div className="flex flex-col items-center gap-1.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/logo-vp-mark.svg" alt={brand} className="h-9 w-auto object-contain" />
+                        <div className="text-[15px] font-extrabold tracking-wide text-white">{brand}</div>
+                      </div>
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src="/logo-vp-dark.svg" alt="Virtual Portal" className="w-[170px] h-auto mx-auto" />
