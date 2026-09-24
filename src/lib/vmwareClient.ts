@@ -769,8 +769,11 @@ export const fetchVmConsoleInfo = async (
     body: JSON.stringify({ type: "WEBMKS" }),
   });
   const ticketUrl = res.ticket;
+  // El endpoint /ticket/ del host sirve RFB (VNC), no WebMKS: verificado contra
+  // este laboratorio (primeros bytes "RFB 003.008"). El proxy de consola lo
+  // tunelea y el navegador lo consume con noVNC.
   return {
-    protocol: "webmks",
+    protocol: "vnc",
     consoleId: vmId,
     ticket: ticketUrl,
     websocket: { wsUrl: ticketUrl },
