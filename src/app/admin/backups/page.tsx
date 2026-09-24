@@ -74,8 +74,8 @@ const emptyForm: BackupForm = {
   defaultProfile: "operational",
 };
 
-const inputClass = "mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:bg-gray-50 disabled:text-gray-400";
-const labelClass = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500";
+const inputClass = "mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 disabled:bg-gray-50 dark:bg-[#12101a] disabled:text-gray-400 dark:text-gray-500";
+const labelClass = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500";
 
 const parseResponse = async (response: Response) => {
   const text = await response.text();
@@ -270,28 +270,28 @@ export default function AdminBackupsPage() {
     });
   }, [jobs, historySearch, formatDate, t]);
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center text-sm text-gray-500" style={{ background: "var(--bg)" }}>{t("loading")}</div>;
+  if (loading) return <div className="flex min-h-screen items-center justify-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ background: "var(--bg)" }}>{t("loading")}</div>;
   if (!isSuperadmin) return null;
 
   const manualDisabled = !config || !config.enabled || activeJob || starting !== null;
-  const statusClass = (jobStatus: string) => jobStatus === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : jobStatus === "failed" ? "border-red-200 bg-red-50 text-red-700" : jobStatus === "expired" ? "border-gray-200 bg-gray-100 text-gray-500" : "border-violet-200 bg-violet-50 text-violet-700";
+  const statusClass = (jobStatus: string) => jobStatus === "completed" ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : jobStatus === "failed" ? "border-red-200 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300" : jobStatus === "expired" ? "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-[#1b1726] text-gray-500 dark:text-gray-400 dark:text-gray-500" : "border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300";
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <div className="mx-auto max-w-6xl p-4 sm:p-6">
         <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="mb-1 flex items-center gap-1 text-[13px] font-semibold text-gray-800">
-              <button onClick={() => router.push("/")} className="flex items-center gap-1 hover:text-violet-600" title={t("home")}>
+            <div className="mb-1 flex items-center gap-1 text-[13px] font-semibold text-gray-800 dark:text-gray-200">
+              <button onClick={() => router.push("/")} className="flex items-center gap-1 hover:text-violet-600 dark:text-violet-400" title={t("home")}>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M2 7l6-5 6 5v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7z"/><path d="M6 14.5V9h4v5.5"/></svg>
                 VIRTUAL-PORTAL
               </button>
-              <span className="text-gray-400">/</span>
-              <button onClick={() => router.push("/admin/clusters")} className="text-gray-600 hover:text-violet-600">{t("settings")}</button>
-              <span className="text-gray-400">/</span><span>{t("backups")}</span>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
+              <button onClick={() => router.push("/admin/clusters")} className="text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400">{t("settings")}</button>
+              <span className="text-gray-400 dark:text-gray-500">/</span><span>{t("backups")}</span>
             </div>
-            <h1 className="text-lg font-semibold text-gray-900">{t("backupsTitle")}</h1>
-            <p className="text-xs text-gray-500">{t("backupsSubtitle")}</p>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("backupsTitle")}</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("backupsSubtitle")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <NavButton label={t("clusters")} onClick={() => router.push("/admin/clusters")} />
@@ -302,26 +302,26 @@ export default function AdminBackupsPage() {
           </div>
         </header>
 
-        {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-        {success && <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</div>}
+        {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>}
+        {success && <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">{success}</div>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,.75fr)]">
-          <form onSubmit={save} className="overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
+          <form onSubmit={save} className="overflow-hidden rounded-xl border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
             <SectionHeader title={t("backupStorageTitle")} subtitle={t("backupStorageSubtitle")} />
             <div className="space-y-5 p-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <span className={labelClass}>{t("provider")}</span>
-                  <div className="mt-1 flex h-[38px] items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
+                  <div className="mt-1 flex h-[38px] items-center gap-2 rounded-md border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] px-3 text-sm text-gray-700 dark:text-gray-300">
                     <span className="font-semibold">S3</span><span className="text-gray-300">/</span><span>Wasabi</span>
                   </div>
                 </div>
-                <label><span className={labelClass}>{t("backupEndpoint")}</span><input type="url" required pattern="https://.*" value={form.endpoint} onChange={(e) => update("endpoint", e.target.value)} placeholder="https://s3.example.com" className={inputClass} /><span className="mt-1 block text-[10px] text-gray-400">{t("backupHttpsOnly")}</span></label>
+                <label><span className={labelClass}>{t("backupEndpoint")}</span><input type="url" required pattern="https://.*" value={form.endpoint} onChange={(e) => update("endpoint", e.target.value)} placeholder="https://s3.example.com" className={inputClass} /><span className="mt-1 block text-[10px] text-gray-400 dark:text-gray-500">{t("backupHttpsOnly")}</span></label>
                 <label><span className={labelClass}>{t("backupRegion")}</span><input required value={form.region} onChange={(e) => update("region", e.target.value)} placeholder="us-central-1" className={inputClass} /></label>
                 <label><span className={labelClass}>{t("backupBucket")}</span><input required value={form.bucket} onChange={(e) => update("bucket", e.target.value)} placeholder="olvm-portal" className={inputClass} /></label>
                 <label className="sm:col-span-2"><span className={labelClass}>{t("backupPrefix")}</span><input value={form.prefix} onChange={(e) => update("prefix", e.target.value)} placeholder="backups/portal" className={inputClass} /></label>
-                <label><span className={labelClass}>{t("backupAccessKey")}</span><input type="password" required={!config?.hasAccessKey} value={form.accessKey} onChange={(e) => update("accessKey", e.target.value)} placeholder={config?.hasAccessKey ? t("currentKeep", { value: config.accessKeyHint ?? "****" }) : "Access Key"} className={inputClass} />{config?.hasAccessKey && <span className="mt-1 block text-[10px] text-emerald-600">{t("backupCredentialSaved", { hint: config.accessKeyHint ?? "****" })}</span>}</label>
-                <label><span className={labelClass}>{t("backupSecretKey")}</span><input type="password" required={!config?.hasSecretKey} value={form.secretKey} onChange={(e) => update("secretKey", e.target.value)} placeholder={config?.hasSecretKey ? t("currentKeep", { value: config.secretKeyHint ?? "****" }) : "Secret Key"} className={inputClass} />{config?.hasSecretKey && <span className="mt-1 block text-[10px] text-emerald-600">{t("backupCredentialSaved", { hint: config.secretKeyHint ?? "****" })}</span>}</label>
+                <label><span className={labelClass}>{t("backupAccessKey")}</span><input type="password" required={!config?.hasAccessKey} value={form.accessKey} onChange={(e) => update("accessKey", e.target.value)} placeholder={config?.hasAccessKey ? t("currentKeep", { value: config.accessKeyHint ?? "****" }) : "Access Key"} className={inputClass} />{config?.hasAccessKey && <span className="mt-1 block text-[10px] text-emerald-600 dark:text-emerald-400">{t("backupCredentialSaved", { hint: config.accessKeyHint ?? "****" })}</span>}</label>
+                <label><span className={labelClass}>{t("backupSecretKey")}</span><input type="password" required={!config?.hasSecretKey} value={form.secretKey} onChange={(e) => update("secretKey", e.target.value)} placeholder={config?.hasSecretKey ? t("currentKeep", { value: config.secretKeyHint ?? "****" }) : "Secret Key"} className={inputClass} />{config?.hasSecretKey && <span className="mt-1 block text-[10px] text-emerald-600 dark:text-emerald-400">{t("backupCredentialSaved", { hint: config.secretKeyHint ?? "****" })}</span>}</label>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Toggle checked={form.forcePathStyle} onChange={(value) => update("forcePathStyle", value)} title={t("backupPathStyle")} description={t("backupPathStyleHelp")} />
@@ -340,100 +340,100 @@ export default function AdminBackupsPage() {
                 <label><span className={labelClass}>{t("backupRetentionDays")}</span><input type="number" min={1} max={3650} required value={form.retentionDays} onChange={(e) => update("retentionDays", Number(e.target.value))} className={inputClass} /></label>
                 <label><span className={labelClass}>{t("backupRetentionCount")}</span><input type="number" min={1} max={1000} required value={form.retentionCount} onChange={(e) => update("retentionCount", Number(e.target.value))} className={inputClass} /></label>
               </div>
-              <div className="grid gap-2 rounded-lg bg-gray-50 p-3 text-xs sm:grid-cols-2">
-                <div><span className="text-gray-400">{t("backupNextRun")}</span><p className="mt-0.5 font-medium text-gray-700">{formatDate(config?.nextRunAt ?? null)}</p></div>
-                <div><span className="text-gray-400">{t("backupLastScheduled")}</span><p className="mt-0.5 font-medium text-gray-700">{formatDate(config?.lastScheduledAt ?? null)}</p></div>
+              <div className="grid gap-2 rounded-lg bg-gray-50 dark:bg-[#12101a] p-3 text-xs sm:grid-cols-2">
+                <div><span className="text-gray-400 dark:text-gray-500">{t("backupNextRun")}</span><p className="mt-0.5 font-medium text-gray-700 dark:text-gray-300">{formatDate(config?.nextRunAt ?? null)}</p></div>
+                <div><span className="text-gray-400 dark:text-gray-500">{t("backupLastScheduled")}</span><p className="mt-0.5 font-medium text-gray-700 dark:text-gray-300">{formatDate(config?.lastScheduledAt ?? null)}</p></div>
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t bg-gray-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)" }}>
-              <button type="button" onClick={() => setShowDelete(true)} disabled={!config || deleting} className="rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40">{t("backupDeleteConfig")}</button>
+            <div className="flex flex-col-reverse gap-2 border-t bg-gray-50 dark:bg-[#12101a] px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)" }}>
+              <button type="button" onClick={() => setShowDelete(true)} disabled={!config || deleting} className="rounded-md border border-red-200 bg-white dark:bg-[#171326] px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-500/10 disabled:opacity-40">{t("backupDeleteConfig")}</button>
               <div className="flex gap-2">
-                <button type="button" onClick={testConnection} disabled={!config || testing || saving} title={!config ? t("backupTestSaveFirst") : undefined} className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 sm:flex-none">{testing ? t("testing") : t("testConnection")}</button>
+                <button type="button" onClick={testConnection} disabled={!config || testing || saving} title={!config ? t("backupTestSaveFirst") : undefined} className="flex-1 rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-40 sm:flex-none">{testing ? t("testing") : t("testConnection")}</button>
                 <button type="submit" disabled={saving} className="flex-1 rounded-md bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50 sm:flex-none">{saving ? t("saving") : t("saveConfiguration")}</button>
               </div>
             </div>
           </form>
 
           <aside className="space-y-5">
-            <div className="rounded-xl border bg-white p-5" style={{ borderColor: "var(--border)" }}>
-              <h2 className="text-sm font-bold text-gray-900">{t("backupManualTitle")}</h2><p className="mt-1 text-[11px] text-gray-500">{t("backupManualSubtitle")}</p>
+            <div className="rounded-xl border bg-white dark:bg-[#171326] p-5" style={{ borderColor: "var(--border)" }}>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t("backupManualTitle")}</h2><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("backupManualSubtitle")}</p>
               <div className="mt-4 grid gap-2">
                 <button onClick={() => startBackup("operational")} disabled={manualDisabled} className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40">{starting === "operational" ? t("backupStarting") : t("backupRunOperational")}</button>
-                <button onClick={() => startBackup("full")} disabled={manualDisabled} className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40">{starting === "full" ? t("backupStarting") : t("backupRunFull")}</button>
+                <button onClick={() => startBackup("full")} disabled={manualDisabled} className="rounded-lg border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-4 py-2.5 text-sm font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40">{starting === "full" ? t("backupStarting") : t("backupRunFull")}</button>
               </div>
-              {(!config || !config.enabled) && <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-[11px] text-amber-700">{t("backupManualDisabled")}</p>}
-              {activeJob && <p className="mt-3 rounded-md bg-violet-50 px-3 py-2 text-[11px] text-violet-700">{t("backupActiveNotice")}</p>}
+              {(!config || !config.enabled) && <p className="mt-3 rounded-md bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">{t("backupManualDisabled")}</p>}
+              {activeJob && <p className="mt-3 rounded-md bg-violet-50 dark:bg-violet-500/10 px-3 py-2 text-[11px] text-violet-700 dark:text-violet-300">{t("backupActiveNotice")}</p>}
             </div>
 
-            <div className="rounded-xl border border-violet-200 bg-violet-50 p-5 text-xs text-violet-950">
+            <div className="rounded-xl border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 p-5 text-xs text-violet-950">
               <h2 className="font-bold">{t("backupContentsTitle")}</h2>
               <div className="mt-3 space-y-3">
                 <div><p className="font-semibold">{t("backupOperational")}</p><p className="mt-0.5 text-violet-800">{t("backupOperationalContents")}</p></div>
                 <div><p className="font-semibold">{t("backupFull")}</p><p className="mt-0.5 text-violet-800">{t("backupFullContents")}</p></div>
-                <div className="border-t border-violet-200 pt-3"><p className="font-semibold">{t("backupExcludedTitle")}</p><p className="mt-0.5 text-violet-800">{t("backupExcludedContents")}</p></div>
+                <div className="border-t border-violet-200 dark:border-violet-500/30 pt-3"><p className="font-semibold">{t("backupExcludedTitle")}</p><p className="mt-0.5 text-violet-800">{t("backupExcludedContents")}</p></div>
               </div>
             </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900"><p className="font-bold">{t("backupBootstrapTitle")}</p><p className="mt-1">{t("backupBootstrapWarning")}</p></div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 p-4 text-xs text-amber-900"><p className="font-bold">{t("backupBootstrapTitle")}</p><p className="mt-1">{t("backupBootstrapWarning")}</p></div>
           </aside>
         </div>
 
-        <section className="mt-6 overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
+        <section className="mt-6 overflow-hidden rounded-xl border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
           <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)" }}>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{t("backupHistoryTitle")}</h2>
-              <p className="text-[11px] text-gray-400">{activeJob ? t("backupPollingActive") : t("backupPollingIdle")}</p>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t("backupHistoryTitle")}</h2>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">{activeJob ? t("backupPollingActive") : t("backupPollingIdle")}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative">
-                <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
-                <input type="text" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder={t("backupSearchPlaceholder")} className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-7 text-xs text-gray-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 sm:w-72" />
-                {historySearch && <button onClick={() => setHistorySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-400 hover:text-gray-600">✕</button>}
-                <p className="mt-1 text-[10px] text-gray-400">{t("backupSearchHint")}</p>
+                <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-gray-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
+                <input type="text" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder={t("backupSearchPlaceholder")} className="w-full rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] py-1.5 pl-8 pr-7 text-xs text-gray-900 dark:text-gray-100 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 sm:w-72" />
+                {historySearch && <button onClick={() => setHistorySearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">✕</button>}
+                <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">{t("backupSearchHint")}</p>
               </div>
-              <button onClick={loadJobs} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("backupRefresh")}</button>
+              <button onClick={loadJobs} className="rounded-md border border-gray-200 dark:border-white/10 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("backupRefresh")}</button>
             </div>
           </div>
           {!historyLoading && jobs.length > 0 && (
-            <div className="border-b bg-gray-50 px-5 py-2 text-[11px] text-gray-500" style={{ borderColor: "var(--border)" }}>
+            <div className="border-b bg-gray-50 dark:bg-[#12101a] px-5 py-2 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ borderColor: "var(--border)" }}>
               {historySearch.trim() ? t("backupSearchResults", { count: String(filteredJobs.length) }) : t("backupShowingRecent", { shown: String(filteredJobs.length), total: String(jobs.length) })}
             </div>
           )}
-          {historyLoading ? <div className="px-5 py-12 text-center text-sm text-gray-400">{t("backupHistoryLoading")}</div> : filteredJobs.length === 0 ? (
+          {historyLoading ? <div className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">{t("backupHistoryLoading")}</div> : filteredJobs.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <p className="text-sm font-medium text-gray-600">{historySearch.trim() ? t("backupSearchNoResults") : t("backupHistoryEmpty")}</p>
-              {!historySearch.trim() && <p className="mt-1 text-xs text-gray-400">{t("backupHistoryEmptyHelp")}</p>}
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">{historySearch.trim() ? t("backupSearchNoResults") : t("backupHistoryEmpty")}</p>
+              {!historySearch.trim() && <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{t("backupHistoryEmptyHelp")}</p>}
             </div>
           ) : (
             <div className="divide-y" style={{ borderColor: "var(--border)" }}>
               {filteredJobs.map((job) => <article key={job.id} className="p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(job.status)}`}>{t(`backupStatus${job.status[0].toUpperCase()}${job.status.slice(1)}`)}</span><span className="text-sm font-semibold text-gray-900">{job.profile === "full" ? t("backupFull") : t("backupOperational")}</span><span className="text-[11px] text-gray-400">{job.trigger === "scheduled" ? t("backupScheduled") : t("backupManual")}</span></div><p className="mt-1 truncate font-mono text-[10px] text-gray-400" title={job.id}>{job.id}</p></div>
-                  <div className="text-left text-[11px] text-gray-500 sm:text-right"><p>{formatDate(job.createdAt)}</p><p>{t("backupRequestedBy", { requester: job.requestedBy })}</p></div>
+                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(job.status)}`}>{t(`backupStatus${job.status[0].toUpperCase()}${job.status.slice(1)}`)}</span><span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{job.profile === "full" ? t("backupFull") : t("backupOperational")}</span><span className="text-[11px] text-gray-400 dark:text-gray-500">{job.trigger === "scheduled" ? t("backupScheduled") : t("backupManual")}</span></div><p className="mt-1 truncate font-mono text-[10px] text-gray-400 dark:text-gray-500" title={job.id}>{job.id}</p></div>
+                  <div className="text-left text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 sm:text-right"><p>{formatDate(job.createdAt)}</p><p>{t("backupRequestedBy", { requester: job.requestedBy })}</p></div>
                 </div>
-                {(job.status === "queued" || job.status === "running") && <div className="mt-3"><div className="mb-1 flex justify-between text-[10px] font-medium text-gray-500"><span>{t(`backupStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`)}</span><span>{job.progress}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} /></div></div>}
-                <div className="mt-3 grid gap-2 text-[11px] text-gray-500 sm:grid-cols-2 lg:grid-cols-4"><div><span className="block text-[10px] uppercase text-gray-400">{t("backupStarted")}</span>{formatDate(job.startedAt)}</div><div><span className="block text-[10px] uppercase text-gray-400">{t("backupFinished")}</span>{formatDate(job.finishedAt)}</div><div><span className="block text-[10px] uppercase text-gray-400">{t("backupSize")}</span>{formatSize(job.sizeBytes)}</div><div><span className="block text-[10px] uppercase text-gray-400">{t("backupStage")}</span>{t(`backupStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`)}</div></div>
-                {(job.objectKey || job.checksum) && <div className="mt-3 grid gap-2 rounded-md bg-gray-50 p-3 text-[10px] sm:grid-cols-2">{job.objectKey && <div className="min-w-0"><span className="font-semibold text-gray-500">{t("backupObjectKey")}</span><code className="mt-0.5 block break-all text-gray-600">{job.objectKey}</code></div>}{job.checksum && <div className="min-w-0"><span className="font-semibold text-gray-500">SHA-256</span><code className="mt-0.5 block break-all text-gray-600">{job.checksum}</code></div>}</div>}
-                {job.error && <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"><span className="font-semibold">{t("genericError")}:</span> {job.error}</div>}
+                {(job.status === "queued" || job.status === "running") && <div className="mt-3"><div className="mb-1 flex justify-between text-[10px] font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500"><span>{t(`backupStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`)}</span><span>{job.progress}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} /></div></div>}
+                <div className="mt-3 grid gap-2 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 sm:grid-cols-2 lg:grid-cols-4"><div><span className="block text-[10px] uppercase text-gray-400 dark:text-gray-500">{t("backupStarted")}</span>{formatDate(job.startedAt)}</div><div><span className="block text-[10px] uppercase text-gray-400 dark:text-gray-500">{t("backupFinished")}</span>{formatDate(job.finishedAt)}</div><div><span className="block text-[10px] uppercase text-gray-400 dark:text-gray-500">{t("backupSize")}</span>{formatSize(job.sizeBytes)}</div><div><span className="block text-[10px] uppercase text-gray-400 dark:text-gray-500">{t("backupStage")}</span>{t(`backupStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`)}</div></div>
+                {(job.objectKey || job.checksum) && <div className="mt-3 grid gap-2 rounded-md bg-gray-50 dark:bg-[#12101a] p-3 text-[10px] sm:grid-cols-2">{job.objectKey && <div className="min-w-0"><span className="font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("backupObjectKey")}</span><code className="mt-0.5 block break-all text-gray-600 dark:text-gray-400 dark:text-gray-500">{job.objectKey}</code></div>}{job.checksum && <div className="min-w-0"><span className="font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500">SHA-256</span><code className="mt-0.5 block break-all text-gray-600 dark:text-gray-400 dark:text-gray-500">{job.checksum}</code></div>}</div>}
+                {job.error && <div className="mt-3 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300"><span className="font-semibold">{t("genericError")}:</span> {job.error}</div>}
               </article>)}
             </div>
           )}
         </section>
       </div>
 
-      {showDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !deleting && setShowDelete(false)}><div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}><h2 className="text-base font-semibold text-gray-900">{t("backupDeleteTitle")}</h2><p className="mt-2 text-sm text-gray-600">{t("backupDeleteConfirm")}</p><div className="mt-5 flex justify-end gap-2"><button onClick={() => setShowDelete(false)} disabled={deleting} className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600">{t("cancel")}</button><button onClick={deleteConfig} disabled={deleting} className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">{deleting ? t("deleting") : t("backupDeleteConfig")}</button></div></div></div>}
+      {showDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !deleting && setShowDelete(false)}><div className="w-full max-w-md rounded-xl bg-white dark:bg-[#171326] p-5 shadow-xl" onClick={(e) => e.stopPropagation()}><h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t("backupDeleteTitle")}</h2><p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("backupDeleteConfirm")}</p><div className="mt-5 flex justify-end gap-2"><button onClick={() => setShowDelete(false)} disabled={deleting} className="rounded-md border border-gray-200 dark:border-white/10 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("cancel")}</button><button onClick={deleteConfig} disabled={deleting} className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">{deleting ? t("deleting") : t("backupDeleteConfig")}</button></div></div></div>}
     </div>
   );
 }
 
 function NavButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return <button onClick={onClick} className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{label}</button>;
+  return <button onClick={onClick} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{label}</button>;
 }
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
-  return <div className="bg-gray-50 px-5 py-4"><h2 className="text-sm font-bold text-gray-900">{title}</h2><p className="text-[11px] text-gray-500">{subtitle}</p></div>;
+  return <div className="bg-gray-50 dark:bg-[#12101a] px-5 py-4"><h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{title}</h2><p className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{subtitle}</p></div>;
 }
 
 function Toggle({ checked, onChange, title, description }: { checked: boolean; onChange: (value: boolean) => void; title: string; description: string }) {
-  return <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5"><span><span className="block text-xs font-medium text-gray-700">{title}</span><span className="block text-[10px] text-gray-400">{description}</span></span><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-5 w-5 accent-violet-600" /></label>;
+  return <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-white/10 px-3 py-2.5"><span><span className="block text-xs font-medium text-gray-700 dark:text-gray-300">{title}</span><span className="block text-[10px] text-gray-400 dark:text-gray-500">{description}</span></span><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-5 w-5 accent-violet-600" /></label>;
 }

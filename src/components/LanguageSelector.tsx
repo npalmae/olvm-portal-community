@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { type Locale, useLocale } from "@/components/LocaleProvider";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const languages: Array<{ locale: Locale; label: string }> = [
   { locale: "es", label: "Español" },
@@ -39,11 +40,12 @@ export function LanguageSelector() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative flex items-center gap-1.5">
+      <ThemeToggle />
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-7 items-center gap-1.5 rounded border px-2 text-[11px] font-medium transition hover:border-violet-300 hover:bg-violet-50"
+        className="inline-flex h-7 items-center gap-1.5 rounded border px-2 text-[11px] font-medium transition hover:border-violet-300 dark:border-violet-500/40 dark:hover:border-violet-500/40 hover:bg-violet-50 dark:bg-violet-500/10 dark:hover:bg-violet-500/10"
         style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text-secondary)" }}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -72,7 +74,7 @@ export function LanguageSelector() {
                   setOpen(false);
                 }}
                 className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition ${
-                  isActive ? "font-semibold" : "hover:bg-violet-50"
+                  isActive ? "font-semibold" : "hover:bg-violet-50 dark:bg-violet-500/10 dark:hover:bg-violet-500/10"
                 }`}
                 style={
                   isActive

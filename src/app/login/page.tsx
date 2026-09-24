@@ -128,7 +128,7 @@ function LoginPageContent() {
         <div className="mb-2 flex justify-end"><LanguageSelector /></div>
         {/* Logo */}
         <div className="mb-6 text-center">
-          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
+          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white dark:bg-[#171326] p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
             {branding.hasLogo && branding.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -142,14 +142,14 @@ function LoginPageContent() {
               <SixmanagerMark subtitle="Virtual Portal" />
             )}
           </div>
-          <h1 className="text-lg font-bold text-gray-900">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
             {step === "forgot"
               ? t("login.forgotTitle")
               : step === 1
                 ? t("login.title", { brand: branding.brandName })
                 : t("login.twoFactorTitle")}
           </h1>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
             {step === "forgot"
               ? t("login.forgotDescription")
               : step === 1
@@ -158,34 +158,34 @@ function LoginPageContent() {
           </p>
         </div>
 
-        <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
+        <div className="rounded-xl border bg-white dark:bg-[#171326] p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
           {error && (
-            <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <div className="mb-3 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
               {error in authMessages ? t(error) : error}
             </div>
           )}
           {info && (
-            <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
               {info in authMessages ? t(info) : info}
             </div>
           )}
 
           {step === "forgot" ? (
             forgotSent ? (
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-700">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-3 text-xs text-emerald-700 dark:text-emerald-300">
                 {t("login.forgotSuccess")}
               </div>
             ) : (
               <form onSubmit={submitForgot} className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                     {t("common.email")}
                   </label>
                   <input
                     type="email" value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     required autoFocus
-                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                    className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                     placeholder={t("common.emailPlaceholder")}
                   />
                 </div>
@@ -200,19 +200,19 @@ function LoginPageContent() {
           ) : step === 1 ? (
             <form onSubmit={requestChallenge} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                   {t("common.email")}
                 </label>
                 <input
                   type="email" value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder={t("common.emailPlaceholder")}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                   {t("common.password")}
                 </label>
                 <div className="relative">
@@ -220,13 +220,13 @@ function LoginPageContent() {
                     type={showPassword ? "text" : "password"} value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 pr-10 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 pr-10 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
                   tabIndex={-1}
                   aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 >
@@ -248,7 +248,7 @@ function LoginPageContent() {
           ) : (
             <form onSubmit={verifyAndSignIn} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                   {t("login.verificationCode")}
                 </label>
                 <input
@@ -256,7 +256,7 @@ function LoginPageContent() {
                   maxLength={6} value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   required autoFocus
-                  className="w-full rounded-md border border-gray-200 px-3 py-2.5 text-center text-lg tracking-[0.5em] text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2.5 text-center text-lg tracking-[0.5em] text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="000000"
                 />
               </div>
@@ -268,13 +268,13 @@ function LoginPageContent() {
               </button>
               <button
                 type="button" onClick={requestChallenge} disabled={loading}
-                className="w-full text-center text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 disabled:opacity-50"
               >
                 {t("login.resendCode")}
               </button>
               <button
                 type="button" onClick={backToCredentials}
-                className="w-full text-center text-xs text-gray-400 hover:text-gray-600"
+                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
               >
                 {t("login.back")}
               </button>
@@ -283,24 +283,24 @@ function LoginPageContent() {
         </div>
 
         {(step === 1 || step === "forgot") && (
-          <div className="mt-3 text-center text-xs text-gray-500 space-y-1">
+          <div className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 space-y-1">
             {step === 1 && (
               <>
                 <p>
                   {t("login.noAccount")}{" "}
-                  <Link href="/register" className="font-semibold text-violet-600 hover:text-violet-700">
+                  <Link href="/register" className="font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:text-violet-300">
                     {t("login.createUser")}
                   </Link>
                 </p>
                 <p>
-                  <button onClick={() => { setStep("forgot"); setForgotSent(false); setError(null); setForgotEmail(email); }} className="text-gray-400 hover:text-violet-600">
+                  <button onClick={() => { setStep("forgot"); setForgotSent(false); setError(null); setForgotEmail(email); }} className="text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400">
                     {t("login.forgotPassword")}
                   </button>
                 </p>
               </>
             )}
             {step === "forgot" && (
-              <button onClick={() => setStep(1)} className="text-gray-400 hover:text-violet-600">
+              <button onClick={() => setStep(1)} className="text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400">
                 {t("common.backToLogin")}
               </button>
             )}

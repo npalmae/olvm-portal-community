@@ -104,7 +104,7 @@ export default function EmailConfigPage() {
     }
   }, [testEmail, locale]);
 
-  if (loading) return <div className="p-8 text-sm text-gray-500">{t("loading")}</div>;
+  if (loading) return <div className="p-8 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("loading")}</div>;
   if (!isSuperadmin) return null;
 
   return (
@@ -112,10 +112,10 @@ export default function EmailConfigPage() {
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-          <div className="mb-2 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+          <div className="mb-2 flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200" style={{ fontSize: "13px" }}>
             <button
               onClick={() => router.push("/")}
-              className="flex shrink-0 items-center gap-1 hover:text-violet-600"
+              className="flex shrink-0 items-center gap-1 hover:text-violet-600 dark:text-violet-400"
               title={t("home")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -124,23 +124,23 @@ export default function EmailConfigPage() {
               </svg>
               VIRTUAL-PORTAL
             </button>
-            <span className="shrink-0 text-gray-400">/</span>
+            <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
             <button
               onClick={() => router.push("/admin/clusters")}
-              className="shrink-0 text-gray-600 hover:text-violet-600"
+              className="shrink-0 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400"
             >
               {t("settings")}
             </button>
-            <span className="shrink-0 text-gray-400">/</span>
-            <span className="truncate text-gray-700">{t("email")}</span>
+            <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
+            <span className="truncate text-gray-700 dark:text-gray-300">{t("email")}</span>
           </div>
-          <h1 className="mt-3 text-lg font-bold text-gray-900">{t("emailTitle")}</h1>
-          <p className="text-xs text-gray-500">{t("emailSubtitle")}</p>
+          <h1 className="mt-3 text-lg font-bold text-gray-900 dark:text-gray-100">{t("emailTitle")}</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("emailSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("backups")}
             </button>
@@ -149,27 +149,27 @@ export default function EmailConfigPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>
         )}
         {success && (
-          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</div>
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">{success}</div>
         )}
 
-        <div className="space-y-4 rounded-lg border bg-white p-6" style={{ borderColor: "var(--border)" }}>
+        <div className="space-y-4 rounded-lg border bg-white dark:bg-[#171326] p-6" style={{ borderColor: "var(--border)" }}>
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("provider")}</label>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("provider")}</label>
             <div className="flex items-center gap-2">
-              <span className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">Resend</span>
+              <span className="rounded-md border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] px-3 py-2 text-sm text-gray-700 dark:text-gray-300">Resend</span>
               {config?.hasApiKey ? (
-                <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700">API Key: {config.apiKeyHint}</span>
+                <span className="rounded-md bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">API Key: {config.apiKeyHint}</span>
               ) : (
-                <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700">{t("noApiKey")}</span>
+                <span className="rounded-md bg-amber-50 dark:bg-amber-500/10 px-2 py-1 text-[10px] font-medium text-amber-700 dark:text-amber-300">{t("noApiKey")}</span>
               )}
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">
               API Key de Resend
             </label>
             <input
@@ -177,13 +177,13 @@ export default function EmailConfigPage() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
                placeholder={config?.hasApiKey ? t("currentKeep", { value: config.apiKeyHint }) : "re_xxxxxxxxxxxx"}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+              className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
             />
-            <p className="mt-1 text-[10px] text-gray-400">{t("getApiKey")} <a href="https://resend.com/api-keys" target="_blank" rel="noopener" className="text-violet-500 hover:underline">resend.com/api-keys</a></p>
+            <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">{t("getApiKey")} <a href="https://resend.com/api-keys" target="_blank" rel="noopener" className="text-violet-500 hover:underline">resend.com/api-keys</a></p>
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">
               {t("senderEmail")}
             </label>
             <input
@@ -191,15 +191,15 @@ export default function EmailConfigPage() {
               value={fromAddress}
               onChange={(e) => setFromAddress(e.target.value)}
               placeholder="noreply@tudominio.com"
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+              className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
             />
-            <p className="mt-1 text-[10px] text-gray-400">{t("verifiedDomain")}</p>
+            <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">{t("verifiedDomain")}</p>
           </div>
 
           <label className="flex items-center justify-between rounded-md border px-3 py-2.5" style={{ borderColor: "var(--border)" }}>
             <div>
-              <span className="text-sm font-medium text-gray-700">{t("emailEnabled")}</span>
-              <p className="text-[10px] text-gray-400">{t("emailDisabledHelp")}</p>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("emailEnabled")}</span>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">{t("emailDisabledHelp")}</p>
             </div>
             <input
               type="checkbox"
@@ -218,20 +218,20 @@ export default function EmailConfigPage() {
           </button>
         </div>
 
-        <div className="mt-6 rounded-lg border bg-white p-6" style={{ borderColor: "var(--border)" }}>
-          <h2 className="mb-3 text-sm font-bold text-gray-900">{t("sendTestEmail")}</h2>
+        <div className="mt-6 rounded-lg border bg-white dark:bg-[#171326] p-6" style={{ borderColor: "var(--border)" }}>
+          <h2 className="mb-3 text-sm font-bold text-gray-900 dark:text-gray-100">{t("sendTestEmail")}</h2>
           <div className="flex gap-2">
             <input
               type="email"
               value={testEmail}
               onChange={(e) => setTestEmail(e.target.value)}
               placeholder="destino@ejemplo.com"
-              className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+              className="flex-1 rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
             />
             <button
               onClick={sendTest}
               disabled={testing}
-              className="rounded-md border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-60"
+              className="rounded-md border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-100 disabled:opacity-60"
             >
               {testing ? t("sending") : t("test")}
             </button>

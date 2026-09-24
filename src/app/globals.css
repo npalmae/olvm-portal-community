@@ -53,3 +53,39 @@ a { color: inherit; text-decoration: none; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 4px; }
+
+/* ── Perfil oscuro ─────────────────────────────────────────────────────── */
+@custom-variant dark (&:where([data-theme="dark"] *, [data-theme="dark"]));
+
+html[data-theme="dark"] {
+  --bg:          #0d0b14;
+  --surface:     #171326;
+  --surface-2:   #1b1726;
+  --border:      #2a2438;
+  --border-dark: #3a3352;
+
+  --text-primary:   #ede9fe;
+  --text-secondary: #a5a0b8;
+  --text-muted:     #6f6a85;
+
+  --accent:       #8b5cf6;
+  --accent-2:     #d946ef;
+  --accent-light: #2a2140;
+  --accent-hover: #a78bfa;
+
+  --success:       #34d399;
+  --success-light: #0d2b22;
+  --warning:       #fbbf24;
+  --warning-light: #2d2410;
+  --danger:        #f87171;
+  --danger-light:  #2d1414;
+
+  --sidebar-bg:      #120e1e;
+  --sidebar-hover:   rgba(167,139,250,0.08);
+  --sidebar-active:  rgba(139,92,246,0.30);
+  --sidebar-border:  rgba(167,139,250,0.12);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3a3352; }
+
+html[data-theme="dark"] img.drop-shadow-\[0_18px_35px_rgba\(0\,0\,0\,0\.35\)\] { filter: none; }

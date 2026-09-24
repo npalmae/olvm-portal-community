@@ -106,14 +106,14 @@ const StatusDot = ({ status }: { status: string }) => {
 const StatusBadge = ({ status }: { status: string }) => {
   const s = status?.toLowerCase() ?? "";
   if (s === "up")
-    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />up
     </span>;
   if (s === "down" || s === "stopped")
-    return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+    return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-500/10 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{s}
     </span>;
-  return <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+  return <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 dark:bg-sky-500/10 border border-sky-200 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
     <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />{status}
   </span>;
 };
@@ -123,13 +123,13 @@ const MiniBar = ({ value, color = "bg-violet-500" }: { value?: number; color?: s
   const missing = value === undefined || Number.isNaN(value);
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+      <div className="h-1.5 flex-1 rounded-full bg-gray-100 dark:bg-[#1b1726] overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${color} ${missing ? "opacity-30" : ""}`}
           style={{ width: missing ? "8%" : `${Math.max(3, pct)}%` }}
         />
       </div>
-      <span className="w-8 text-right text-[11px] text-gray-500 tabular-nums">
+      <span className="w-8 text-right text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 tabular-nums">
         {missing ? "—" : `${pct.toFixed(0)}%`}
       </span>
     </div>
@@ -163,15 +163,15 @@ const StatCard = ({
   label, value, sub, accent = false, warning = false,
 }: { label: string; value: string | number; sub?: string; accent?: boolean; warning?: boolean }) => (
   <div className={`rounded-lg border p-3 ${
-    accent ? "border-violet-200 bg-violet-50" :
-    warning ? "border-amber-200 bg-amber-50" :
-    "border-[--border] bg-white"
+    accent ? "border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10" :
+    warning ? "border-amber-200 bg-amber-50 dark:bg-amber-500/10" :
+    "border-[--border] bg-white dark:bg-[#171326]"
   }`}>
-    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{label}</p>
     <p className={`mt-1 text-2xl font-bold tabular-nums ${
-      accent ? "text-violet-700" : warning ? "text-amber-700" : "text-gray-900"
+      accent ? "text-violet-700 dark:text-violet-300" : warning ? "text-amber-700 dark:text-amber-300" : "text-gray-900 dark:text-gray-100"
     }`}>{value}</p>
-    {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}
+    {sub && <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{sub}</p>}
   </div>
 );
 
@@ -186,10 +186,10 @@ const ActionButton = ({
   const base = "rounded-md border px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 hover:-translate-y-px";
   const cls =
     variant === "primary"
-      ? `${base} border-violet-300 bg-violet-600 text-white hover:bg-violet-700`
+      ? `${base} border-violet-300 dark:border-violet-500/40 bg-violet-600 text-white hover:bg-violet-700`
       : variant === "danger"
-      ? `${base} border-red-300 bg-red-50 text-red-700 hover:bg-red-100`
-      : `${base} border-[--border] bg-white text-gray-700 hover:bg-gray-50`;
+      ? `${base} border-red-300 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 hover:bg-red-100`
+      : `${base} border-[--border] bg-white dark:bg-[#171326] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5`;
   return (
     <button onClick={onClick} disabled={loading || disabled} title={title} className={cls}>
       {loading ? <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : label}
@@ -201,12 +201,12 @@ const Field = ({
   label, children,
 }: { label: string; children: React.ReactNode }) => (
   <label className="block">
-    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{label}</span>
     <div className="mt-1">{children}</div>
   </label>
 );
 
-const inputCls = "w-full rounded-md border border-[--border] bg-white px-2.5 py-1.5 text-xs text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400";
+const inputCls = "w-full rounded-md border border-[--border] bg-white dark:bg-[#171326] px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400";
 
 /* ════════════════════════════════════════════════════════════════════════
    Main component
@@ -1504,7 +1504,7 @@ export default function Home() {
             return (
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="mx-auto flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white/10"
+                className="mx-auto flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white dark:bg-[#171326]/10"
                 title={`${brand} — ${t("expand")}`}
               >
                 {logo ? (
@@ -1560,7 +1560,7 @@ export default function Home() {
           <div className="border-b py-2" style={{ borderColor: "var(--sidebar-border)" }}>
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="mx-auto flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1.5 transition-colors hover:bg-white/5"
+              className="mx-auto flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1.5 transition-colors hover:bg-white dark:bg-[#171326]/5"
               style={{ color: "var(--sidebar-text)" }}
               title={`${t("activeTenant")}: ${tenants.find((x) => x.id === selectedTenant)?.name ?? tenants[0]?.name ?? ""}`}
             >
@@ -1700,7 +1700,7 @@ export default function Home() {
           <div className="border-t py-2 flex flex-col items-center gap-2" style={{ borderColor: "var(--sidebar-border)" }}>
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white/10"
+              className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-white dark:bg-[#171326]/10"
               style={{ color: "var(--sidebar-muted)" }}
               title={t("expand")}
             >
@@ -1742,12 +1742,12 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 flex-col">
 
         {/* Top bar */}
-        <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-white px-3"
+        <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-white dark:bg-[#171326] px-3"
           style={{ borderColor: "var(--border)" }}>
           {/* Mobile menu toggle */}
           <button
             onClick={() => setSidebarCollapsed((p) => !p)}
-            className="flex sm:hidden items-center justify-center rounded p-1.5 text-gray-500 hover:bg-gray-100"
+            className="flex sm:hidden items-center justify-center rounded p-1.5 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-white dark:bg-[#171326]/10"
             title={t("menu")}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1756,10 +1756,10 @@ export default function Home() {
           </button>
 
           {/* Breadcrumb — truncates gracefully */}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 overflow-hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 overflow-hidden">
             <button
               onClick={() => { setSelectedVmId(""); setSelectedTenant(isSuperadmin ? ALL_TENANTS : tenants[0]?.id ?? ""); }}
-              className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 hover:text-violet-600"
+              className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 hover:text-violet-600 dark:text-violet-400"
               title={t("home")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -1769,11 +1769,11 @@ export default function Home() {
               VIRTUAL-PORTAL
             </button>
             {tenantName && <><span className="shrink-0">/</span><span className="truncate">{tenantName}</span></>}
-            {selectedVm && <><span className="shrink-0">/</span><span className="truncate text-gray-700">{selectedVm.name}</span></>}
+            {selectedVm && <><span className="shrink-0">/</span><span className="truncate text-gray-700 dark:text-gray-300">{selectedVm.name}</span></>}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500">
+            <span className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               <span className="max-w-[140px] truncate">{session?.user?.email ?? t("unknownUser")}</span>
             </span>
@@ -1781,7 +1781,7 @@ export default function Home() {
             {/* Mobile: right panel toggle */}
             <button
               onClick={() => setRightPanelOpen((p) => !p)}
-              className="flex lg:hidden items-center justify-center rounded border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+              className="flex lg:hidden items-center justify-center rounded border border-gray-200 dark:border-white/10 p-1.5 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
               title={t("actionsPanel")}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1792,7 +1792,7 @@ export default function Home() {
             {canAdmin && (
               <Link
                 href="/admin/users"
-                className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                className="hidden sm:inline-flex items-center rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                 title={t("userAdmin")}
               >
                 {t("users")}
@@ -1801,7 +1801,7 @@ export default function Home() {
             {session?.user?.role === "superadmin" && (
               <Link
                 href="/admin/clusters"
-                className="hidden sm:inline-flex items-center rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                className="hidden sm:inline-flex items-center rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                 title={t("olvmConnectionsAdmin")}
               >
                 {t("settings")}
@@ -1810,7 +1810,7 @@ export default function Home() {
             <button
               onClick={handleSignOut}
               disabled={signingOut}
-              className="rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+              className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50"
             >
               {signingOut ? "..." : t("signOut")}
             </button>
@@ -1825,7 +1825,7 @@ export default function Home() {
 
             {/* Toasts */}
             {uploadProgress !== null && (
-              <div className="mb-3 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700">
+              <div className="mb-3 rounded-md border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-3 py-2 text-xs text-violet-700 dark:text-violet-300">
                 <div className="mb-1 flex items-center justify-between">
                   <span>{uploadProgress < 100 ? t("uploadingFile", { name: uploadFileName, progress: uploadProgress }) : t("processingFile", { name: uploadFileName })}</span>
                 </div>
@@ -1835,11 +1835,11 @@ export default function Home() {
               </div>
             )}
             {cloneJobs.map((job) => (
-              <div key={job.id} className={`mb-3 rounded-md border px-3 py-2 text-xs ${job.status === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : job.status === "failed" ? "border-red-200 bg-red-50 text-red-700" : "border-violet-200 bg-violet-50 text-violet-700"}`}>
+              <div key={job.id} className={`mb-3 rounded-md border px-3 py-2 text-xs ${job.status === "completed" ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : job.status === "failed" ? "border-red-200 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300" : "border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300"}`}>
                 <div className="mb-1 flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2">
                      <span>{t("operationProgress", { action: t(`operationAction${job.action[0].toUpperCase()}${job.action.slice(1)}`), name: job.targetVmName || job.targetVmId || "", stage: t(`operationStage${job.stage[0].toUpperCase()}${job.stage.slice(1)}`) })}</span>
-                    <span className="shrink-0 rounded border border-violet-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-600">
+                    <span className="shrink-0 rounded border border-violet-200 dark:border-violet-500/30 bg-white dark:bg-[#171326] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
                         {t(job.origin === "api" ? "operationOriginApi" : "operationOriginPortal", { email: job.requesterLabel || job.requestedBy.split("@", 1)[0] })}
                     </span>
                   </span>
@@ -1851,25 +1851,25 @@ export default function Home() {
               </div>
             ))}
             {error && (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <div className="mb-3 flex items-center justify-between rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                 <span>{error}</span>
-                <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-600" title={t("close")}>✕</button>
+                <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-600 dark:text-red-400" title={t("close")}>✕</button>
               </div>
             )}
             {success && (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              <div className="mb-3 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
                 <span>{success}</span>
-                <button onClick={() => setSuccess(null)} className="ml-3 text-emerald-400 hover:text-emerald-600" title={t("close")}>✕</button>
+                <button onClick={() => setSuccess(null)} className="ml-3 text-emerald-400 hover:text-emerald-600 dark:text-emerald-400" title={t("close")}>✕</button>
               </div>
             )}
 
             {/* Page title row */}
             <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <h1 className="truncate text-sm font-bold text-gray-900">
+                <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
                   {selectedVm ? selectedVm.name : t("tenantDashboard")}
                 </h1>
-                <p className="truncate text-[11px] text-gray-500">
+                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   {selectedVm
                     ? `${selectedVm.tenantName ?? tenantName} / ${selectedVm.cluster || t("noCluster")} / ${selectedVm.host || t("unknownHost")}`
                     : t("consolidatedSummary", { tenant: tenantName || t("activeTenantFallback") })}
@@ -1881,7 +1881,7 @@ export default function Home() {
                     <StatusBadge status={selectedVm.status} />
                     <button
                       onClick={() => setSelectedVmId("")}
-                      className="rounded border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+                      className="rounded border border-gray-200 dark:border-white/10 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                     >
                       {t("back")}
                     </button>
@@ -1889,7 +1889,7 @@ export default function Home() {
                 )}
                 <button
                   onClick={refresh}
-                  className="rounded border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-50"
+                  className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                 >
                   {loading ? "..." : "↻"}
                 </button>
@@ -1910,44 +1910,44 @@ export default function Home() {
                 {/* Donut metrics row */}
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-3">
                 {/* CPU */}
-                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">{t("totalCpu")}</p>
+                  <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">{t("totalCpu")}</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.cpuPct} color="#3b82f6" />
                       <div>
-                        <p className="text-lg font-bold text-gray-900">
+                        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                           {formatNumber(tenantResourceSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU
                         </p>
-                        <p className="text-[11px] text-gray-400">
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500">
                           {t("estimatedUsage", { value: `${formatNumber(tenantResourceSummary.estCpu)} vCPU` })}
                         </p>
                       </div>
                     </div>
                   </div>
                   {/* RAM */}
-                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">{t("totalRam")}</p>
+                  <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">{t("totalRam")}</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.memPct} color="#10b981" />
                       <div>
-                        <p className="text-lg font-bold text-gray-900">{toGB(tenantResourceSummary.provisionedMem)}</p>
-                        <p className="text-[11px] text-gray-400">{t("estimatedUsage", { value: toGB(tenantResourceSummary.estMem) })}</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{toGB(tenantResourceSummary.provisionedMem)}</p>
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("estimatedUsage", { value: toGB(tenantResourceSummary.estMem) })}</p>
                       </div>
                     </div>
                   </div>
                   {/* Traffic */}
-                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">{t("activeTraffic")}</p>
+                  <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">{t("activeTraffic")}</p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500">{t("diskRw")}</span>
-                        <span className="text-sm font-semibold text-gray-900">{formatBytes(tenantResourceSummary.disk)}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("diskRw")}</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{formatBytes(tenantResourceSummary.disk)}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500">{t("network")}</span>
-                        <span className="text-sm font-semibold text-gray-900">{formatBytes(tenantResourceSummary.net)}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("network")}</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{formatBytes(tenantResourceSummary.net)}</span>
                       </div>
-                      <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-[#1b1726]">
                         <div className="h-full w-full rounded-full" style={{ background: "linear-gradient(90deg,#10b981,#3b82f6,#f59e0b)", opacity: totals.total === 0 ? 0.3 : 1 }} />
                       </div>
                     </div>
@@ -1958,11 +1958,11 @@ export default function Home() {
                 {selectedTenant !== ALL_TENANTS && storageDomains.length > 0 && (
                   <div className="mb-4">
                     <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Storage Domains</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">Storage Domains</p>
                       {isSuperadmin && (
                         <button
                           onClick={() => setShowAllSds((v) => !v)}
-                          className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-50"
+                          className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                         >
                           {showAllSds ? t("assignedOnly") : t("viewAll")}
                         </button>
@@ -1972,21 +1972,21 @@ export default function Home() {
                       {storageDomains.map((sd) => {
                         const usedPct = sd.totalGB > 0 ? (sd.usedGB / sd.totalGB) * 100 : 0;
                         return (
-                          <div key={sd.id} className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
+                          <div key={sd.id} className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
                             <div className="mb-2 flex items-center justify-between">
-                              <span className="text-sm font-bold text-gray-900">{sd.name}</span>
-                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${sd.status === "active" || !sd.status ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{sd.name}</span>
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${sd.status === "active" || !sd.status ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>
                                 {sd.type.toUpperCase()}
                               </span>
                             </div>
                             <div className="mb-1.5 flex items-baseline gap-2">
-                              <span className="text-lg font-bold text-gray-900">{formatNumber(sd.availableGB, { maximumFractionDigits: 0 })} GB</span>
-                              <span className="text-[11px] text-gray-400">{t("freeOf", { total: formatNumber(sd.totalGB, { maximumFractionDigits: 0 }) })}</span>
+                              <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatNumber(sd.availableGB, { maximumFractionDigits: 0 })} GB</span>
+                              <span className="text-[11px] text-gray-400 dark:text-gray-500">{t("freeOf", { total: formatNumber(sd.totalGB, { maximumFractionDigits: 0 }) })}</span>
                             </div>
-                            <div className="mb-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                            <div className="mb-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
                               <div className={`h-full rounded-full ${usedPct > 80 ? "bg-red-500" : "bg-violet-500"}`} style={{ width: `${Math.min(100, usedPct)}%` }} />
                             </div>
-                            <p className="text-[10px] text-gray-400">{t("inUse", { used: formatNumber(sd.usedGB, { maximumFractionDigits: 0 }), percent: formatNumber(usedPct, { maximumFractionDigits: 0 }) })}</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500">{t("inUse", { used: formatNumber(sd.usedGB, { maximumFractionDigits: 0 }), percent: formatNumber(usedPct, { maximumFractionDigits: 0 }) })}</p>
                           </div>
                         );
                       })}
@@ -1997,7 +1997,7 @@ export default function Home() {
                 {/* Per-tenant summary (only in "Todos los tenants" mode) */}
                 {selectedTenant === ALL_TENANTS && perTenantSummary.length > 1 && (
                   <div className="mb-4">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("tenantSummary")}</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("tenantSummary")}</p>
                     <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {perTenantSummary.map((tenantSummary) => {
                         const cpuPct = tenantSummary.provisionedCpu > 0 ? (tenantSummary.estCpu / tenantSummary.provisionedCpu) * 100 : 0;
@@ -2006,11 +2006,11 @@ export default function Home() {
                           <button
                             key={tenantSummary.id}
                             onClick={() => setSelectedTenant(tenantSummary.id)}
-                            className="rounded-lg border bg-white p-3 text-left transition hover:border-violet-300 hover:shadow-sm"
+                            className="rounded-lg border bg-white dark:bg-[#171326] p-3 text-left transition hover:border-violet-300 dark:border-violet-500/40 dark:hover:border-violet-500/40 hover:shadow-sm"
                             style={{ borderColor: "var(--border)" }}
                           >
                             <div className="mb-2 flex items-center justify-between">
-                              <span className="truncate text-sm font-bold text-gray-900">{tenantSummary.name}</span>
+                              <span className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{tenantSummary.name}</span>
                               <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
                                 style={{ background: tenantSummary.down > 0 ? "#fef3c7" : "#d1fae5", color: tenantSummary.down > 0 ? "#92400e" : "#065f46" }}>
                                 {tenantSummary.up}/{tenantSummary.total} UP
@@ -2019,19 +2019,19 @@ export default function Home() {
                             <div className="space-y-1.5 text-[11px]">
                               <div>
                                 <div className="mb-0.5 flex justify-between">
-                                  <span className="text-gray-400">CPU</span>
-                                  <span className="text-gray-700">{formatNumber(tenantSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU · {formatNumber(cpuPct)}%</span>
+                                  <span className="text-gray-400 dark:text-gray-500">CPU</span>
+                                  <span className="text-gray-700 dark:text-gray-300">{formatNumber(tenantSummary.provisionedCpu, { maximumFractionDigits: 0 })} vCPU · {formatNumber(cpuPct)}%</span>
                                 </div>
-                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
                                   <div className="h-full rounded-full bg-violet-500" style={{ width: `${Math.min(100, cpuPct)}%` }} />
                                 </div>
                               </div>
                               <div>
                                 <div className="mb-0.5 flex justify-between">
-                                  <span className="text-gray-400">RAM</span>
-                                  <span className="text-gray-700">{toGB(tenantSummary.provisionedMem)} · {formatNumber(memPct)}%</span>
+                                  <span className="text-gray-400 dark:text-gray-500">RAM</span>
+                                  <span className="text-gray-700 dark:text-gray-300">{toGB(tenantSummary.provisionedMem)} · {formatNumber(memPct)}%</span>
                                 </div>
-                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
                                   <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, memPct)}%` }} />
                                 </div>
                               </div>
@@ -2040,7 +2040,7 @@ export default function Home() {
                                   const td = tenantDiskMap[tenantSummary.id];
                                   if (!td) return (
                                     <div className="mb-0.5 flex justify-between">
-                                      <span className="text-gray-400">{t("disk")}</span>
+                                      <span className="text-gray-400 dark:text-gray-500">{t("disk")}</span>
                                       <span className="text-gray-300">{t("loadingEllipsis")}</span>
                                     </div>
                                   );
@@ -2048,10 +2048,10 @@ export default function Home() {
                                   return (
                                     <>
                                       <div className="mb-0.5 flex justify-between">
-                                        <span className="text-gray-400">{t("disk")}</span>
-                                        <span className="text-gray-700">{formatNumber(td.totalSizeGB, { maximumFractionDigits: 0 })} GB · {formatNumber(diskPct)}%</span>
+                                        <span className="text-gray-400 dark:text-gray-500">{t("disk")}</span>
+                                        <span className="text-gray-700 dark:text-gray-300">{formatNumber(td.totalSizeGB, { maximumFractionDigits: 0 })} GB · {formatNumber(diskPct)}%</span>
                                       </div>
-                                      <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                      <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
                                         <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, diskPct)}%` }} />
                                       </div>
                                     </>
@@ -2069,17 +2069,17 @@ export default function Home() {
                 {/* Top VMs */}
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
                   {/* RAM por VM */}
-                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("topRam")}</p>
+                  <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("topRam")}</p>
                     {topMemVms.length === 0
-                      ? <p className="text-[11px] text-gray-400">{t("noData")}</p>
+                      ? <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noData")}</p>
                       : topMemVms.map((vm) => {
                         const pct = tenantResourceSummary.provisionedMem > 0 ? (vm.value / tenantResourceSummary.provisionedMem) * 100 : 0;
                         return (
                           <div key={vm.id} className="mb-1.5">
                             <div className="mb-0.5 flex items-center justify-between">
-                              <span className="truncate text-[11px] text-gray-700">{vm.name}</span>
-                              <span className="ml-2 shrink-0 text-[11px] text-gray-400">{vm.label}</span>
+                              <span className="truncate text-[11px] text-gray-700 dark:text-gray-300">{vm.name}</span>
+                              <span className="ml-2 shrink-0 text-[11px] text-gray-400 dark:text-gray-500">{vm.label}</span>
                             </div>
                             <MiniBar value={pct} color="bg-emerald-500" />
                           </div>
@@ -2087,15 +2087,15 @@ export default function Home() {
                       })}
                   </div>
                   {/* CPU por VM */}
-                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{t("topCpu")}</p>
+                  <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("topCpu")}</p>
                     {topCpuVms.length === 0
-                      ? <p className="text-[11px] text-gray-400">{t("noData")}</p>
+                      ? <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noData")}</p>
                       : topCpuVms.map((vm) => (
                         <div key={vm.id} className="mb-1.5">
                           <div className="mb-0.5 flex items-center justify-between">
-                            <span className="truncate text-[11px] text-gray-700">{vm.name}</span>
-                            <span className="ml-2 shrink-0 text-[11px] text-gray-400">{vm.label}</span>
+                            <span className="truncate text-[11px] text-gray-700 dark:text-gray-300">{vm.name}</span>
+                            <span className="ml-2 shrink-0 text-[11px] text-gray-400 dark:text-gray-500">{vm.label}</span>
                           </div>
                           <MiniBar value={vm.value} color="bg-violet-500" />
                         </div>
@@ -2104,9 +2104,9 @@ export default function Home() {
                 </div>
 
                 {/* VM table */}
-                <div className="rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+                <div className="rounded-lg border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">
                       {t("virtualMachines", { count: vms.length })}
                     </p>
                   </div>
@@ -2114,18 +2114,18 @@ export default function Home() {
                     <table className="w-full min-w-[400px] text-xs">
                       <thead>
                         <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
-                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("status")}</th>
-                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("name")}</th>
-                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Cluster</th>
-                          <th className="hidden lg:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Host</th>
-                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28">CPU</th>
-                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-28">RAM</th>
-                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">vCPU</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("status")}</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("name")}</th>
+                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Cluster</th>
+                          <th className="hidden lg:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Host</th>
+                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 w-28">CPU</th>
+                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 w-28">RAM</th>
+                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">vCPU</th>
                         </tr>
                       </thead>
                       <tbody>
                         {vms.length === 0 && (
-                          <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">
+                          <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400 dark:text-gray-500">
                             {loading ? t("loadingVms") : t("noTenantVms")}
                           </td></tr>
                         )}
@@ -2133,20 +2133,20 @@ export default function Home() {
                           <tr
                             key={vm.id}
                             onClick={() => setSelectedVmId(vm.id)}
-                            className="cursor-pointer border-b transition-colors hover:bg-gray-50"
+                            className="cursor-pointer border-b transition-colors hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                             style={{ borderColor: "var(--border)" }}
                           >
                             <td className="px-3 py-2"><StatusBadge status={vm.status} /></td>
-                            <td className="px-3 py-2 font-medium text-gray-900 max-w-[120px] truncate">{vm.name}</td>
-                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 max-w-[100px] truncate">{vm.cluster || "—"}</td>
-                            <td className="hidden lg:table-cell px-3 py-2 text-gray-500 max-w-[100px] truncate">{vm.host || "—"}</td>
+                            <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100 max-w-[120px] truncate">{vm.name}</td>
+                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 dark:text-gray-500 max-w-[100px] truncate">{vm.cluster || "—"}</td>
+                            <td className="hidden lg:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 dark:text-gray-500 max-w-[100px] truncate">{vm.host || "—"}</td>
                             <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.cpuPercent} color="bg-violet-400" />
                             </td>
                             <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.memoryPercent} color="bg-emerald-400" />
                             </td>
-                            <td className="hidden md:table-cell px-3 py-2 text-gray-500">{vm.cpuCores ?? "—"}</td>
+                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 dark:text-gray-500">{vm.cpuCores ?? "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2156,15 +2156,15 @@ export default function Home() {
 
                 {/* Action history */}
                 {actionHistory.length > 0 && (
-                  <div className="mt-3 rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("recentActions")}</p>
+                  <div className="mt-3 rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("recentActions")}</p>
                     <div className="space-y-1">
                       {actionHistory.map((entry) => (
                         <div key={`${entry.vmId}-${entry.timestamp}`}
                           className="flex items-center justify-between gap-3 text-[11px]">
-                          <span className="text-gray-600">{actionLabel(entry.action)} · <span className="text-gray-400">{entry.vmId}</span></span>
-                          <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString(locale)}</span>
-                          <span className={entry.status === "ok" ? "text-emerald-600" : entry.status === "pending" ? "text-amber-500" : "text-red-500"}>
+                          <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500">{actionLabel(entry.action)} · <span className="text-gray-400 dark:text-gray-500">{entry.vmId}</span></span>
+                          <span className="text-gray-400 dark:text-gray-500">{new Date(entry.timestamp).toLocaleTimeString(locale)}</span>
+                          <span className={entry.status === "ok" ? "text-emerald-600 dark:text-emerald-400" : entry.status === "pending" ? "text-amber-500" : "text-red-500"}>
                             {entry.status === "pending" ? t("actionPending") : entry.status === "ok" ? t("actionOk") : t("actionError")}
                           </span>
                         </div>
@@ -2179,8 +2179,8 @@ export default function Home() {
             {selectedVm && (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {/* Identity */}
-                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("identity")}</p>
+                <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("identity")}</p>
                   <dl className="space-y-1 text-xs">
                     {[
                       [t("operatingSystem"), selectedVm.os ?? t("notAvailable")],
@@ -2189,17 +2189,17 @@ export default function Home() {
                       ["Host", selectedVm.host ?? t("notAvailable")],
                     ].map(([k, v]) => (
                       <div key={k} className="flex gap-2">
-                        <dt className="w-32 shrink-0 text-gray-400">{k}</dt>
-                        <dd className="min-w-0 break-all text-gray-800">{v}</dd>
+                        <dt className="w-32 shrink-0 text-gray-400 dark:text-gray-500">{k}</dt>
+                        <dd className="min-w-0 break-all text-gray-800 dark:text-gray-200">{v}</dd>
                       </div>
                     ))}
                     <div className="flex gap-2">
-                      <dt className="w-32 shrink-0 text-gray-400">Tags</dt>
+                      <dt className="w-32 shrink-0 text-gray-400 dark:text-gray-500">Tags</dt>
                       <dd className="min-w-0">
                         {selectedVm.tags && selectedVm.tags.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {selectedVm.tags.map((tag) => (
-                              <span key={tag} className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">{tag}</span>
+                              <span key={tag} className="rounded bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:text-violet-300">{tag}</span>
                             ))}
                           </div>
                         ) : (
@@ -2208,15 +2208,15 @@ export default function Home() {
                       </dd>
                     </div>
                     <div className="flex gap-2">
-                      <dt className="w-32 shrink-0 text-gray-400">ID</dt>
-                      <dd className="min-w-0 break-all text-gray-500">{selectedVm.id}</dd>
+                      <dt className="w-32 shrink-0 text-gray-400 dark:text-gray-500">ID</dt>
+                      <dd className="min-w-0 break-all text-gray-500 dark:text-gray-400 dark:text-gray-500">{selectedVm.id}</dd>
                     </div>
                   </dl>
                 </div>
                 {/* Consola */}
                 {canOperate && selectedVm.status === "up" && (
-                  <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("console")}</p>
+                  <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("console")}</p>
                     <div className="relative mb-2 overflow-hidden rounded-md border bg-black" style={{ aspectRatio: "16/9", borderColor: "var(--border)" }}>
                       {consolePreviewLoading ? (
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -2242,8 +2242,8 @@ export default function Home() {
                   </div>
                 )}
                 {/* Red */}
-                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("network")}</p>
+                <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("network")}</p>
                   <div className="space-y-1.5">
                     {vmNics.length > 0 ? (
                       vmNics.map((n) => {
@@ -2251,43 +2251,43 @@ export default function Home() {
                         return (
                         <div key={n.id} className="flex flex-col gap-0.5">
                           <div className="flex justify-between text-xs">
-                            <span className="flex items-center gap-1.5 text-gray-500">
+                            <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 dark:text-gray-500">
                               <span className={`h-2 w-2 shrink-0 rounded-full ${isUp ? "bg-emerald-500" : "bg-gray-300"}`} title={isUp ? t("nicUp") : t("nicDown")} />
                               {n.networkName || n.name}
                             </span>
-                            <span className="font-semibold text-gray-800">{n.ipv4 ?? t("noIp")}</span>
+                            <span className="font-semibold text-gray-800 dark:text-gray-200">{n.ipv4 ?? t("noIp")}</span>
                           </div>
-                          <div className="flex justify-between text-[9px] text-gray-400">
-                            <span>{n.interface} · <span className={isUp ? "font-medium text-emerald-600" : ""}>{isUp ? t("nicUp") : t("nicDown")}</span></span>
+                          <div className="flex justify-between text-[9px] text-gray-400 dark:text-gray-500">
+                            <span>{n.interface} · <span className={isUp ? "font-medium text-emerald-600 dark:text-emerald-400" : ""}>{isUp ? t("nicUp") : t("nicDown")}</span></span>
                             <span>MAC: {n.mac ?? "—"}</span>
                           </div>
                         </div>
                         );
                       })
                     ) : (
-                      <p className="text-[11px] text-gray-400">{t("noActiveNics")}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noActiveNics")}</p>
                     )}
                   </div>
                 </div>
                 {/* CPU */}
-                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">CPU</p>
+                <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">CPU</p>
                   <div className="flex items-center gap-3">
                     <DonutRing value={selectedVm.metrics?.cpuPercent} color="#3b82f6" />
                     <div>
-                      <p className="text-lg font-bold text-gray-900">{formatNumber(selectedVm.metrics?.cpuPercent)}%</p>
-                      <p className="text-[11px] text-gray-400">{selectedVm.cpuCores ?? "—"} vCPU · {t("socketsCount", { count: selectedVm.sockets ?? "—" })}</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatNumber(selectedVm.metrics?.cpuPercent)}%</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">{selectedVm.cpuCores ?? "—"} vCPU · {t("socketsCount", { count: selectedVm.sockets ?? "—" })}</p>
                     </div>
                   </div>
                 </div>
                 {/* RAM */}
-                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("memory")}</p>
+                <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("memory")}</p>
                   <div className="flex items-center gap-3">
                     <DonutRing value={selectedVm.metrics?.memoryPercent} color="#10b981" />
                     <div>
-                      <p className="text-lg font-bold text-gray-900">{toGB(selectedVm.memoryMB)}</p>
-                      <p className="text-[11px] text-gray-400">
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{toGB(selectedVm.memoryMB)}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
                          {t("estimatedUsage", { value: toGB(selectedVm.memoryMB && selectedVm.metrics?.memoryPercent
                            ? selectedVm.memoryMB * (selectedVm.metrics.memoryPercent / 100) : undefined) })}
                       </p>
@@ -2295,40 +2295,40 @@ export default function Home() {
                   </div>
                 </div>
                 {/* Disk/Net */}
-                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">I/O</p>
+                <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">I/O</p>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between">
-                       <span className="text-gray-500">{t("diskRead")}</span>
+                       <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("diskRead")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskReadBytes)}</span>
                     </div>
                     <div className="flex justify-between">
-                       <span className="text-gray-500">{t("diskWrite")}</span>
+                       <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("diskWrite")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskWriteBytes)}</span>
                     </div>
                     <div className="flex justify-between">
-                       <span className="text-gray-500">{t("network")}</span>
+                       <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("network")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.networkBytes)}</span>
                     </div>
                   </div>
                 </div>
                 {/* Storage */}
-                <div className="rounded-lg border bg-white p-3" style={{ borderColor: "var(--border)" }}>
-                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("disk")}</p>
+                <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
+                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("disk")}</p>
                   {vmDisks ? (
                     <div className="space-y-2 text-xs">
                       <div className="flex items-center gap-3">
                         <DonutRing value={vmDisks.totalSizeGB > 0 ? (vmDisks.usedGB / vmDisks.totalSizeGB) * 100 : undefined} color="#f59e0b" />
                         <div>
-                           <p className="text-lg font-bold text-gray-900">{formatNumber(vmDisks.totalSizeGB)} GB</p>
-                           <p className="text-[11px] text-gray-400">{t("diskCountUsed", { count: vmDisks.count, used: formatNumber(vmDisks.usedGB) })}</p>
+                           <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatNumber(vmDisks.totalSizeGB)} GB</p>
+                           <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("diskCountUsed", { count: vmDisks.count, used: formatNumber(vmDisks.usedGB) })}</p>
                         </div>
                       </div>
                       {vmDisks.disks.length > 0 && (
                         <div className="space-y-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
                           {vmDisks.disks.map((d, i) => (
                             <div key={i} className="flex justify-between">
-                               <span className="truncate text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
+                               <span className="truncate text-gray-500 dark:text-gray-400 dark:text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
                                <span className="shrink-0 font-semibold">{formatNumber(d.sizeGB)} GB{d.usedGB != null ? ` (${formatNumber(d.usedGB)})` : ""}</span>
                             </div>
                           ))}
@@ -2336,7 +2336,7 @@ export default function Home() {
                       )}
                     </div>
                   ) : (
-                     <p className="text-xs text-gray-400">{t("loadingEllipsis")}</p>
+                     <p className="text-xs text-gray-400 dark:text-gray-500">{t("loadingEllipsis")}</p>
                   )}
                 </div>
               </div>
@@ -2353,7 +2353,7 @@ export default function Home() {
           )}
           <aside
             className={`
-              fixed right-0 top-0 z-40 h-full w-72 overflow-y-auto border-l bg-white shadow-xl transition-transform duration-200
+              fixed right-0 top-0 z-40 h-full w-72 overflow-y-auto border-l bg-white dark:bg-[#171326] shadow-xl transition-transform duration-200
               lg:static lg:z-auto lg:w-64 lg:shadow-none lg:translate-x-0
               ${rightPanelOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
             `}
@@ -2361,7 +2361,7 @@ export default function Home() {
           >
             <div className="p-3">
               {/* Tabs */}
-              <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-0.5">
+              <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 dark:bg-[#1b1726] p-0.5">
                 {(["overview","actions","resources","provisioning","console"] as const)
                   .filter((tab) => tab === "overview"
                     || ((tab === "actions" || tab === "console") && canOperate)
@@ -2387,7 +2387,7 @@ export default function Home() {
                 selectedVm ? (
                   <div className="space-y-2">
                     <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
-                       <p className="text-[10px] text-gray-400 mb-1">{t("status")}</p>
+                       <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1">{t("status")}</p>
                       <StatusBadge status={selectedVm.status} />
                     </div>
                     <div className="rounded-md border p-2.5 space-y-1.5" style={{ borderColor: "var(--border)" }}>
@@ -2398,26 +2398,26 @@ export default function Home() {
                         ["vCPU", t("coresCount", { count: selectedVm.cpuCores ?? "—" })],
                       ].map(([k, v]) => (
                         <div key={k} className="flex justify-between text-[11px]">
-                          <span className="text-gray-400">{k}</span>
-                          <span className="font-medium text-gray-800">{v}</span>
+                          <span className="text-gray-400 dark:text-gray-500">{k}</span>
+                          <span className="font-medium text-gray-800 dark:text-gray-200">{v}</span>
                         </div>
                       ))}
                     </div>
                     {/* Disk usage */}
                     <div className="rounded-md border p-2.5 space-y-2" style={{ borderColor: "var(--border)" }}>
-                       <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("storage")}</p>
+                       <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("storage")}</p>
                       {vmDisks ? (
                         vmDisks.count === 0 ? (
-                           <p className="text-[11px] text-gray-400">{t("noDisks")}</p>
+                           <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noDisks")}</p>
                         ) : (
                           <>
                             {/* Usage bar */}
                             <div>
                               <div className="mb-1 flex justify-between text-[11px]">
-                                <span className="text-gray-400">{formatNumber(vmDisks.usedGB)} / {formatNumber(vmDisks.totalSizeGB)} GB</span>
-                                <span className="font-semibold text-gray-700">{vmDisks.totalSizeGB > 0 ? Math.round((vmDisks.usedGB / vmDisks.totalSizeGB) * 100) : 0}%</span>
+                                <span className="text-gray-400 dark:text-gray-500">{formatNumber(vmDisks.usedGB)} / {formatNumber(vmDisks.totalSizeGB)} GB</span>
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">{vmDisks.totalSizeGB > 0 ? Math.round((vmDisks.usedGB / vmDisks.totalSizeGB) * 100) : 0}%</span>
                               </div>
-                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
                                 <div
                                   className="h-full rounded-full bg-amber-500"
                                   style={{ width: `${vmDisks.totalSizeGB > 0 ? Math.min(100, (vmDisks.usedGB / vmDisks.totalSizeGB) * 100) : 0}%` }}
@@ -2428,10 +2428,10 @@ export default function Home() {
                             {vmDisks.disks.map((d, i) => (
                               <div key={i} className="space-y-0.5">
                                 <div className="flex justify-between text-[11px]">
-                                   <span className="truncate text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
-                                  <span className="shrink-0 font-medium text-gray-700">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })} GB</span>
+                                   <span className="truncate text-gray-500 dark:text-gray-400 dark:text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
+                                  <span className="shrink-0 font-medium text-gray-700 dark:text-gray-300">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })} GB</span>
                                 </div>
-                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
                                   <div
                                     className="h-full rounded-full bg-violet-500"
                                     style={{ width: `${d.sizeGB > 0 ? Math.min(100, ((d.usedGB ?? 0) / d.sizeGB) * 100) : 0}%` }}
@@ -2442,26 +2442,26 @@ export default function Home() {
                           </>
                         )
                       ) : (
-                         <p className="text-[11px] text-gray-400">{t("loadingEllipsis")}</p>
+                         <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("loadingEllipsis")}</p>
                       )}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
-                       <p className="text-[11px] text-gray-500">{t("selectVmDetail")}</p>
+                       <p className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("selectVmDetail")}</p>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">
                       <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
-                        <p className="text-base font-bold text-gray-900">{totals.total}</p>
-                        <p className="text-[10px] text-gray-400">{t("total")}</p>
+                        <p className="text-base font-bold text-gray-900 dark:text-gray-100">{totals.total}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500">{t("total")}</p>
                       </div>
-                      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-center">
-                        <p className="text-base font-bold text-emerald-700">{totals.up}</p>
-                        <p className="text-[10px] text-emerald-600">Up</p>
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 p-2 text-center">
+                        <p className="text-base font-bold text-emerald-700 dark:text-emerald-300">{totals.up}</p>
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Up</p>
                       </div>
-                      <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-center">
-                        <p className="text-base font-bold text-amber-700">{totals.down}</p>
+                      <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 p-2 text-center">
+                        <p className="text-base font-bold text-amber-700 dark:text-amber-300">{totals.down}</p>
                         <p className="text-[10px] text-amber-600">Down</p>
                       </div>
                     </div>
@@ -2481,16 +2481,16 @@ export default function Home() {
                         : status === "powering_up" || status === "powering_down" || status === "reboot_in_progress" ? 1
                         : (isStop ? status === "down" : status === "up") ? 2 : 0;
                       return (
-                        <div className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-2 space-y-2">
+                        <div className="rounded-md border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-2 space-y-2">
                           <div className="flex items-center justify-between">
                             {phases.map((phase, i) => (
                               <div key={i} className="flex items-center gap-1">
                                 <div className={`h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-bold transition-all ${
                                   i < step ? "bg-emerald-500 text-white" :
                                   i === step ? "bg-violet-500 text-white animate-pulse" :
-                                  "bg-gray-200 text-gray-400"
+                                  "bg-gray-200 dark:bg-[#241f33] text-gray-400 dark:text-gray-500"
                                 }`}>{i < step ? "✓" : i + 1}</div>
-                                <span className={`text-[10px] font-medium ${i <= step ? "text-violet-700" : "text-gray-400"}`}>{phase}</span>
+                                <span className={`text-[10px] font-medium ${i <= step ? "text-violet-700 dark:text-violet-300" : "text-gray-400 dark:text-gray-500"}`}>{phase}</span>
                               </div>
                             ))}
                           </div>
@@ -2498,7 +2498,7 @@ export default function Home() {
                             <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-violet-600 transition-all duration-1000"
                               style={{ width: `${((step + 1) / 3) * 100}%` }} />
                           </div>
-                           <p className="text-[10px] text-violet-600">{t("currentStatus", { status: selectedVm.status })}</p>
+                           <p className="text-[10px] text-violet-600 dark:text-violet-400">{t("currentStatus", { status: selectedVm.status })}</p>
                         </div>
                       );
                     })()}
@@ -2562,9 +2562,9 @@ export default function Home() {
                     {selectedTenant !== ALL_TENANTS && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">ISO / CD-ROM</p>
+                        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">ISO / CD-ROM</p>
                         {mountedIso && (
-                          <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5">
+                          <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-2 py-1.5">
                             <span className="truncate text-[11px] text-amber-800">
                                {isoList.find((i) => i.id === mountedIso)?.name ?? t("mountedIso")}
                             </span>
@@ -2575,7 +2575,7 @@ export default function Home() {
                                 }
                               }}
                               disabled={actionLoading === `${selectedVm.id}-iso`}
-                              className="ml-2 shrink-0 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                              className="ml-2 shrink-0 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                             >
                                {t("eject")}
                             </button>
@@ -2603,7 +2603,7 @@ export default function Home() {
                           ))}
                         </select>
                         {isSuperadmin && (
-                          <label className={`flex w-full cursor-pointer items-center justify-center rounded-md border border-dashed border-gray-300 py-1.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 ${uploadingIso ? "opacity-50 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
+                          <label className={`flex w-full cursor-pointer items-center justify-center rounded-md border border-dashed border-gray-300 dark:border-white/15 py-1.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 ${uploadingIso ? "opacity-50 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
                              {uploadingIso ? t("uploadingIso") : t("uploadIso")}
                             <input
                               type="file"
@@ -2623,15 +2623,15 @@ export default function Home() {
                     {selectedTenant !== ALL_TENANTS && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("disks")}</p>
+                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("disks")}</p>
                         {vmDiskList.length > 0 && (
                           <div className="space-y-1">
                             {vmDiskList.map((d) => (
                               <div key={d.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1" style={{ borderColor: "var(--border)" }}>
-                                <span className="flex-1 truncate text-[10px] text-gray-600">{d.name}</span>
-                                <span className="shrink-0 text-[10px] text-gray-400">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })}GB</span>
-                                <span className="shrink-0 rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{d.interface || "?"}</span>
-                                {d.bootable && <span className="shrink-0 rounded bg-violet-50 px-1 py-0.5 text-[9px] text-violet-600">boot</span>}
+                                <span className="flex-1 truncate text-[10px] text-gray-600 dark:text-gray-400 dark:text-gray-500">{d.name}</span>
+                                <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })}GB</span>
+                                <span className="shrink-0 rounded bg-gray-100 dark:bg-[#1b1726] px-1 py-0.5 text-[9px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{d.interface || "?"}</span>
+                                {d.bootable && <span className="shrink-0 rounded bg-violet-50 dark:bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-600 dark:text-violet-400">boot</span>}
                                 <button
                                   onClick={() => {
                                      if (window.confirm(t("deleteDiskConfirm", { name: d.name, size: formatNumber(d.sizeGB, { maximumFractionDigits: 0 }) }))) {
@@ -2639,7 +2639,7 @@ export default function Home() {
                                     }
                                   }}
                                   disabled={actionLoading === `${selectedVm.id}-del-disk`}
-                                  className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                  className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-500/10 disabled:opacity-50"
                                 >
                                    {t("deleteShort")}
                                 </button>
@@ -2702,13 +2702,13 @@ export default function Home() {
                     />
                     <button
                       onClick={() => setSelectedVmId("")}
-                      className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50"
+                      className="w-full rounded-md border border-gray-200 dark:border-white/10 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                     >
                        {t("backDashboard")}
                     </button>
                   </div>
                 ) : (
-                   <p className="text-[11px] text-gray-400">{t("selectVmActions")}</p>
+                   <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("selectVmActions")}</p>
                 )
               )}
 
@@ -2745,12 +2745,12 @@ export default function Home() {
                           </Field>
                         </div>
                         {selectedVm.status?.toLowerCase?.() === "up" ? (
-                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                          <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
                              {t("vmMustBeOff")}
                             <button
                               onClick={() => runAction(selectedVm.id, "shutdown")}
                               disabled={actionLoading === `${selectedVm.id}-shutdown`}
-                              className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                              className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                             >
                                {t("shutDownNow")}
                             </button>
@@ -2768,16 +2768,16 @@ export default function Home() {
                     ) : (
                       <div className="grid grid-cols-3 gap-1.5">
                         <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
-                          <p className="text-sm font-bold text-gray-800">{selectedVm.memoryMB ?? "—"}</p>
-                          <p className="text-[9px] text-gray-400">RAM MB</p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{selectedVm.memoryMB ?? "—"}</p>
+                          <p className="text-[9px] text-gray-400 dark:text-gray-500">RAM MB</p>
                         </div>
                         <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
-                          <p className="text-sm font-bold text-gray-800">{selectedVm.cpuCores ?? "—"}</p>
-                          <p className="text-[9px] text-gray-400">vCPU</p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{selectedVm.cpuCores ?? "—"}</p>
+                          <p className="text-[9px] text-gray-400 dark:text-gray-500">vCPU</p>
                         </div>
                         <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
-                          <p className="text-sm font-bold text-gray-800">{selectedVm.sockets ?? "—"}</p>
-                          <p className="text-[9px] text-gray-400">{t("sockets")}</p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{selectedVm.sockets ?? "—"}</p>
+                          <p className="text-[9px] text-gray-400 dark:text-gray-500">{t("sockets")}</p>
                         </div>
                       </div>
                     )}
@@ -2785,13 +2785,13 @@ export default function Home() {
                     {vmDiskList.length > 0 && (
                       <>
                         <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
-                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("disks")}</p>
+                         <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("disks")}</p>
                         <div className="space-y-1">
                           {vmDiskList.map((disk) => (
                             <div key={disk.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                              <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{disk.name}</span>
-                              <span className="text-[10px] text-gray-500">{formatNumber(disk.sizeGB, { maximumFractionDigits: 0 })} GB</span>
-                              <span className="rounded bg-gray-100 px-1 py-0.5 text-[9px] text-gray-500">{disk.interface || "?"}</span>
+                              <span className="flex-1 truncate text-[10px] font-medium text-gray-700 dark:text-gray-300">{disk.name}</span>
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{formatNumber(disk.sizeGB, { maximumFractionDigits: 0 })} GB</span>
+                              <span className="rounded bg-gray-100 dark:bg-[#1b1726] px-1 py-0.5 text-[9px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{disk.interface || "?"}</span>
                             </div>
                           ))}
                         </div>
@@ -2801,12 +2801,12 @@ export default function Home() {
                     {/* Redes */}
                     <div className="my-1.5 border-t" style={{ borderColor: "var(--border)" }} />
                     <div className="flex items-center justify-between">
-                       <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("networks")}</p>
+                       <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("networks")}</p>
                       {canAdmin && vmNics.some(n => !n.plugged) && (
                         <button
                           onClick={() => vmNics.filter(n => !n.plugged).forEach(n => handleToggleNic(selectedVm.id, n.id, true))}
                           disabled={actionLoading === `${selectedVm.id}-nic`}
-                          className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-600 hover:bg-violet-100 disabled:opacity-50"
+                          className="rounded border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-medium text-violet-600 dark:text-violet-400 hover:bg-violet-100 disabled:opacity-50"
                         >
                            {t("connectAll")}
                         </button>
@@ -2820,34 +2820,34 @@ export default function Home() {
                           <div key={n.id} className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
                             <div className="flex items-center gap-1.5">
                                <span className={`h-2 w-2 shrink-0 rounded-full ${isOn ? "bg-emerald-500" : n.plugged ? "bg-amber-400" : "bg-gray-300"}`} title={isOn ? t("connected") : n.plugged ? t("pluggedNoLink") : t("disconnected")} />
-                              <span className="flex-1 truncate text-[10px] font-medium text-gray-700">{n.name}</span>
-                              <span className="shrink-0 text-[10px] text-gray-500">{n.networkName || "?"}</span>
+                              <span className="flex-1 truncate text-[10px] font-medium text-gray-700 dark:text-gray-300">{n.name}</span>
+                              <span className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{n.networkName || "?"}</span>
                               {n.ipv4 && (
-                                <span className="shrink-0 rounded bg-violet-50 px-1 text-[9px] font-medium text-violet-600">{n.ipv4}</span>
+                                <span className="shrink-0 rounded bg-violet-50 dark:bg-violet-500/10 px-1 text-[9px] font-medium text-violet-600 dark:text-violet-400">{n.ipv4}</span>
                               )}
                               {canAdmin && (
                                 <>
                                   <button
                                     onClick={() => handleToggleNic(selectedVm.id, n.id, !isOn)}
                                     disabled={actionLoading === `${selectedVm.id}-nic`}
-                                    className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${isOn ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"}`}
+                                    className={`shrink-0 rounded border px-1 py-0.5 text-[9px] disabled:opacity-50 ${isOn ? "border-amber-200 text-amber-600 hover:bg-amber-50 dark:bg-amber-500/10" : "border-emerald-200 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/10"}`}
                                   >
                                     {isOn ? "Off" : "On"}
                                   </button>
                                   <button
                                      onClick={() => { if (window.confirm(t("deleteNicConfirm", { name: n.name }))) handleDeleteNic(selectedVm.id, n.id); }}
                                     disabled={actionLoading === `${selectedVm.id}-nic`}
-                                    className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                    className="shrink-0 rounded border border-red-200 px-1 py-0.5 text-[9px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-500/10 disabled:opacity-50"
                                   >
                                      {t("deleteShort")}
                                   </button>
                                 </>
                               )}
                             </div>
-                            <div className="mt-0.5 flex gap-2 pl-3.5 text-[9px] text-gray-400">
+                            <div className="mt-0.5 flex gap-2 pl-3.5 text-[9px] text-gray-400 dark:text-gray-500">
                               <span>{n.mac?.slice(0, 17)}</span>
                               <span>{n.interface}</span>
-                               <span className={isOn ? "text-emerald-500" : "text-gray-400"}>{isOn ? `● ${t("active")}` : n.plugged ? "◐ Plugged" : `○ ${t("disconnected")}`}</span>
+                               <span className={isOn ? "text-emerald-500" : "text-gray-400 dark:text-gray-500"}>{isOn ? `● ${t("active")}` : n.plugged ? "◐ Plugged" : `○ ${t("disconnected")}`}</span>
                             </div>
                           </div>
                           );
@@ -2870,7 +2870,7 @@ export default function Home() {
                     </div>}
                   </div>
                 ) : (
-                   <p className="text-[11px] text-gray-400">{t("selectVmResources")}</p>
+                   <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("selectVmResources")}</p>
                 )
               )}
 
@@ -2878,39 +2878,39 @@ export default function Home() {
               {detailTab === "provisioning" && (
                 !canAdmin ? (
                   <div className="space-y-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Storage domains</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Storage domains</p>
                     {storageDomains.length > 0 ? storageDomains.map((domain) => (
                       <div key={domain.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
                         <div className="flex justify-between gap-2 text-[11px]">
-                          <span className="truncate font-medium text-gray-700">{domain.name}</span>
-                          <span className="text-gray-400">{domain.status ?? domain.type}</span>
+                          <span className="truncate font-medium text-gray-700 dark:text-gray-300">{domain.name}</span>
+                          <span className="text-gray-400 dark:text-gray-500">{domain.status ?? domain.type}</span>
                         </div>
-                         <p className="mt-1 text-[10px] text-gray-500">{t("usedGb", { used: formatNumber(domain.usedGB), total: formatNumber(domain.totalGB) })}</p>
+                         <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("usedGb", { used: formatNumber(domain.usedGB), total: formatNumber(domain.totalGB) })}</p>
                       </div>
-                     )) : <p className="text-[11px] text-gray-400">{t("noVisibleStorage")}</p>}
+                     )) : <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noVisibleStorage")}</p>}
 
                     <div className="border-t" style={{ borderColor: "var(--border)" }} />
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">ISOs</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">ISOs</p>
                     {isoList.length > 0 ? isoList.map((iso) => (
                       <div key={iso.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
-                        <p className="truncate text-[11px] font-medium text-gray-700">{iso.name}</p>
-                         <p className="mt-0.5 text-[10px] text-gray-400">{iso.storageDomainName || t("unnamedStorage")} · {formatNumber(iso.sizeGB)} GB</p>
+                        <p className="truncate text-[11px] font-medium text-gray-700 dark:text-gray-300">{iso.name}</p>
+                         <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{iso.storageDomainName || t("unnamedStorage")} · {formatNumber(iso.sizeGB)} GB</p>
                       </div>
-                     )) : <p className="text-[11px] text-gray-400">{t("noIsos")}</p>}
+                     )) : <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noIsos")}</p>}
 
                     <div className="border-t" style={{ borderColor: "var(--border)" }} />
-                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("ovaCatalog")}</p>
+                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("ovaCatalog")}</p>
                     {ovaLibrary.length > 0 ? ovaLibrary.map((ova) => (
                       <div key={ova.id} className="rounded-md border px-2.5 py-2" style={{ borderColor: "var(--border)" }}>
-                        <p className="truncate text-[11px] font-medium text-gray-700">{ova.name}</p>
-                         <p className="mt-0.5 text-[10px] text-gray-400">{ova.storageDomainName || t("unnamedStorage")} · {formatNumber(ova.size / 1024 / 1024, { maximumFractionDigits: 0 })} MB</p>
+                        <p className="truncate text-[11px] font-medium text-gray-700 dark:text-gray-300">{ova.name}</p>
+                         <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{ova.storageDomainName || t("unnamedStorage")} · {formatNumber(ova.size / 1024 / 1024, { maximumFractionDigits: 0 })} MB</p>
                       </div>
-                     )) : <p className="text-[11px] text-gray-400">{t("noOvas")}</p>}
+                     )) : <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noOvas")}</p>}
                   </div>
                 ) : (
                 <div className="space-y-4">
                   <div>
-                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{t("originStep")}</p>
+                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("originStep")}</p>
                      <Field label={t("vmType")}>
                       <select value={newVmSource} onChange={(e) => { setNewVmSource(e.target.value as "blank" | "template" | "ova"); setUploadedOva(null); }} className={inputCls}>
                          <option value="blank">{t("blankVm")}</option>
@@ -2922,15 +2922,15 @@ export default function Home() {
 
                   {newVmSource === "ova" && (
                     <div>
-                       <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{t("selectOvaStep")}</p>
+                       <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("selectOvaStep")}</p>
                       {uploadedOva ? (
-                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 p-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <p className="text-[11px] font-bold text-emerald-800">{uploadedOva.name}</p>
-                              {uploadedOva.ovf && <p className="mt-0.5 truncate text-[10px] text-emerald-600">{uploadedOva.ovf}</p>}
+                              {uploadedOva.ovf && <p className="mt-0.5 truncate text-[10px] text-emerald-600 dark:text-emerald-400">{uploadedOva.ovf}</p>}
                             </div>
-                             <button onClick={() => setUploadedOva(null)} className="ml-2 shrink-0 text-[10px] text-emerald-700 underline">{t("change")}</button>
+                             <button onClick={() => setUploadedOva(null)} className="ml-2 shrink-0 text-[10px] text-emerald-700 dark:text-emerald-300 underline">{t("change")}</button>
                           </div>
                         </div>
                       ) : ovaLibrary.length > 0 ? (
@@ -2949,17 +2949,17 @@ export default function Home() {
                             ))}
                           </select>
                           {ovaUploadProgress !== null && (
-                            <div className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] text-violet-700">
+                            <div className="rounded-md border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1.5 text-[10px] text-violet-700 dark:text-violet-300">
                                <div className="mb-1 flex justify-between"><span>{t("uploading")}</span><span>{ovaUploadProgress}%</span></div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
                           <div className="flex items-center gap-2 py-0.5">
-                            <div className="h-px flex-1 bg-gray-200" />
-                             <span className="text-[9px] text-gray-400">{t("uploadNew")}</span>
-                            <div className="h-px flex-1 bg-gray-200" />
+                            <div className="h-px flex-1 bg-gray-200 dark:bg-[#241f33]" />
+                             <span className="text-[9px] text-gray-400 dark:text-gray-500">{t("uploadNew")}</span>
+                            <div className="h-px flex-1 bg-gray-200 dark:bg-[#241f33]" />
                           </div>
-                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
+                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-2 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
                             <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
@@ -2967,12 +2967,12 @@ export default function Home() {
                       ) : (
                         <div className="space-y-2">
                           {ovaUploadProgress !== null && (
-                            <div className="rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[10px] text-violet-700">
+                            <div className="rounded-md border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1.5 text-[10px] text-violet-700 dark:text-violet-300">
                                <div className="mb-1 flex justify-between"><span>{t("uploading")}</span><span>{ovaUploadProgress}%</span></div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
-                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 py-3 text-[11px] font-medium text-gray-600 hover:bg-gray-50 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
+                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-3 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
                             <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
@@ -2982,7 +2982,7 @@ export default function Home() {
                   )}
 
                   <div>
-                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{newVmSource === "ova" ? t("configurationStep3") : t("configurationStep2")}</p>
+                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{newVmSource === "ova" ? t("configurationStep3") : t("configurationStep2")}</p>
                     <div className="space-y-2.5">
                        <Field label={t("nameRequired")}>
                         <input value={newVm.name} onChange={(e) => setNewVm((v) => ({ ...v, name: e.target.value }))}
@@ -3039,13 +3039,13 @@ export default function Home() {
                         </select>
                       </Field>}
                       {newVmSource !== "ova" && newVm.vnicProfileId && (
-                        <label className="flex items-center gap-2 text-[10px] text-gray-500">
+                        <label className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
                           <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
                            {t("configureAutomaticIp")}
                         </label>
                       )}
                       {newVmSource !== "ova" && useCloudInit && (
-                        <div className="grid grid-cols-2 gap-2 rounded-md border border-violet-100 bg-violet-50 p-2.5">
+                        <div className="grid grid-cols-2 gap-2 rounded-md border border-violet-100 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 p-2.5">
                           <Field label="IP">
                             <input value={cloudInit.ip}
                               onChange={(e) => setCloudInit((v) => ({ ...v, ip: e.target.value }))}
@@ -3096,7 +3096,7 @@ export default function Home() {
                   </div>
 
                   {ovaImportProgress !== null && (
-                    <div className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-[11px] text-violet-700">
+                    <div className="rounded-lg border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-3 py-2.5 text-[11px] text-violet-700 dark:text-violet-300">
                       <div className="mb-1.5 flex justify-between font-medium">
                          <span>{ovaImportProgress < 40 ? t("copyingOva") : ovaImportProgress < 75 ? t("importingOlvm") : t("waitingConversion")}</span>
                         <span>{Math.round(ovaImportProgress)}%</span>
@@ -3120,7 +3120,7 @@ export default function Home() {
               {/* ── Console tab ── */}
               {detailTab === "console" && (
                 <div className="space-y-2.5">
-                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("console")}</p>
+                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("console")}</p>
                   {selectedVm ? (
                     <>
                       <div className="rounded-md border overflow-hidden" style={{ borderColor: "var(--border)" }}>
@@ -3158,8 +3158,8 @@ export default function Home() {
                       <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-medium text-gray-900">{selectedVm.name}</p>
-                            <p className="text-[10px] text-gray-500">
+                            <p className="text-xs font-medium text-gray-900 dark:text-gray-100">{selectedVm.name}</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
                                {selectedVm.status === "up" ? t("running") : selectedVm.status}
                             </p>
                           </div>
@@ -3169,7 +3169,7 @@ export default function Home() {
                       {selectedVm.status === "up" && !consolePreviewIframe && !consolePreviewLoading && (
                         <button
                           onClick={() => generateConsolePreview(selectedVm.id)}
-                          className="w-full rounded-md border border-gray-200 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+                          className="w-full rounded-md border border-gray-200 dark:border-white/10 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                         >
                            {t("generatePreview")}
                         </button>
@@ -3185,13 +3185,13 @@ export default function Home() {
                              : t("openFullConsole")}
                         </button>
                       ) : (
-                        <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-[10px] text-amber-700">
+                        <p className="rounded-md bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1.5 text-[10px] text-amber-700 dark:text-amber-300">
                            {t("startForConsole")}
                         </p>
                       )}
                     </>
                   ) : (
-                     <p className="text-xs text-gray-400">{t("selectVmConsole")}</p>
+                     <p className="text-xs text-gray-400 dark:text-gray-500">{t("selectVmConsole")}</p>
                   )}
                 </div>
               )}
@@ -3204,9 +3204,9 @@ export default function Home() {
       {/* ── Clone wizard modal ─────────────────────────────────────────── */}
       {canAdmin && cloneWizard.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border bg-white p-5 shadow-xl" style={{ borderColor: "var(--border)" }}>
-             <h2 className="text-sm font-bold text-gray-900">{t("cloneVm")}</h2>
-            <p className="mt-0.5 text-[11px] text-gray-500">
+          <div className="w-full max-w-md rounded-xl border bg-white dark:bg-[#171326] p-5 shadow-xl" style={{ borderColor: "var(--border)" }}>
+             <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t("cloneVm")}</h2>
+            <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
                {t("cloneSourceDescription", { name: cloneWizard.sourceVmName })}
             </p>
              <Field label={t("newName")}>
@@ -3218,13 +3218,13 @@ export default function Home() {
               />
             </Field>
             {cloneWizard.error && (
-              <p className="mt-2 text-[11px] text-red-600">{cloneWizard.error}</p>
+              <p className="mt-2 text-[11px] text-red-600 dark:text-red-400">{cloneWizard.error}</p>
             )}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={closeCloneWizard}
                 disabled={cloneWizard.submitting}
-                className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                className="rounded-md border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50"
                >{t("cancel")}</button>
               <button
                 onClick={submitCloneWizard}
@@ -3239,20 +3239,20 @@ export default function Home() {
       {/* ── Embedded console modal ─────────────────────────────────────── */}
       {canOperate && showExperimentalConsole && embeddedConsole.status !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="flex flex-col rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)", width: "min(88vw, calc((78vh - 54px) * 16 / 9))", maxHeight: "78vh" }}>
+            <div className="flex flex-col rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)", width: "min(88vw, calc((78vh - 54px) * 16 / 9))", maxHeight: "78vh" }}>
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
-                 <p className="text-[11px] text-gray-500">{t("embeddedConsole")}</p>
-                <p className="text-sm font-semibold text-gray-900">{selectedVm?.name ?? embeddedConsole.vmId}</p>
+                 <p className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("embeddedConsole")}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{selectedVm?.name ?? embeddedConsole.vmId}</p>
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)} className="h-3 w-3" />
                    {t("localWsProxy")}
                 </label>
                 <button
                   onClick={closeEmbeddedConsole}
-                  className="rounded-md border border-gray-200 px-2.5 py-1 text-[11px] font-medium hover:bg-gray-50"
+                  className="rounded-md border border-gray-200 dark:border-white/10 px-2.5 py-1 text-[11px] font-medium hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
                  >{t("close")}</button>
               </div>
             </div>

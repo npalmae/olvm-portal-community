@@ -61,10 +61,10 @@ const roleBadge = (role: string) => {
   if (role === "superadmin")
     return "bg-amber-100 text-amber-800 border-amber-300";
   if (role === "admin")
-    return "bg-violet-100 text-violet-800 border-violet-300";
+    return "bg-violet-100 text-violet-800 border-violet-300 dark:border-violet-500/40";
   if (role === "operator")
-    return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  return "bg-gray-100 text-gray-600 border-gray-200";
+    return "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200";
+  return "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 dark:text-gray-500 border-gray-200 dark:border-white/10";
 };
 
 export default function AdminUsersPage() {
@@ -274,7 +274,7 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f0f2f5] text-gray-700 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f0f2f5] text-gray-700 dark:text-gray-300 flex items-center justify-center">
         <p>{t("loading")}</p>
       </div>
     );
@@ -285,10 +285,10 @@ export default function AdminUsersPage() {
       <div className="mx-auto max-w-6xl p-6">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+            <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200" style={{ fontSize: "13px" }}>
               <button
                 onClick={() => router.push("/")}
-                className="flex shrink-0 items-center gap-1 hover:text-violet-600"
+                className="flex shrink-0 items-center gap-1 hover:text-violet-600 dark:text-violet-400"
                 title={t("home")}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -297,41 +297,41 @@ export default function AdminUsersPage() {
                 </svg>
                 VIRTUAL-PORTAL
               </button>
-              <span className="shrink-0 text-gray-400">/</span>
+              <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
               <button
                 onClick={() => router.push("/admin/clusters")}
-                className="shrink-0 text-gray-600 hover:text-violet-600"
+                className="shrink-0 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400"
               >
                 {t("settings")}
               </button>
-              <span className="shrink-0 text-gray-400">/</span>
-              <span className="truncate text-gray-700">{t("users")}</span>
+              <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
+              <span className="truncate text-gray-700 dark:text-gray-300">{t("users")}</span>
             </div>
-            <h1 className="text-lg font-semibold text-gray-900">{t("usersTitle")}</h1>
-            <p className="text-xs text-gray-500">{t("usersSubtitle")}</p>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("usersTitle")}</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("usersSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/email")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("emailConfigNav")}
             </button>
             <button
               onClick={() => router.push("/admin/clusters")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("clusters")}
             </button>
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("backups")}
             </button>
             <button
               onClick={() => router.push("/admin/branding")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("branding")}
             </button>
@@ -340,10 +340,10 @@ export default function AdminUsersPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>
         )}
         {success && (
-          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</div>
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">{success}</div>
         )}
 
         <div className="mb-6">
@@ -358,57 +358,57 @@ export default function AdminUsersPage() {
         {showForm && (
           <form
             onSubmit={handleCreate}
-            className="mb-8 p-6 bg-white rounded-lg border" style={{ borderColor: "var(--border)" }}
+            className="mb-8 p-6 bg-white dark:bg-[#171326] rounded-lg border" style={{ borderColor: "var(--border)" }}
           >
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">{t("newUser")}</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{t("newUser")}</h2>
             <div className="grid grid-cols-2 gap-4">
-              <label className="block text-sm text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 {t("name")}
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 {t("alias")}
                 <input
                   type="text"
                   value={form.alias}
                   onChange={(e) => setForm({ ...form, alias: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 {t("email")}
                 <input
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 {t("password")}
                 <input
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 Tenant
                 <select
                   value={form.tenantId}
                   onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
                   required
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 >
                   {tenants.length === 0 && <option value="">{t("noTenants")}</option>}
                   {tenants.map((t) => (
@@ -418,12 +418,12 @@ export default function AdminUsersPage() {
                   ))}
                 </select>
               </label>
-              <label className="block text-sm text-gray-500 col-span-2">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 col-span-2">
                 {t("role")}
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
+                  className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 >
                   <option value="operator">{t("operatorRole")}</option>
                   <option value="user">{t("userRole")}</option>
@@ -442,24 +442,24 @@ export default function AdminUsersPage() {
           </form>
         )}
 
-        <div className="bg-white rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+        <div className="bg-white dark:bg-[#171326] rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
           <table className="w-full text-left">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-[#12101a]">
               <tr>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("name")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("alias")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("email")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("tenants")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("role")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">2FA</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("created")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("actions")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("name")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("alias")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("email")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("tenants")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("role")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">2FA</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("created")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
                     {t("noUsers")}
                   </td>
                 </tr>
@@ -469,25 +469,25 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4">
                     {user.name}
                     {user.id === selfId && (
-                      <span className="ml-2 text-xs text-gray-400">{t("you")}</span>
+                      <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{t("you")}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{user.alias || t("noAlias")}</td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 dark:text-gray-500">{user.alias || t("noAlias")}</td>
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {user.memberships.length === 0 && (
-                        <span className="text-xs text-gray-400">{t("noTenant")}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{t("noTenant")}</span>
                       )}
                       {user.memberships.map((m) => (
                         <span
                           key={m.tenantId}
                           className={`px-2 py-1 rounded text-xs border ${
                             m.role === "admin"
-                              ? "bg-violet-100 text-violet-700 border-violet-300"
+                              ? "bg-violet-100 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-500/40"
                               : m.role === "operator"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-gray-100 text-gray-700 border-gray-200"
+                                ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200"
+                              : "bg-gray-100 dark:bg-[#1b1726] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10"
                           }`}
                           title={`${tenantName(m.tenantId)} (${m.role})`}
                         >
@@ -509,27 +509,27 @@ export default function AdminUsersPage() {
                     <span
                       className={`px-2 py-1 rounded text-xs border ${
                         user.twoFactorEnabled
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
+                          ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200"
+                          : "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 dark:text-gray-500 border-gray-200 dark:border-white/10"
                       }`}
                     >
                       {user.twoFactorEnabled ? t("active") : t("disabled")}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
+                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString({ es: "es-ES", en: "en-GB", de: "de-DE", pt: "pt-PT" }[locale])}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setModal({ type: "edit", user })}
-                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+                        className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
                       >
                         {t("edit")}
                       </button>
                       <button
                         onClick={() => setModal({ type: "password", user })}
-                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+                        className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
                       >
                         {t("key")}
                       </button>
@@ -541,7 +541,7 @@ export default function AdminUsersPage() {
                             ? t("cannotDeleteSelf")
                             : t("deleteUser")
                         }
-                        className="px-3 py-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 text-sm bg-red-50 dark:bg-red-500/10 hover:bg-red-100 text-red-700 dark:text-red-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {t("delete")}
                       </button>
@@ -737,17 +737,17 @@ function EditModal({
     <ModalShell title={t("editUserTitle", { email: user.email })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm text-gray-600">
+          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             {t("name")}
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={!isSuperadmin}
-              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
             />
           </label>
-          <label className="block text-sm text-gray-600">
+          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             {t("alias")}
             <input
               type="text"
@@ -755,24 +755,24 @@ function EditModal({
               onChange={(e) => setAlias(e.target.value)}
               disabled={!isSuperadmin}
               required
-              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
             />
           </label>
-          <label className="block text-sm text-gray-600">
+          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             Email
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={!isSuperadmin}
-              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
             />
           </label>
         </div>
 
         {isSuperadmin ? (
           <>
-            <label className="block text-sm text-gray-600">
+            <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               {t("globalRole")}
               <select
                 value={globalRole ?? ""}
@@ -781,7 +781,7 @@ function EditModal({
                     e.target.value === "superadmin" ? "superadmin" : null,
                   )
                 }
-                className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+                className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
               >
                 <option value="">{t("tenantUserAdmin")}</option>
                 <option value="superadmin">{t("globalAccess")}</option>
@@ -790,7 +790,7 @@ function EditModal({
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600">{t("tenantMemberships")}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("tenantMemberships")}</p>
                 <button
                   type="button"
                   onClick={addMembership}
@@ -798,14 +798,14 @@ function EditModal({
                     memberships.filter((m) => m.tenantId).length >= tenants.length ||
                     tenants.length === 0
                   }
-                  className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-40"
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded disabled:opacity-40"
                 >
                   {t("addTenant")}
                 </button>
               </div>
               <div className="space-y-2">
                 {memberships.length === 0 && (
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
                     {t("noMemberships")}
                   </p>
                 )}
@@ -814,7 +814,7 @@ function EditModal({
                     <select
                       value={m.tenantId}
                       onChange={(e) => setMembershipTenant(i, e.target.value)}
-                      className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
+                      className="flex-1 px-2 py-1 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg text-sm"
                     >
                       <option value="">{t("selectTenant")}</option>
                       {tenants
@@ -837,7 +837,7 @@ function EditModal({
                           e.target.value as Membership["role"],
                         )
                       }
-                      className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm"
+                      className="px-2 py-1 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg text-sm"
                     >
                       <option value="operator">{t("operatorRole")}</option>
                       <option value="user">{t("userRole")}</option>
@@ -846,7 +846,7 @@ function EditModal({
                     <button
                       type="button"
                       onClick={() => removeMembership(i)}
-                      className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                      className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 dark:text-red-300 rounded"
                     >
                       {t("remove")}
                     </button>
@@ -855,12 +855,12 @@ function EditModal({
               </div>
             </div>
 
-            <label className="block text-sm text-gray-600">
+            <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
               {t("defaultTenant")}
               <select
                 value={defaultTenantId}
                 onChange={(e) => setDefaultTenantId(e.target.value)}
-                className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+                className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
               >
                 <option value="">—</option>
                 {memberships.map((m) => (
@@ -871,10 +871,10 @@ function EditModal({
               </select>
             </label>
 
-            <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-              <span className="text-sm text-gray-700">
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] px-4 py-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 {t("twoFactor")}
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   {twoFactor
                     ? t("twoFactorRequired")
                     : t("passwordOnlyLogin")}
@@ -889,12 +889,12 @@ function EditModal({
             </label>
           </>
         ) : (
-          <label className="block text-sm text-gray-600">
+          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
             {t("roleInTenant", { id: adminTenantId })}
             <select
               value={tenantRole}
               onChange={(e) => setTenantRole(e.target.value as Membership["role"])}
-              className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+              className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
             >
               <option value="operator">{t("operatorRole")}</option>
               <option value="user">{t("userRole")}</option>
@@ -907,7 +907,7 @@ function EditModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded-lg"
           >
             {t("cancel")}
           </button>
@@ -922,9 +922,9 @@ function EditModal({
       </form>
 
         {isSuperadmin && (
-          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">{t("apiKeysTitle")}</h3>
-            <p className="text-xs text-gray-500 mb-3">
+          <div className="mt-4 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] p-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{t("apiKeysTitle")}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-3">
                {t("apiKeysDescription", { email: user.email })}
             </p>
             <div className="flex gap-2 mb-3">
@@ -933,7 +933,7 @@ function EditModal({
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
                  placeholder={t("keyNamePlaceholder")}
-                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm"
+                className="flex-1 px-3 py-1.5 border border-gray-200 dark:border-white/10 rounded-lg text-sm"
                 onKeyDown={(e) => e.key === "Enter" && handleCreateKey()}
               />
               <button
@@ -947,19 +947,19 @@ function EditModal({
             {userApiKeys.length > 0 && (
               <div className="space-y-2">
                 {userApiKeys.map((k) => (
-                  <div key={k.id} className="rounded-md bg-white border border-gray-100 px-3 py-2.5">
+                  <div key={k.id} className="rounded-md bg-white dark:bg-[#171326] border border-gray-100 dark:border-white/5 px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="flex-1 text-sm font-medium text-gray-800 truncate">{k.name}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                      <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{k.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200" : "bg-gray-100 dark:bg-[#1b1726] text-gray-400 dark:text-gray-500 border-gray-200 dark:border-white/10"}`}>
                         {k.active ? "ON" : "OFF"}
                       </span>
-                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 hover:text-violet-600">{k.active ? t("deactivateShort") : t("activateShort")}</button>
-                       <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700">{t("deleteShort")}</button>
+                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400">{k.active ? t("deactivateShort") : t("activateShort")}</button>
+                       <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700 dark:text-red-300">{t("deleteShort")}</button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-2">
                       {revealedKeyId === k.id && k.key ? (
                         <>
-                          <code className="flex-1 text-[11px] text-gray-600 bg-gray-50 rounded px-2 py-1 break-all">{k.key}</code>
+                          <code className="flex-1 text-[11px] text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-[#12101a] rounded px-2 py-1 break-all">{k.key}</code>
                           <button
                             onClick={() => {
                               const ta = document.createElement("textarea");
@@ -970,23 +970,23 @@ function EditModal({
                               try { document.execCommand("copy"); } catch {}
                               document.body.removeChild(ta);
                             }}
-                            className="shrink-0 text-[10px] bg-violet-50 text-violet-700 border border-violet-200 rounded px-2 py-1 hover:bg-violet-100"
+                            className="shrink-0 text-[10px] bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-500/30 rounded px-2 py-1 hover:bg-violet-100"
                            >{t("copy")}</button>
-                           <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 hover:text-gray-700">{t("hide")}</button>
+                           <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300">{t("hide")}</button>
                         </>
                       ) : (
                         <>
-                          <code className="text-[11px] text-gray-400 font-mono">{k.keyPreview}</code>
+                          <code className="text-[11px] text-gray-400 dark:text-gray-500 font-mono">{k.keyPreview}</code>
                           {k.key && (
-                             <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-violet-600 hover:text-violet-800">{t("show")}</button>
+                             <button onClick={() => setRevealedKeyId(k.id)} className="text-[10px] text-violet-600 dark:text-violet-400 hover:text-violet-800">{t("show")}</button>
                           )}
                         </>
                       )}
                     </div>
                     {revealedKeyId === k.id && k.key && (
-                      <div className="mt-1.5 rounded bg-gray-50 border border-gray-200 px-2.5 py-1.5">
-                         <p className="text-[9px] font-semibold text-gray-400 uppercase mb-0.5">{t("usage")}</p>
-                         <code className="text-[10px] text-gray-600 break-all">curl -H "X-API-Key: {k.key}" {apiBaseUrl}/api/v1/vms</code>
+                      <div className="mt-1.5 rounded bg-gray-50 dark:bg-[#12101a] border border-gray-200 dark:border-white/10 px-2.5 py-1.5">
+                         <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-0.5">{t("usage")}</p>
+                         <code className="text-[10px] text-gray-600 dark:text-gray-400 dark:text-gray-500 break-all">curl -H "X-API-Key: {k.key}" {apiBaseUrl}/api/v1/vms</code>
                       </div>
                     )}
                   </div>
@@ -1021,34 +1021,34 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
   return (
     <ModalShell title={t("resetPasswordTitle", { email: user.email })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <label className="block text-sm text-gray-600">
+        <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
           {t("newPassword")}
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+            className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
           />
         </label>
-        <label className="block text-sm text-gray-600">
+        <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
           {t("confirmPassword")}
           <input
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
-            className="mt-1 w-full px-4 py-2 bg-white border border-gray-200 rounded-lg"
+            className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
           />
         </label>
         {mismatch && (
-          <p className="text-sm text-red-600">{t("passwordsMismatch")}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{t("passwordsMismatch")}</p>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded-lg"
           >
             {t("cancel")}
           </button>
@@ -1077,14 +1077,14 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
   return (
     <ModalShell title={t("deleteUser")} onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-gray-800">
+        <p className="text-gray-800 dark:text-gray-200">
           {t("deleteUserConfirmation", { name: user.name, email: user.email })}
         </p>
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded-lg"
           >
             {t("cancel")}
           </button>
@@ -1117,14 +1117,14 @@ function ModalShell({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-2xl bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 text-xl leading-none"
           >
             ×
           </button>

@@ -37,7 +37,14 @@ export default async function RootLayout({
 }>) {
   const locale = await getRequestLocale();
   return (
-    <html lang={locale}>
+    <html lang={locale} data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{document.documentElement.dataset.theme=localStorage.getItem('vp-theme')||'dark'}catch(e){}",
+          }}
+        />
+      </head>
       <body className="antialiased">
         {process.env.NODE_ENV === "development" ? (
           <Script id="disable-next-overlay" strategy="beforeInteractive">

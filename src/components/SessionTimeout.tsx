@@ -70,7 +70,7 @@ export function SessionTimeout() {
   if (!showWarning || status !== "authenticated") return null;
 
   return (
-    <div className="fixed left-1/2 top-3 z-[100] flex w-[min(92vw,36rem)] -translate-x-1/2 items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-lg">
+    <div className="fixed left-1/2 top-3 z-[100] flex w-[min(92vw,36rem)] -translate-x-1/2 items-center justify-between rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 shadow-lg">
       <span>{t("sessionWarning")}</span>
       <button
         type="button"

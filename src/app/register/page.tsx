@@ -58,7 +58,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-xl">
         <div className="mb-2 flex justify-end"><LanguageSelector /></div>
         <div className="mb-6 text-center">
-          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
+          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white dark:bg-[#171326] p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
             {branding.hasLogo && branding.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -72,74 +72,74 @@ export default function RegisterPage() {
               <SixmanagerMark subtitle="OLVM Portal" />
             )}
           </div>
-          <h1 className="text-lg font-bold text-gray-900">{t("register.title")}</h1>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t("register.title")}</h1>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
             {t("register.description")}
           </p>
         </div>
 
-        <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
+        <div className="rounded-xl border bg-white dark:bg-[#171326] p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
           {error && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
               {error in authMessages ? t(error) : error}
             </div>
           )}
           {success && (
-            <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
               {success in authMessages ? t(success) : success}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
               {t("register.name")}
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                className="mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                 placeholder={t("register.namePlaceholder")}
               />
             </label>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
               {t("common.email")}
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                className="mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                 placeholder={t("common.emailPlaceholder")}
               />
             </label>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
               {t("common.password")}
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                className="mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                 placeholder="••••••••"
               />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                 {t("register.tenantId")}
                 <input
                   value={tenantId}
                   onChange={(e) => setTenantId(e.target.value)}
                   required
-                  className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                  className="mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="default"
                 />
               </label>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                 {t("register.role")}
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2"
+                  className="mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2"
                 >
                   <option value="user">{t("register.userRole")}</option>
                   <option value="admin">{t("register.adminRole")}</option>
@@ -147,8 +147,8 @@ export default function RegisterPage() {
                 </select>
               </label>
             </div>
-            <p className="text-xs text-gray-500">
-              {t("register.roleHelpBefore")} <span className="font-semibold text-amber-700">superadmin</span> {t("register.roleHelpAfter")}
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              {t("register.roleHelpBefore")} <span className="font-semibold text-amber-700 dark:text-amber-300">superadmin</span> {t("register.roleHelpAfter")}
             </p>
 
             <button
@@ -161,9 +161,9 @@ export default function RegisterPage() {
           </form>
         </div>
 
-        <p className="mt-3 text-center text-xs text-gray-500">
+        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
           {t("register.haveAccount")}{" "}
-          <Link href="/login" className="font-semibold text-violet-600 hover:text-violet-700">
+          <Link href="/login" className="font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:text-violet-300">
             {t("register.signIn")}
           </Link>
         </p>

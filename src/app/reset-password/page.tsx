@@ -57,7 +57,7 @@ function ResetPasswordContent() {
       <div className="w-full max-w-sm">
         <div className="mb-2 flex justify-end"><LanguageSelector /></div>
         <div className="mb-6 text-center">
-          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
+          <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white dark:bg-[#171326] p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>
             {branding.hasLogo && branding.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={branding.logoUrl} alt={branding.brandName} className="h-auto w-[130px] sm:w-[160px] object-contain" />
@@ -65,50 +65,50 @@ function ResetPasswordContent() {
               <SixmanagerMark subtitle="OLVM Portal" />
             )}
           </div>
-          <h1 className="text-lg font-bold text-gray-900">{t("reset.title")}</h1>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t("reset.title")}</h1>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
             {success ? t("reset.updated") : t("reset.description")}
           </p>
         </div>
 
-        <div className="rounded-xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
+        <div className="rounded-xl border bg-white dark:bg-[#171326] p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
           {error && (
-            <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <div className="mb-3 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
               {error in authMessages ? t(error) : error}
             </div>
           )}
           {success ? (
-            <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
               {t("reset.success")}
             </div>
           ) : !token ? (
-            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
               {t("reset.invalidToken")}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                   {t("reset.newPassword")}
                 </label>
                 <input
                   type="password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
+                  className="w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:border-violet-400 focus:ring-2 placeholder-gray-400"
                   placeholder="••••••••"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
                   {t("reset.confirmPassword")}
                 </label>
                 <input
                   type="password" value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
-                  className={`w-full rounded-md border px-3 py-2 text-sm text-gray-900 outline-none ring-violet-500/30 focus:ring-2 placeholder-gray-400 ${
-                    mismatch ? "border-red-400" : "border-gray-200 focus:border-violet-400"
+                  className={`w-full rounded-md border px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none ring-violet-500/30 focus:ring-2 placeholder-gray-400 ${
+                    mismatch ? "border-red-400" : "border-gray-200 dark:border-white/10 focus:border-violet-400"
                   }`}
                   placeholder="••••••••"
                 />
@@ -123,8 +123,8 @@ function ResetPasswordContent() {
           )}
         </div>
 
-        <p className="mt-3 text-center text-xs text-gray-500">
-          <Link href="/login" className="font-semibold text-violet-600 hover:text-violet-700">{t("common.backToLogin")}</Link>
+        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          <Link href="/login" className="font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:text-violet-300">{t("common.backToLogin")}</Link>
         </p>
       </div>
     </main>

@@ -7,10 +7,10 @@ import { SixmanagerMark } from "@/components/SixmanagerMark";
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-const inputCls = "mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
-const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500";
+const inputCls = "mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
+const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500";
 const btnPrimary = "rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50";
-const btnSecondary = "rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50";
+const btnSecondary = "rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -121,11 +121,11 @@ export default function SetupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-[#12101a] p-4">
       <div className="w-full max-w-xl">
         <div className="mb-6 flex flex-col items-center">
           <SixmanagerMark />
-          <h1 className="mt-3 text-xl font-bold text-gray-900">OLVM Portal — Instalación</h1>
+          <h1 className="mt-3 text-xl font-bold text-gray-900 dark:text-gray-100">OLVM Portal — Instalación</h1>
         </div>
 
         {/* Progress */}
@@ -133,26 +133,26 @@ export default function SetupPage() {
           <div className="mb-6 flex items-center justify-center gap-2">
             {steps.filter(s => s.n < 6).map((s) => (
               <div key={s.n} className="flex items-center gap-2">
-                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step >= s.n ? "bg-violet-600 text-white" : "bg-gray-200 text-gray-400"}`}>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step >= s.n ? "bg-violet-600 text-white" : "bg-gray-200 dark:bg-[#241f33] text-gray-400 dark:text-gray-500"}`}>
                   {step > s.n ? "✓" : s.n}
                 </div>
-                <span className={`text-xs ${step >= s.n ? "font-medium text-gray-700" : "text-gray-400"}`}>{s.label}</span>
-                {s.n < 5 && <div className={`h-px w-6 ${step > s.n ? "bg-violet-400" : "bg-gray-200"}`} />}
+                <span className={`text-xs ${step >= s.n ? "font-medium text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500"}`}>{s.label}</span>
+                {s.n < 5 && <div className={`h-px w-6 ${step > s.n ? "bg-violet-400" : "bg-gray-200 dark:bg-[#241f33]"}`} />}
               </div>
             ))}
           </div>
         )}
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm" style={{ borderColor: "var(--border)" }}>
+        <div className="rounded-xl border bg-white dark:bg-[#171326] p-6 shadow-sm" style={{ borderColor: "var(--border)" }}>
 
-          {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+          {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>}
 
           {/* Step 0: Welcome */}
           {step === 0 && (
             <div className="text-center">
-              <h2 className="text-lg font-bold text-gray-900">Bienvenido</h2>
-              <p className="mt-2 text-sm text-gray-500">Este wizard te guiará por la configuración inicial del portal en unos minutos.</p>
-              <div className="mt-5 space-y-1.5 text-left text-xs text-gray-500">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Bienvenido</h2>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Este wizard te guiará por la configuración inicial del portal en unos minutos.</p>
+              <div className="mt-5 space-y-1.5 text-left text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 <p>1. Crear el usuario <strong>superadmin</strong></p>
                 <p>2. Conectar el <strong>motor OLVM</strong></p>
                 <p>3. Crear el primer <strong>tenant</strong> con su tag</p>
@@ -166,8 +166,8 @@ export default function SetupPage() {
           {/* Step 1: Superadmin */}
           {step === 1 && (
             <div>
-              <h2 className="mb-1 text-sm font-bold text-gray-900">Crear superadmin</h2>
-              <p className="mb-4 text-xs text-gray-400">Será el administrador global del portal.</p>
+              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">Crear superadmin</h2>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">Será el administrador global del portal.</p>
               <div className="space-y-3">
                 <div><label className={labelCls}>Nombre</label><input className={inputCls} value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Administrador" /></div>
                 <div><label className={labelCls}>Email</label><input className={inputCls} type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="admin@example.com" /></div>
@@ -183,18 +183,18 @@ export default function SetupPage() {
           {/* Step 2: Engine */}
           {step === 2 && (
             <div>
-              <h2 className="mb-1 text-sm font-bold text-gray-900">Conectar motor OLVM</h2>
-              <p className="mb-4 text-xs text-gray-400">Datos de acceso a la API REST del engine (oVirt/OLVM).</p>
+              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">Conectar motor OLVM</h2>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">Datos de acceso a la API REST del engine (oVirt/OLVM).</p>
               <div className="space-y-3">
                 <div><label className={labelCls}>Nombre descriptivo</label><input className={inputCls} value={engName} onChange={(e) => setEngName(e.target.value)} placeholder="Engine Producción" /></div>
                 <div><label className={labelCls}>URL del engine</label><input className={inputCls} type="url" value={engUrl} onChange={(e) => setEngUrl(e.target.value)} placeholder="https://engine.example.com/ovirt-engine/api" /></div>
                 <div><label className={labelCls}>Usuario</label><input className={inputCls} value={engUser} onChange={(e) => setEngUser(e.target.value)} placeholder="admin@internal" /></div>
                 <div><label className={labelCls}>Contraseña</label><input className={inputCls} type="password" value={engPass} onChange={(e) => setEngPass(e.target.value)} placeholder="••••••••" /></div>
-                <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-violet-600" /> Permitir certificados self-signed</label>
+                <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-violet-600" /> Permitir certificados self-signed</label>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <button onClick={handleEngineTest} disabled={loading || !engUrl || !engPass} className={btnSecondary}>Probar conexión</button>
-                {engineTested && <span className="text-xs font-medium text-emerald-600">✓ Conexión exitosa</span>}
+                {engineTested && <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓ Conexión exitosa</span>}
               </div>
               <button onClick={handleEngineSave} disabled={loading || !engName || !engUrl || !engPass} className={`${btnPrimary} mt-5 w-full`}>
                 {loading ? "Guardando..." : "Guardar y continuar →"}
@@ -205,12 +205,12 @@ export default function SetupPage() {
           {/* Step 3: Tenant */}
           {step === 3 && (
             <div>
-              <h2 className="mb-1 text-sm font-bold text-gray-900">Crear tenant</h2>
-              <p className="mb-4 text-xs text-gray-400">El tenant asocia el portal con un tag de OLVM para el aislamiento multitenant.</p>
+              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">Crear tenant</h2>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">El tenant asocia el portal con un tag de OLVM para el aislamiento multitenant.</p>
               <div className="space-y-3">
                 <div><label className={labelCls}>Nombre del tenant</label><input className={inputCls} value={tenantName} onChange={(e) => setTenantName(e.target.value)} placeholder="produccion" /></div>
                 <div><label className={labelCls}>Tag OLVM</label><input className={inputCls} value={tenantTag} onChange={(e) => setTenantTag(e.target.value)} placeholder="produccion" /></div>
-                <p className="text-[10px] text-gray-400">Las VMs con este tag en OLVM pertenecerán a este tenant. El tag se crea automáticamente si no existe.</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500">Las VMs con este tag en OLVM pertenecerán a este tenant. El tag se crea automáticamente si no existe.</p>
               </div>
               <button onClick={handleTenant} disabled={loading || !tenantName || !tenantTag} className={`${btnPrimary} mt-5 w-full`}>
                 {loading ? "Creando..." : "Crear tenant →"}
@@ -221,8 +221,8 @@ export default function SetupPage() {
           {/* Step 4: Email */}
           {step === 4 && (
             <div>
-              <h2 className="mb-1 text-sm font-bold text-gray-900">Configurar email (opcional)</h2>
-              <p className="mb-4 text-xs text-gray-400">Necesario para 2FA y notificaciones. Usamos Resend.</p>
+              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">Configurar email (opcional)</h2>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">Necesario para 2FA y notificaciones. Usamos Resend.</p>
               <div className="space-y-3">
                 <div><label className={labelCls}>Resend API Key</label><input className={inputCls} type="password" value={emailKey} onChange={(e) => setEmailKey(e.target.value)} placeholder="re_..." /></div>
                 <div><label className={labelCls}>Email remitente</label><input className={inputCls} type="email" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} placeholder="noreply@example.com" /></div>
@@ -239,8 +239,8 @@ export default function SetupPage() {
           {/* Step 5: SSH */}
           {step === 5 && (
             <div>
-              <h2 className="mb-1 text-sm font-bold text-gray-900">SSH hosts OLVM (opcional)</h2>
-              <p className="mb-4 text-xs text-gray-400">Credenciales SSH de los hosts OLVM. Necesarias para importar OVAs/qcow2 y conversiones.</p>
+              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">SSH hosts OLVM (opcional)</h2>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">Credenciales SSH de los hosts OLVM. Necesarias para importar OVAs/qcow2 y conversiones.</p>
               <div className="space-y-3">
                 <div><label className={labelCls}>Usuario SSH</label><input className={inputCls} value={sshUser} onChange={(e) => setSshUser(e.target.value)} placeholder="root" /></div>
                 <div><label className={labelCls}>Password SSH</label><input className={inputCls} type="password" value={sshPass} onChange={(e) => setSshPass(e.target.value)} placeholder="••••••••" /></div>
@@ -260,14 +260,14 @@ export default function SetupPage() {
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
-              <h2 className="text-lg font-bold text-gray-900">¡Configuración completa!</h2>
-              <p className="mt-2 text-sm text-gray-500">El portal está listo para usar. Serás redirigido al dashboard.</p>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">¡Configuración completa!</h2>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">El portal está listo para usar. Serás redirigido al dashboard.</p>
               <button onClick={() => router.push("/")} className={`${btnPrimary} mt-6 w-full`}>Ir al portal →</button>
             </div>
           )}
         </div>
 
-        <p className="mt-4 text-center text-[10px] text-gray-400">OLVM Portal · Powered by <a href="https://sixmanager.com" className="hover:text-gray-600">Sixmanager</a></p>
+        <p className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">OLVM Portal · Powered by <a href="https://sixmanager.com" className="hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">Sixmanager</a></p>
       </div>
     </div>
   );

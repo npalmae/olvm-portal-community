@@ -553,7 +553,7 @@ function ConsolePageContent() {
             value={clipboardText}
             onChange={(e) => setClipboardText(e.target.value)}
             placeholder={t('clipboardPlaceholder')}
-            className="w-full h-16 rounded border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-white/80 outline-none resize-none"
+            className="w-full h-16 rounded border border-gray-600 bg-gray-900 dark:bg-black/40 px-2 py-1 text-xs text-white/80 outline-none resize-none"
             spellCheck={false}
           />
         </div>

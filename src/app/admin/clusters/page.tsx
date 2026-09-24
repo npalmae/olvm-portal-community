@@ -58,8 +58,8 @@ const json = async (res: Response) => {
 };
 
 const inputCls =
-  "w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
-const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500";
+  "w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
+const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500";
 
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
@@ -136,7 +136,7 @@ export default function AdminClustersPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-gray-500" style={{ background: "var(--bg)" }}>
+      <div className="flex min-h-screen items-center justify-center text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ background: "var(--bg)" }}>
         {t("loading")}
       </div>
     );
@@ -148,10 +148,10 @@ export default function AdminClustersPage() {
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800" style={{ fontSize: "13px" }}>
+            <div className="mb-1 flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200" style={{ fontSize: "13px" }}>
               <button
                 onClick={() => router.push("/")}
-                className="flex shrink-0 items-center gap-1 hover:text-violet-600"
+                className="flex shrink-0 items-center gap-1 hover:text-violet-600 dark:text-violet-400"
                 title={t("home")}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
@@ -160,34 +160,34 @@ export default function AdminClustersPage() {
                 </svg>
                 VIRTUAL-PORTAL
               </button>
-              <span className="shrink-0 text-gray-400">/</span>
-              <span className="truncate text-gray-700">{t("settings")}</span>
+              <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
+              <span className="truncate text-gray-700 dark:text-gray-300">{t("settings")}</span>
             </div>
-            <h1 className="text-lg font-semibold text-gray-900">{t("connectionsTitle")}</h1>
-            <p className="text-xs text-gray-500">{t("connectionsSubtitle")}</p>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("connectionsTitle")}</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("connectionsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/email")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("emailConfigNav")}
             </button>
             <button
               onClick={() => router.push("/admin/users")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("users")}
             </button>
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("backups")}
             </button>
             <button
               onClick={() => router.push("/admin/branding")}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
             >
               {t("branding")}
             </button>
@@ -196,18 +196,18 @@ export default function AdminClustersPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">{error}</div>
         )}
         {success && (
-          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</div>
+          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">{success}</div>
         )}
 
         {/* ── ENGINES ── */}
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{t("enginesTitle")}</h2>
-              <p className="text-[11px] text-gray-400">{t("enginesSubtitle")}</p>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t("enginesTitle")}</h2>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("enginesSubtitle")}</p>
             </div>
             <button
               onClick={() => setEngineModal({ type: "create" })}
@@ -217,10 +217,10 @@ export default function AdminClustersPage() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
+          <div className="overflow-hidden rounded-xl border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500" style={{ borderColor: "var(--border)" }}>
+                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ borderColor: "var(--border)" }}>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("name")}</th>
                   <th className="px-3 py-2.5 text-left font-semibold">URL</th>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("auth")}</th>
@@ -229,33 +229,33 @@ export default function AdminClustersPage() {
               </thead>
               <tbody>
                 {engines.length === 0 && (
-                  <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400">
+                  <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400 dark:text-gray-500">
                     {t("noEngines")}
                   </td></tr>
                 )}
                 {engines.map((e) => (
                   <tr key={e.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
                     <td className="px-3 py-2.5">
-                      <div className="font-medium text-gray-900">{e.name}</div>
-                      <div className="text-[11px] text-gray-400">{e.id}</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{e.name}</div>
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500">{e.id}</div>
                       {rowTest[e.id] && (
-                        <div className={`mt-1 text-[11px] ${rowTest[e.id]!.ok ? "text-emerald-600" : "text-red-600"}`}>
+                        <div className={`mt-1 text-[11px] ${rowTest[e.id]!.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                           {rowTest[e.id]!.ok ? "✓" : "✕"} {rowTest[e.id]!.detail}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-600 text-xs">{e.baseUrl}</td>
+                    <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400 dark:text-gray-500 text-xs">{e.baseUrl}</td>
                     <td className="px-3 py-2.5">
-                      <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700">
+                      <span className="rounded border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-700 dark:text-violet-300">
                         {e.authMethod === "token" ? "Token" : t("usernameAuth")}
                       </span>
                       {e.allowInsecure && <span className="ml-1 text-[11px] text-amber-600">insecure</span>}
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1.5">
-                        <button onClick={() => testEngine(e)} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("test")}</button>
-                        <button onClick={() => setEngineModal({ type: "edit", engine: e })} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("edit")}</button>
-                        <button onClick={() => setEngineModal({ type: "delete", engine: e })} className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100">{t("delete")}</button>
+                        <button onClick={() => testEngine(e)} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("test")}</button>
+                        <button onClick={() => setEngineModal({ type: "edit", engine: e })} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("edit")}</button>
+                        <button onClick={() => setEngineModal({ type: "delete", engine: e })} className="rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:bg-red-100">{t("delete")}</button>
                       </div>
                     </td>
                   </tr>
@@ -269,8 +269,8 @@ export default function AdminClustersPage() {
         <div>
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-gray-900">{t("tenants")}</h2>
-              <p className="text-[11px] text-gray-400">{t("tenantsSubtitle")}</p>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t("tenants")}</h2>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("tenantsSubtitle")}</p>
             </div>
             <button
               onClick={() => setTenantModal({ type: "create" })}
@@ -282,10 +282,10 @@ export default function AdminClustersPage() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
+          <div className="overflow-hidden rounded-xl border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500" style={{ borderColor: "var(--border)" }}>
+                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ borderColor: "var(--border)" }}>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("name")}</th>
                   <th className="px-3 py-2.5 text-left font-semibold">Engine</th>
                   <th className="px-3 py-2.5 text-left font-semibold">Tag</th>
@@ -294,37 +294,37 @@ export default function AdminClustersPage() {
               </thead>
               <tbody>
                 {tenants.length === 0 && (
-                  <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400">
+                  <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400 dark:text-gray-500">
                     {t("noTenantsConfigured")}
                   </td></tr>
                 )}
                 {tenants.map((tenant) => (
                   <tr key={tenant.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
                     <td className="px-3 py-2.5">
-                      <div className="font-medium text-gray-900">{tenant.name}</div>
-                      <div className="text-[11px] text-gray-400">{tenant.id}</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{tenant.name}</div>
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500">{tenant.id}</div>
                       {rowTest[`t-${tenant.id}`] && (
-                        <div className={`mt-1 text-[11px] ${rowTest[`t-${tenant.id}`]!.ok ? "text-emerald-600" : "text-red-600"}`}>
+                        <div className={`mt-1 text-[11px] ${rowTest[`t-${tenant.id}`]!.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                           {rowTest[`t-${tenant.id}`]!.ok ? "✓" : "✕"} {rowTest[`t-${tenant.id}`]!.detail}
                         </div>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
-                      <div className="text-xs text-gray-700">{tenant.engineName}</div>
-                      <div className="text-[11px] text-gray-400">{tenant.engineUrl}</div>
+                      <div className="text-xs text-gray-700 dark:text-gray-300">{tenant.engineName}</div>
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500">{tenant.engineUrl}</div>
                     </td>
                     <td className="px-3 py-2.5">
                       {tenant.tag ? (
-                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600">{tenant.tag}</span>
+                        <span className="rounded bg-gray-100 dark:bg-[#1b1726] px-1.5 py-0.5 text-[11px] text-gray-600 dark:text-gray-400 dark:text-gray-500">{tenant.tag}</span>
                       ) : (
-                        <span className="text-[11px] text-gray-400">—</span>
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1.5">
-                        <button onClick={() => testTenant(tenant)} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("test")}</button>
-                        <button onClick={() => setTenantModal({ type: "edit", tenant })} className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("edit")}</button>
-                        <button onClick={() => setTenantModal({ type: "delete", tenant })} className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100">{t("delete")}</button>
+                        <button onClick={() => testTenant(tenant)} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("test")}</button>
+                        <button onClick={() => setTenantModal({ type: "edit", tenant })} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("edit")}</button>
+                        <button onClick={() => setTenantModal({ type: "delete", tenant })} className="rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:bg-red-100">{t("delete")}</button>
                       </div>
                     </td>
                   </tr>
@@ -496,10 +496,10 @@ function EngineForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)" }}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-          <h2 className="text-sm font-semibold text-gray-900">{editing ? t("editEngine") : t("newOlvmEngine")}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">×</button>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editing ? t("editEngine") : t("newOlvmEngine")}</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">×</button>
         </div>
 
         <form onSubmit={save} className="space-y-3 p-4">
@@ -515,17 +515,17 @@ function EngineForm({
 
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={allowInsecure} onChange={(e) => setAllowInsecure(e.target.checked)} className="h-4 w-4" />
-            <span className="text-xs text-gray-600">{t("allowSelfSigned")}</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("allowSelfSigned")}</span>
           </label>
 
           <div>
             <span className={labelCls}>{t("authentication")}</span>
             <div className="mt-1 flex gap-4">
-              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+              <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300">
                 <input type="radio" checked={authMethod === "basic"} onChange={() => setAuthMethod("basic")} />
                 {t("usernamePassword")}
               </label>
-              <label className="flex items-center gap-1.5 text-sm text-gray-700">
+              <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300">
                 <input type="radio" checked={authMethod === "token"} onChange={() => setAuthMethod("token")} />
                 Token
               </label>
@@ -555,18 +555,18 @@ function EngineForm({
           {editing && (
             <div>
               <span className={labelCls}>{t("sharedStorageDomains")}</span>
-              <p className="mt-0.5 text-[10px] text-gray-400">{t("sharedStorageExample")}</p>
+              <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{t("sharedStorageExample")}</p>
               {loadingSds ? (
-                <p className="mt-1 text-[11px] text-gray-400">{t("loadingStorageDomains")}</p>
+                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("loadingStorageDomains")}</p>
               ) : availableSds.length === 0 ? (
-                <p className="mt-1 text-[11px] text-gray-400">{t("noStorageDomains")}</p>
+                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("noStorageDomains")}</p>
               ) : (
                 <div className="mt-1 space-y-1">
                   {availableSds.map((sd) => (
-                    <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50" style={{ borderColor: "var(--border)" }}>
+                    <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5" style={{ borderColor: "var(--border)" }}>
                       <input type="checkbox" checked={sharedSds.includes(sd.name)} onChange={() => toggleSharedSd(sd.name)} className="h-4 w-4" />
-                      <span className="text-xs text-gray-700">{sd.name}</span>
-                      <span className="ml-auto text-[10px] text-gray-400">{t("gbFree", { value: sd.availableGB.toFixed(0) })}</span>
+                      <span className="text-xs text-gray-700 dark:text-gray-300">{sd.name}</span>
+                      <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">{t("gbFree", { value: sd.availableGB.toFixed(0) })}</span>
                     </label>
                   ))}
                 </div>
@@ -575,7 +575,7 @@ function EngineForm({
           )}
 
           <div>
-            <button type="button" onClick={() => setShowCa((s) => !s)} className="text-[11px] text-violet-600 hover:underline">
+            <button type="button" onClick={() => setShowCa((s) => !s)} className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline">
               {showCa ? t("hideCa") : t("optionalCa")}
             </button>
             {showCa && (
@@ -584,17 +584,17 @@ function EngineForm({
           </div>
 
           {testRes && (
-            <div className={`rounded-md border px-3 py-2 text-xs ${testRes.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+            <div className={`rounded-md border px-3 py-2 text-xs ${testRes.ok ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-red-200 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300"}`}>
               {testRes.ok ? "✓" : "✕"} {testRes.detail}
             </div>
           )}
 
           <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <button type="button" onClick={runTest} disabled={testing} className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+            <button type="button" onClick={runTest} disabled={testing} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50">
               {testing ? t("testing") : t("testConnection")}
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("cancel")}</button>
+              <button type="button" onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("cancel")}</button>
               <button type="submit" disabled={saving} className="rounded-md bg-[#2563eb] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-50">
                  {saving ? t("saving") : t("save")}
               </button>
@@ -693,10 +693,10 @@ function TenantForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border bg-white shadow-xl" style={{ borderColor: "var(--border)" }}>
+      <div className="w-full max-w-md rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-          <h2 className="text-sm font-semibold text-gray-900">{editing ? t("editTenant") : t("newTenant").replace("+ ", "")}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">×</button>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editing ? t("editTenant") : t("newTenant").replace("+ ", "")}</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">×</button>
         </div>
 
         <form onSubmit={save} className="space-y-3 p-4">
@@ -730,23 +730,23 @@ function TenantForm({
 
           <div>
             <span className={labelCls}>{t("assignedStorageDomains")}</span>
-            <p className="mt-0.5 text-[10px] text-gray-400">{t("allStorageIfNone")}</p>
+            <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{t("allStorageIfNone")}</p>
             {loadingSds ? (
-              <p className="mt-1 text-[11px] text-gray-400">{t("loadingStorageDomains")}</p>
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("loadingStorageDomains")}</p>
             ) : availableSds.length === 0 ? (
-              <p className="mt-1 text-[11px] text-gray-400">{t("noStorageDomains")}</p>
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("noStorageDomains")}</p>
             ) : (
               <div className="mt-1 space-y-1">
                 {availableSds.map((sd) => (
-                  <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50" style={{ borderColor: "var(--border)" }}>
+                  <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5" style={{ borderColor: "var(--border)" }}>
                     <input
                       type="checkbox"
                       checked={selectedSds.includes(sd.name)}
                       onChange={() => toggleSd(sd.name)}
                       className="h-4 w-4"
                     />
-                    <span className="text-xs text-gray-700">{sd.name}</span>
-                    <span className="ml-auto text-[10px] text-gray-400">{t("gbFree", { value: sd.availableGB.toFixed(0) })}</span>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">{sd.name}</span>
+                    <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">{t("gbFree", { value: sd.availableGB.toFixed(0) })}</span>
                   </label>
                 ))}
               </div>
@@ -755,23 +755,23 @@ function TenantForm({
 
           <div>
             <span className={labelCls}>{t("assignedNetworks")}</span>
-            <p className="mt-0.5 text-[10px] text-gray-400">{t("allNetworksIfNone")}</p>
+            <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">{t("allNetworksIfNone")}</p>
             {loadingNetworks ? (
-              <p className="mt-1 text-[11px] text-gray-400">{t("loadingNetworks")}</p>
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("loadingNetworks")}</p>
             ) : availableNetworks.length === 0 ? (
-              <p className="mt-1 text-[11px] text-gray-400">{t("noNetworks")}</p>
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">{t("noNetworks")}</p>
             ) : (
               <div className="mt-1 space-y-1">
                 {availableNetworks.map((netName) => (
                   <div key={netName} className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                    <label className="flex items-center gap-2 hover:bg-gray-50">
+                    <label className="flex items-center gap-2 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">
                       <input
                         type="checkbox"
                         checked={selectedNetworks.includes(netName)}
                         onChange={() => toggleNetwork(netName)}
                         className="h-4 w-4"
                       />
-                      <span className="text-xs font-medium text-gray-700">{netName}</span>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{netName}</span>
                     </label>
                     {selectedNetworks.includes(netName) && (
                       <div className="mt-1 flex gap-2 pl-6">
@@ -780,14 +780,14 @@ function TenantForm({
                           value={networkPrefixes[netName]?.prefix ?? ""}
                           onChange={(e) => setNetworkPrefixes((pp) => ({ ...pp, [netName]: { prefix: e.target.value, mask: pp[netName]?.mask ?? "" } }))}
                           placeholder="192.168.1"
-                          className="w-24 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-violet-400"
+                          className="w-24 rounded border border-gray-200 dark:border-white/10 px-1.5 py-0.5 text-[10px] outline-none focus:border-violet-400"
                         />
                         <input
                           type="text"
                           value={networkPrefixes[netName]?.mask ?? ""}
                           onChange={(e) => setNetworkPrefixes((pp) => ({ ...pp, [netName]: { prefix: pp[netName]?.prefix ?? "", mask: e.target.value } }))}
                           placeholder="255.255.255.0"
-                          className="w-28 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] outline-none focus:border-violet-400"
+                          className="w-28 rounded border border-gray-200 dark:border-white/10 px-1.5 py-0.5 text-[10px] outline-none focus:border-violet-400"
                         />
                       </div>
                     )}
@@ -798,7 +798,7 @@ function TenantForm({
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <button type="button" onClick={onClose} className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("cancel")}</button>
+            <button type="button" onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("cancel")}</button>
             <button type="submit" disabled={saving || (!editing && engines.length === 0)} className="rounded-md bg-[#2563eb] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-50">
               {saving ? t("saving") : t("save")}
             </button>
@@ -820,13 +820,13 @@ function ConfirmDelete({
   const t = useTranslations(adminMessages);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border bg-white p-4 shadow-xl" style={{ borderColor: "var(--border)" }}>
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        <p className="mt-2 text-sm text-gray-600">
+      <div className="w-full max-w-md rounded-xl border bg-white dark:bg-[#171326] p-4 shadow-xl" style={{ borderColor: "var(--border)" }}>
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
           {t("deleteQuestion", { name, id, description })}
         </p>
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">{t("cancel")}</button>
+          <button onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("cancel")}</button>
           <button onClick={onConfirm} className="rounded-md bg-red-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-red-700">{t("delete")}</button>
         </div>
       </div>
