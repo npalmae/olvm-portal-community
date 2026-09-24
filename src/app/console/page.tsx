@@ -102,26 +102,32 @@ function ConsolePageContent() {
 
   useEffect(() => {
     const buildEffectiveWsUrl = () => {
-      if (!wsUrl || typeof window === 'undefined') return '';
+      if (!wsUrl || typeof window === 'undefined') return 'sin parametro wsUrl';
 
       try {
         const parsed = new URL(wsUrl);
         const expectedProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const isAuthorizedProxy =
-          parsed.protocol === expectedProtocol &&
-          parsed.host === window.location.host &&
-          parsed.pathname.startsWith('/console-proxy/') &&
-          parsed.searchParams.getAll('session').length === 1;
-        return isAuthorizedProxy ? parsed.toString() : '';
-      } catch {
-        return '';
+        if (parsed.protocol !== expectedProtocol)
+          return `protocol ${parsed.protocol} != ${expectedProtocol}`;
+        if (parsed.host !== window.location.host)
+          return `host ${parsed.host} != ${window.location.host}`;
+        if (!parsed.pathname.startsWith('/console-proxy/'))
+          return `path ${parsed.pathname} != /console-proxy/`;
+        const sessions = parsed.searchParams.getAll('session');
+        if (sessions.length !== 1) return `session params: ${sessions.length}`;
+        return parsed.toString();
+      } catch (e) {
+        return `wsUrl invalida: ${(e as Error).message}`;
       }
     };
 
     const effectiveWsUrl = buildEffectiveWsUrl();
-    
-    if (!effectiveWsUrl || !containerRef.current) {
-      setErrorMsg(tRef.current('missingConnection'));
+    const urlIsOk = effectiveWsUrl.startsWith('ws:') || effectiveWsUrl.startsWith('wss:');
+
+    if (!urlIsOk || !containerRef.current) {
+      setErrorMsg(
+        `${tRef.current('missingConnection')} (${effectiveWsUrl}${containerRef.current ? '' : '; sin contenedor'})`,
+      );
       setStatus('error');
       return;
     }
