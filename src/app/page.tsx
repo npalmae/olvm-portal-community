@@ -1511,7 +1511,8 @@ export default function Home() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logo} alt={brand} className="h-6 w-6 object-contain" />
                 ) : (
-                  <span className="text-sm font-bold text-white">{brand.slice(0, 1).toUpperCase()}</span>
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/logo-vp-mark.svg" alt={brand} className="h-6 w-6 object-contain" />
                 )}
               </button>
             );
@@ -1526,10 +1527,13 @@ export default function Home() {
                 const brand = t?.brandName || portalBranding.brandName || "VIRTUAL-PORTAL";
                 return (
                   <div className="leading-tight text-center">
-                    {logo && // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />}
-                    <div className="text-[13px] font-bold text-white">{brand}</div>
-                    <div className="text-[10px] font-medium uppercase tracking-widest" style={{ color: "var(--sidebar-muted)" }}>VIRTUAL-PORTAL</div>
+                    {logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src="/logo-vp-dark.svg" alt="Virtual Portal" className="w-[170px] h-auto mx-auto" />
+                    )}
                   </div>
                 );
               })()}
