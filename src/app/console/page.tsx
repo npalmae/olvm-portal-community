@@ -60,6 +60,7 @@ function ConsolePageContent() {
 
     loadCss('/webmks/wmks-all.css');
     if (!(window as any).$) await loadScript('/webmks/jquery.min.js');
+    if (!(window as any).$.widget) await loadScript('/webmks/jquery-ui.min.js');
     if (!(window as any).WMKS) await loadScript('/webmks/wmks.min.js');
 
     const WMKSlib = (window as any).WMKS;
