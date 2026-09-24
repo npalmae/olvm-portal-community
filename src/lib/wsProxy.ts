@@ -52,6 +52,7 @@ export const createConsoleProxySession = (options: ProxyOptions & { targets: str
     allowInsecure: options.allowInsecure === true,
     expiresAt: Date.now() + sessionTtlMs,
   });
+  console.log(`[ws-proxy] sesion creada: targets=${JSON.stringify(options.targets)} insecure=${options.allowInsecure === true}`);
   return token;
 };
 
@@ -89,10 +90,12 @@ const connectClientToTarget = (
   }
 
   const tryNext = () => {
+    if (attempt === 0) console.log(`[ws-proxy] upstream ${target} fallo (intento 1), reintentando...`);
     if (attempt < 14) {
       setTimeout(() => connectClientToTarget(client, session, targetIndex, attempt + 1), 1_000);
       return;
     }
+    console.log(`[ws-proxy] agotados los reintentos para ${target}`);
     connectClientToTarget(client, session, targetIndex + 1);
   };
 
@@ -147,6 +150,7 @@ const connectClientToTarget = (
   };
   upstream.once("error", onEarlyError);
   upstream.once("open", () => {
+    console.log(`[ws-proxy] upstream CONECTADO: ${target}`);
     established = true;
     upstream.off("error", onEarlyError);
     client.on("message", (data) => upstream.send(data));
@@ -185,9 +189,11 @@ export const ensureConsoleProxy = async () => {
 
     const session = consumeConsoleProxySession(token);
     if (!session) {
+      console.log(`[ws-proxy] sesion expirada/inexistente (token ${token.slice(0, 8)}...)`);
       client.close(1008, "Expired console session");
       return;
     }
+    console.log(`[ws-proxy] navegador conectado, dial a ${JSON.stringify(session.targets)}`);
     connectClientToTarget(client, session);
   });
 
