@@ -8,6 +8,7 @@ import {
   fetchVmNics,
   updateNicLink,
 } from "@/lib/olvmClient";
+import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ type Params = {
 
 export async function GET(_req: NextRequest, context: Params) {
   const { tenantId, vmId } = await context.params;
+  if ((await engineTypeForTenant(tenantId)) === "vmware") {
+    return NextResponse.json({ nics: [] });
+  }
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

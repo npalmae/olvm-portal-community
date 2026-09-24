@@ -686,6 +686,27 @@ export const fetchVmById = async (
   return toSummary(vm, tagNames);
 };
 
+
+/* El endpoint de power cambia entre builds: /power/{action} (viejo) vs
+ * /power?action={action} (nuevo, este vCenter 8.0.3). Probamos ambos. */
+const powerCache = new Map<string, "path" | "query">();
+const doPower = async (tenant: TenantConfig, vmId: string, action: string) => {
+  const cached = powerCache.get(tenant.id);
+  const order = cached ? [cached] : (["path", "query"] as const);
+  let last: unknown = null;
+  for (const style of order) {
+    const path = style === "path"
+      ? `/api/vcenter/vm/${vmId}/power/${action}`
+      : `/api/vcenter/vm/${vmId}/power?action=${action}`;
+    try {
+      const r = await viFetch(tenant, path, { method: "POST" });
+      powerCache.set(tenant.id, style);
+      return r;
+    } catch (e) { last = e; }
+  }
+  throw last instanceof Error ? last : new Error(`power ${action} fallo`);
+};
+
 /** Acciones soportadas (vocabulario comun del portal). */
 export const ALLOWED_ACTIONS = ["start", "stop", "shutdown", "reboot", "suspend", "hibernate"];
 
@@ -704,7 +725,7 @@ export const sendVmAction = async (tenantId: string, vmId: string, action: strin
 
   if (action === "shutdown") {
     await viFetch(tenant, `/api/vcenter/vm/${vmId}/guest/power?action=shutdown`, { method: "POST" })
-      .catch(() => viFetch(tenant, `/api/vcenter/vm/${vmId}/power/stop`, { method: "POST" }));
+      .catch(() => doPower(tenant, vmId, "stop"));
     return;
   }
 
@@ -713,13 +734,13 @@ export const sendVmAction = async (tenantId: string, vmId: string, action: strin
     : action === "stop" ? "stop"
     : action === "reboot" ? "reset"
     : "suspend"; // suspend | hibernate
-  await viFetch(tenant, `/api/vcenter/vm/${vmId}/power/${powerAction}`, { method: "POST" });
+  await doPower(tenant, vmId, powerAction);
 };
 
 export const deleteVm = async (tenantId: string, vmId: string) => {
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
-  await viFetch(tenant, `/api/vcenter/vm/${vmId}/power/stop`, { method: "POST" }).catch(() => undefined);
+  await doPower(tenant, vmId, "stop").catch(() => undefined);
   await new Promise((r) => setTimeout(r, 3000));
   await viFetch(tenant, `/api/vcenter/vm/${vmId}`, { method: "DELETE" });
 };
@@ -957,7 +978,7 @@ export const cloneVm = async (
   await applyTenantTag(tenant, newVmId);
 
   await onProgress?.("stopping", 80);
-  await viFetch(tenant, `/api/vcenter/vm/${newVmId}/power/stop`, { method: "POST" }).catch(() => undefined);
+  await doPower(tenant, newVmId, "stop").catch(() => undefined);
 
   await onProgress?.("completed", 100);
   return { vmId: newVmId };

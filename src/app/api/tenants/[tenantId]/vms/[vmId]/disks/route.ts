@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { enforceVmTagPolicy, fetchVmDisks } from "@/lib/olvmClient";
+import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ type Params = {
 
 export async function GET(_: Request, context: Params) {
   const { tenantId, vmId } = await context.params;
+  if ((await engineTypeForTenant(tenantId)) === "vmware") {
+    return NextResponse.json([]);
+  }
   try {
     const session = await auth();
     if (!session?.user) {

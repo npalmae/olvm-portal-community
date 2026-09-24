@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { enforceVmTagPolicy, mountIso, unmountIso, fetchCurrentIso } from "@/lib/olvmClient";
+import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ type Params = {
 
 export async function GET(_req: NextRequest, context: Params) {
   const { tenantId, vmId } = await context.params;
+  if ((await engineTypeForTenant(tenantId)) === "vmware") {
+    return NextResponse.json({ cdroms: [] });
+  }
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
