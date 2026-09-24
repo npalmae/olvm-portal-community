@@ -25,7 +25,7 @@ const LangChip = ({ code, active = false }: { code: string; active?: boolean }) 
   </span>
 );
 
-export function LanguageSelector() {
+export function LanguageSelector({ themeToggle = true }: { themeToggle?: boolean } = {}) {
   const { locale, setLocale } = useLocale();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,7 +41,7 @@ export function LanguageSelector() {
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-1.5">
-      <ThemeToggle />
+      {themeToggle && <ThemeToggle />}
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

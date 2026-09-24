@@ -528,7 +528,7 @@ function ConsolePageContent() {
           <button onClick={() => handleAction('reboot')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('reboot')}>{t('reboot')}</button>
           <button onClick={() => handleAction('eject')} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('ejectTitle')}>{t('eject')}</button>
         </div>
-        <div className="shrink-0"><LanguageSelector /></div>
+        <div className="shrink-0"><LanguageSelector themeToggle={false} /></div>
       </div>
       )}
       {showToolbar && showOnboardKb && (
