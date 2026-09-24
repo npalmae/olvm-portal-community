@@ -13,6 +13,7 @@
   --text-muted:     #9ca3af;
 
   --accent:       #7c3aed;
+  --accent-2:      #d946ef;
   --accent-light: #f5f3ff;
   --accent-hover: #6d28d9;
 
@@ -24,9 +25,9 @@
   --danger-light:  #fef2f2;
 
   /* Sidebar */
-  --sidebar-bg:      #1e2535;
+  --sidebar-bg:      #1d1730;
   --sidebar-hover:   rgba(255,255,255,0.06);
-  --sidebar-active:  rgba(124,58,237,0.25);
+  --sidebar-active:  rgba(139,92,246,0.28);
   --sidebar-text:    #e5e7eb;
   --sidebar-muted:   rgba(229,231,235,0.5);
   --sidebar-border:  rgba(255,255,255,0.07);
