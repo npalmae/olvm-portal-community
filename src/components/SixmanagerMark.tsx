@@ -17,10 +17,10 @@ export function SixmanagerMark({
     <div className={isCenter ? "text-center" : ""}>
       <div className={`flex items-center gap-3 ${isCenter ? "justify-center" : ""}`}>
         <Image
-          src="/ovp-favicon.svg"
+          src="/logo-vp-mark.svg"
           alt="Virtual Portal"
-          width={64}
-          height={64}
+          width={512}
+          height={512}
           priority
           className={`h-auto ${compact ? "w-11" : "w-14"} drop-shadow-[0_18px_35px_rgba(0,0,0,0.35)]`}
         />

@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     ...localeMetadata[locale],
     icons: {
-      icon: "/ovp-favicon.svg",
-      shortcut: "/ovp-favicon.svg",
-      apple: "/ovp-favicon.svg",
+      icon: "/logo-vp-mark.svg",
+      shortcut: "/logo-vp-mark.svg",
+      apple: "/logo-vp-mark.svg",
     },
   };
 }

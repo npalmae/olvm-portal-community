@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="t d">
+  <title id="t">Virtual Portal — logo completo</title>
+  <desc id="d">Marca de marcos superpuestos + wordmark VIRTUAL PORTAL</desc>
+  <defs>
+    <linearGradient id="fa" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="fb" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+  </defs>
+  <rect x="30" y="30" width="240" height="380" rx="46" fill="none" stroke="url(#fa)" stroke-width="32" opacity="0.95"/>
+  <rect x="170" y="60" width="248" height="378" rx="46" fill="none" stroke="url(#fb)" stroke-width="32" opacity="0.88"/>
+  <g fill="#3b2274" font-family="Nunito, 'Trebuchet MS', 'Segoe UI', sans-serif" font-weight="800" letter-spacing="6">
+    <text x="500" y="220" font-size="150">VIRTUAL</text>
+    <text x="500" y="390" font-size="150">PORTAL</text>
+  </g>
+</svg>
