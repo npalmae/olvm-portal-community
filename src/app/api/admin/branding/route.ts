@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
   }
 
   const file = form.get("logo");
-  if (!(file instanceof File)) {
+  const hasFile = file instanceof File;
+  if (file !== null && !(file instanceof File)) {
     return JSON_RESP({ error: "Campo 'logo' no es archivo" }, 400);
   }
 
@@ -59,7 +60,20 @@ export async function POST(req: NextRequest) {
   const brandName =
     typeof brandNameRaw === "string" ? brandNameRaw.trim().slice(0, 80) : null;
 
-  const raw = Buffer.from(await file.arrayBuffer());
+  // Sin imagen: solo actualiza el nombre y conserva el logo actual (o el
+  // logo por defecto del portal si nunca se subio uno).
+  if (!hasFile) {
+    if (!brandName) {
+      return JSON_RESP({ error: "Nada que actualizar" }, 400);
+    }
+    const cfg = await writeBrandingConfig({ brandName });
+    return NextResponse.json({
+      ok: true,
+      brandName: cfg.brandName,
+    });
+  }
+
+  const raw = Buffer.from(await (file as File).arrayBuffer());
 
   const validation = validateUpload(file, raw);
   if (!validation.ok) {
