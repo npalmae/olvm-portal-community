@@ -118,8 +118,8 @@ Portal web self-service que permite gestionar máquinas virtuales, storage domai
 ### Paso 1: Clonar y ejecutar el instalador
 
 ```bash
-git clone https://github.com/npalmae/olvm-portal.git
-cd olvm-portal
+git clone https://github.com/npalmae/olvm-portal-community.git
+cd olvm-portal-community
 chmod +x install.sh
 ./install.sh
 ```
