@@ -871,49 +871,115 @@ export const fetchVnicProfiles = async (tenantId: string): Promise<VnicProfile[]
 };
 
 /* ────────────────────────────────────────────────────────────────────────────
- * NICs de una VM (REST /api/vcenter/vm/{vm}/nics)
+ * NICs de una VM
+ *  - Listado: detalle REST (GET /api/vcenter/vm/{vm} -> nics)
+ *  - Mutaciones: SOAP ReconfigVM_Task (este build no expone REST de NICs)
  * ──────────────────────────────────────────────────────────────────────── */
 
 type RawNic = {
-  nic?: string;
   label?: string;
   mac_address?: string;
-  backing?: { type?: string; network?: string };
-  state?: { connected?: boolean; start_connected?: boolean };
+  backing?: { type?: string; network?: string; network_name?: string };
+  state?: string | { connected?: boolean; start_connected?: boolean };
+  start_connected?: boolean;
+  type?: string;
 };
 
-const nicNetworkName = async (tenant: TenantConfig, networkId?: string) => {
-  if (!networkId) return "";
-  try {
-    const networks = await fetchNetworks(tenantId2(tenant));
-    return networks.find((n) => n.id === networkId)?.name ?? networkId;
-  } catch {
-    return networkId;
+type VmDetailWithNics = { power_state?: string; nics?: Record<string, RawNic> };
+
+const escapeXml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* ── SOAP base (login + cookie por engine) ──────────────────────────────── */
+
+const soapSessions = new Map<string, string>();
+const SOAP_ENV = (inner: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="urn:vim25" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<soapenv:Body>${inner}</soapenv:Body>
+</soapenv:Envelope>`;
+
+const soapLogin = async (tenant: TenantConfig): Promise<string> => {
+  const body = SOAP_ENV(
+    `<Login><_this type="SessionManager">SessionManager</_this>` +
+    `<userName>${escapeXml(tenant.username ?? "")}</userName>` +
+    `<password>${escapeXml(tenant.password ?? "")}</password></Login>`,
+  );
+  const res = await undiciFetch(`${tenant.baseUrl}/sdk`, {
+    method: "POST",
+    headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: '"urn:vim25"' },
+    body,
+    dispatcher: getDispatcher(tenant) as never,
+  });
+  const cookie = res.headers.get("set-cookie")?.split(";")[0] ?? "";
+  if (!res.ok || !cookie.includes("vmware_soap_session")) {
+    throw new Error(`SOAP login fallo (${res.status})`);
   }
+  return cookie;
 };
 
-// helper puente (fetchNetworks recibe tenantId)
-const tenantId2 = (tenant: TenantConfig) => tenant.id;
+const soapCall = async (tenant: TenantConfig, inner: string, retry = true): Promise<string> => {
+  let cookie = soapSessions.get(tenant.id);
+  if (!cookie) {
+    cookie = await soapLogin(tenant);
+    soapSessions.set(tenant.id, cookie);
+  }
+  const res = await undiciFetch(`${tenant.baseUrl}/sdk`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: '"urn:vim25"',
+      Cookie: cookie,
+    },
+    body: SOAP_ENV(inner),
+    dispatcher: getDispatcher(tenant) as never,
+  });
+  const text = await res.text();
+  if (text.includes("NotAuthenticated") && retry) {
+    soapSessions.delete(tenant.id);
+    return soapCall(tenant, inner, false);
+  }
+  if (text.includes("<soapenv:Fault>") || text.includes("<Fault>")) {
+    const msg = /<faultstring>([\s\S]*?)<\/faultstring>/.exec(text)?.[1] ?? "error SOAP";
+    throw new Error(`SOAP: ${msg.replace(/&apos;/g, "'").replace(/&quot;/g, '"').slice(0, 200)}`);
+  }
+  return text;
+};
+
+const reconfigureVm = (vmId: string, deviceChange: string) =>
+  `<ReconfigVM_Task><_this type="VirtualMachine">${vmId}</_this>` +
+  `<spec><deviceChange>${deviceChange}</deviceChange></spec></ReconfigVM_Task>`;
+
+/** Espera a que la cantidad de NICs en el detalle REST cambie (add/remove). */
+const waitNicCount = async (tenant: TenantConfig, vmId: string, expected: number) => {
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const d = await viFetch<VmDetailWithNics>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null);
+    if (d && Object.keys(d.nics ?? {}).length === expected) return;
+  }
+  throw new Error("La NIC no reflejo el cambio a tiempo en vCenter");
+};
+
+/* ── Operaciones ─────────────────────────────────────────────────────────── */
 
 export const fetchVmNics = async (tenantId: string, vmId: string): Promise<import("./olvmClient").VmNic[]> => {
   const tenant = await getTenantById(tenantId);
-  const list = await viFetch<RawNic[]>(tenant, `/api/vcenter/vm/${vmId}/nics`);
+  const detail = await viFetch<VmDetailWithNics>(tenant, `/api/vcenter/vm/${vmId}`);
   const nics: import("./olvmClient").VmNic[] = [];
-  for (const raw of list ?? []) {
-    const networkId = raw.backing?.network ?? "";
+  for (const [key, raw] of Object.entries(detail.nics ?? {})) {
+    const connected = typeof raw.state === "string" ? raw.state === "CONNECTED" : (raw.state?.connected ?? false);
     nics.push({
-      id: raw.nic ?? "",
-      name: raw.label ?? raw.nic ?? "NIC",
+      id: key,
+      name: raw.label ?? key,
       mac: raw.mac_address ?? "",
-      linked: raw.state?.connected ?? false,
-      plugged: raw.state?.start_connected ?? false,
-      interface: raw.backing?.type ?? "",
-      networkId,
-      networkName: await nicNetworkName(tenant, networkId),
-      vnicProfileId: networkId,
+      linked: connected,
+      plugged: typeof raw.state === "object" ? (raw.state?.start_connected ?? false) : (raw.start_connected ?? false),
+      interface: raw.type ?? raw.backing?.type ?? "",
+      networkId: raw.backing?.network ?? "",
+      networkName: raw.backing?.network_name ?? raw.backing?.network ?? "",
+      vnicProfileId: raw.backing?.network ?? "",
     });
   }
-  return nics;
+  return nics.sort((a, b) => a.id.localeCompare(b.id));
 };
 
 export const addNicToVm = async (
@@ -923,15 +989,22 @@ export const addNicToVm = async (
 ): Promise<void> => {
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
-  const networkId = params.vnicProfileId?.trim() || (await fetchNetworks(tenantId))[0]?.id;
-  if (!networkId) throw new Error("No hay redes disponibles para conectar la NIC");
-  await viFetch(tenant, `/api/vcenter/vm/${vmId}/nics`, {
-    method: "POST",
-    body: JSON.stringify({
-      backing: { type: "STANDARD_PORTGROUP", network: networkId },
-      start_connected: true,
-    }),
-  });
+  const networks = await fetchNetworks(tenantId);
+  const networkName =
+    networks.find((n) => n.id === params.vnicProfileId)?.name ?? "VM Network";
+
+  const before = await viFetch<VmDetailWithNics>(tenant, `/api/vcenter/vm/${vmId}`);
+  const expected = Object.keys(before.nics ?? {}).length + 1;
+
+  await soapCall(tenant, reconfigureVm(vmId,
+    `<operation>add</operation>` +
+    `<device xsi:type="VirtualVmxnet3">` +
+    `<key>-1</key>` +
+    `<backing xsi:type="VirtualEthernetCardNetworkBackingInfo"><deviceName>${escapeXml(networkName)}</deviceName></backing>` +
+    `<connectable><startConnected>true</startConnected><allowGuestControl>true</allowGuestControl><connected>true</connected></connectable>` +
+    `<addressType>generated</addressType>` +
+    `</device>`));
+  await waitNicCount(tenant, vmId, expected);
 };
 
 export const updateNicLink = async (
@@ -942,9 +1015,14 @@ export const updateNicLink = async (
 ): Promise<void> => {
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
-  await viFetch(tenant, `/api/vcenter/vm/${vmId}/nics/${nicId}?action=${linked ? "connect" : "disconnect"}`, {
-    method: "POST",
-  });
+  const current = (await fetchVmNics(tenantId, vmId)).find((n) => n.id === nicId);
+  await soapCall(tenant, reconfigureVm(vmId,
+    `<operation>edit</operation>` +
+    `<device xsi:type="VirtualVmxnet3">` +
+    `<key>${Number(nicId)}</key>` +
+    `<backing xsi:type="VirtualEthernetCardNetworkBackingInfo"><deviceName>${escapeXml(current?.networkName || "VM Network")}</deviceName></backing>` +
+    `<connectable><startConnected>${linked}</startConnected><allowGuestControl>true</allowGuestControl><connected>${linked}</connected></connectable>` +
+    `</device>`));
 };
 
 export const deleteNicFromVm = async (
@@ -954,7 +1032,13 @@ export const deleteNicFromVm = async (
 ): Promise<void> => {
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
-  await viFetch(tenant, `/api/vcenter/vm/${vmId}/nics/${nicId}`, { method: "DELETE" });
+  const before = await viFetch<VmDetailWithNics>(tenant, `/api/vcenter/vm/${vmId}`);
+  const expected = Math.max(0, Object.keys(before.nics ?? {}).length - 1);
+
+  await soapCall(tenant, reconfigureVm(vmId,
+    `<operation>remove</operation>` +
+    `<device xsi:type="VirtualVmxnet3"><key>${Number(nicId)}</key></device>`));
+  await waitNicCount(tenant, vmId, expected);
 };
 
 /** TODO(lab): templates via Content Library (OVF/vVMTX) o VMs marcadas template. */
