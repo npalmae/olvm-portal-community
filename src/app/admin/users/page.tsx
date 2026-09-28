@@ -443,38 +443,38 @@ export default function AdminUsersPage() {
         )}
 
         <div className="bg-white dark:bg-[#171326] rounded-lg border overflow-x-auto" style={{ borderColor: "var(--border)" }}>
-          <table className="w-full min-w-[880px] text-left">
+          <table className="w-full text-left table-fixed">
             <thead className="bg-gray-50 dark:bg-[#12101a]">
               <tr>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("name")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("alias")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("email")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("tenants")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("role")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">2FA</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("created")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("actions")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("name")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("alias")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("email")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("tenants")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("role")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">2FA</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("created")}</th>
+                <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400 dark:text-gray-500">
+                  <td colSpan={8} className="px-3 py-8 text-center text-gray-400 dark:text-gray-500">
                     {t("noUsers")}
                   </td>
                 </tr>
               )}
               {users.map((user) => (
                 <tr key={user.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-4">
                     {user.name}
                     {user.id === selfId && (
                       <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{t("you")}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{user.alias || t("noAlias")}</td>
-                  <td className="px-6 py-4">{user.email}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-4 text-gray-600 dark:text-gray-400"><span className="block max-w-[90px] truncate" title={user.alias || ""}>{user.alias || t("noAlias")}</span></td>
+                  <td className="px-3 py-4">{user.email}</td>
+                  <td className="px-3 py-4">
                     <div className="flex flex-wrap gap-1">
                       {user.memberships.length === 0 && (
                         <span className="text-xs text-gray-400 dark:text-gray-500">{t("noTenant")}</span>
@@ -482,7 +482,7 @@ export default function AdminUsersPage() {
                       {user.memberships.map((m) => (
                         <span
                           key={m.tenantId}
-                          className={`px-2 py-1 rounded text-xs border ${
+                          className={`px-1.5 py-0.5 rounded text-[10px] border ${
                             m.role === "admin"
                               ? "bg-violet-100 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-500/40"
                               : m.role === "operator"
@@ -496,7 +496,7 @@ export default function AdminUsersPage() {
                       ))}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-4">
                     <span
                       className={`px-2 py-1 rounded text-sm border ${roleBadge(
                         user.role,
@@ -505,9 +505,9 @@ export default function AdminUsersPage() {
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-4">
                     <span
-                      className={`px-2 py-1 rounded text-xs border ${
+                      className={`px-1.5 py-0.5 rounded text-[10px] border ${
                         user.twoFactorEnabled
                           ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200"
                           : "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/10"
@@ -516,7 +516,7 @@ export default function AdminUsersPage() {
                       {user.twoFactorEnabled ? t("active") : t("disabled")}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                  <td className="px-3 py-4 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {new Date(user.createdAt).toLocaleDateString({ es: "es-ES", en: "en-GB", de: "de-DE", pt: "pt-PT" }[locale])}
                   </td>
                   <td className="px-4 py-4">
@@ -541,7 +541,7 @@ export default function AdminUsersPage() {
                             ? t("cannotDeleteSelf")
                             : t("deleteUser")
                         }
-                        className="px-3 py-1.5 text-sm bg-red-50 dark:bg-red-500/10 hover:bg-red-100 text-red-700 dark:text-red-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-2.5 py-1.5 text-xs bg-red-50 dark:bg-red-500/10 hover:bg-red-100 text-red-700 dark:text-red-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                       >
                         {t("delete")}
                       </button>
