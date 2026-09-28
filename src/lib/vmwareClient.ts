@@ -1085,6 +1085,43 @@ export const updateVmResources = async (
 ) => {
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
+
+  // vSphere solo cambia CPU/RAM en caliente con hot-plug habilitado (raro en
+  // labs). Si esta encendida, orquestamos: apagar -> aplicar -> encender.
+  const detail = await viFetch<{ power_state?: string }>(tenant, `/api/vcenter/vm/${vmId}`);
+  const wasOn = detail?.power_state === "POWERED_ON";
+  const waitPower = async (desired: string, tries = 30) => {
+    for (let i = 0; i < tries; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const d = await viFetch<{ power_state?: string }>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null);
+      if (d?.power_state === desired) return;
+    }
+    throw new Error(`La VM no alcanzó el estado ${desired} a tiempo`);
+  };
+  if (wasOn) {
+    await doPower(tenant, vmId, "stop");
+    await waitPower("POWERED_OFF");
+  }
+
+  try {
+    await applyResourceChanges(tenant, vmId, payload);
+  } catch (error) {
+    if (wasOn) {
+      await doPower(tenant, vmId, "start").catch(() => undefined);
+    }
+    throw error;
+  }
+  if (wasOn) {
+    await doPower(tenant, vmId, "start");
+    await waitPower("POWERED_ON");
+  }
+};
+
+const applyResourceChanges = async (
+  tenant: TenantConfig,
+  vmId: string,
+  payload: UpdateVmInput,
+) => {
   if (payload.cpuCores) {
     await runCapability(tenant, "vm.cpu.update", {
       api: {

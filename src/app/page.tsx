@@ -2753,7 +2753,7 @@ export default function Home() {
                         </div>
                         {selectedVm.status?.toLowerCase?.() === "up" ? (
                           <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
-                             {t("vmMustBeOff")}
+                             {(tenants.find((tt) => tt.id === selectedTenant)?.engineType ?? (tenants.find((tt) => tt.id === tenantForVm(selectedVm.id))?.engineType)) === "vmware" ? t("resourcesWillRestart") : t("vmMustBeOff")}
                             <button
                               onClick={() => runAction(selectedVm.id, "shutdown")}
                               disabled={actionLoading === `${selectedVm.id}-shutdown`}
