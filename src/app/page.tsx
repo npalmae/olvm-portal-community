@@ -129,7 +129,7 @@ const MiniBar = ({ value, color = "bg-violet-500" }: { value?: number; color?: s
           style={{ width: missing ? "8%" : `${Math.max(3, pct)}%` }}
         />
       </div>
-      <span className="w-8 text-right text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 tabular-nums">
+      <span className="w-8 text-right text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">
         {missing ? "—" : `${pct.toFixed(0)}%`}
       </span>
     </div>
@@ -167,7 +167,7 @@ const StatCard = ({
     warning ? "border-amber-200 bg-amber-50 dark:bg-amber-500/10" :
     "border-[--border] bg-white dark:bg-[#171326]"
   }`}>
-    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{label}</p>
+    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
     <p className={`mt-1 text-2xl font-bold tabular-nums ${
       accent ? "text-violet-700 dark:text-violet-300" : warning ? "text-amber-700 dark:text-amber-300" : "text-gray-900 dark:text-gray-100"
     }`}>{value}</p>
@@ -189,7 +189,7 @@ const ActionButton = ({
       ? `${base} border-violet-300 dark:border-violet-500/40 bg-violet-600 text-white hover:bg-violet-700`
       : variant === "danger"
       ? `${base} border-red-300 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 hover:bg-red-100`
-      : `${base} border-[--border] bg-white dark:bg-[#171326] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5`;
+      : `${base} border-[--border] bg-white dark:bg-[#171326] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5`;
   return (
     <button onClick={onClick} disabled={loading || disabled} title={title} className={cls}>
       {loading ? <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : label}
@@ -201,7 +201,7 @@ const Field = ({
   label, children,
 }: { label: string; children: React.ReactNode }) => (
   <label className="block">
-    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{label}</span>
+    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</span>
     <div className="mt-1">{children}</div>
   </label>
 );
@@ -1567,7 +1567,7 @@ export default function Home() {
           <div className="border-b py-2" style={{ borderColor: "var(--sidebar-border)" }}>
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="mx-auto flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1.5 transition-colors hover:bg-white dark:bg-[#171326]/5"
+              className="mx-auto flex flex-col items-center justify-center gap-0.5 rounded-md px-2 py-1.5 transition-colors hover:bg-white "
               style={{ color: "var(--sidebar-text)" }}
               title={`${t("activeTenant")}: ${tenants.find((x) => x.id === selectedTenant)?.name ?? tenants[0]?.name ?? ""}`}
             >
@@ -1754,7 +1754,7 @@ export default function Home() {
           {/* Mobile menu toggle */}
           <button
             onClick={() => setSidebarCollapsed((p) => !p)}
-            className="flex sm:hidden items-center justify-center rounded p-1.5 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-white dark:bg-[#171326]/10"
+            className="flex sm:hidden items-center justify-center rounded p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-white dark:bg-[#171326]/10"
             title={t("menu")}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1763,7 +1763,7 @@ export default function Home() {
           </button>
 
           {/* Breadcrumb — truncates gracefully */}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 overflow-hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 overflow-hidden">
             <button
               onClick={() => { setSelectedVmId(""); setSelectedTenant(isSuperadmin ? ALL_TENANTS : tenants[0]?.id ?? ""); }}
               className="flex shrink-0 items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 hover:text-violet-600 dark:text-violet-400"
@@ -1780,7 +1780,7 @@ export default function Home() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <span className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               <span className="max-w-[140px] truncate">{session?.user?.email ?? t("unknownUser")}</span>
             </span>
@@ -1788,7 +1788,7 @@ export default function Home() {
             {/* Mobile: right panel toggle */}
             <button
               onClick={() => setRightPanelOpen((p) => !p)}
-              className="flex lg:hidden items-center justify-center rounded border border-gray-200 dark:border-white/10 p-1.5 text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="flex lg:hidden items-center justify-center rounded border border-gray-200 dark:border-white/10 p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
               title={t("actionsPanel")}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1799,7 +1799,7 @@ export default function Home() {
             {canAdmin && (
               <Link
                 href="/admin/users"
-                className="hidden sm:inline-flex items-center rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                className="hidden sm:inline-flex items-center rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                 title={t("userAdmin")}
               >
                 {t("users")}
@@ -1808,7 +1808,7 @@ export default function Home() {
             {session?.user?.role === "superadmin" && (
               <Link
                 href="/admin/clusters"
-                className="hidden sm:inline-flex items-center rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                className="hidden sm:inline-flex items-center rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                 title={t("olvmConnectionsAdmin")}
               >
                 {t("settings")}
@@ -1817,7 +1817,7 @@ export default function Home() {
             <button
               onClick={handleSignOut}
               disabled={signingOut}
-              className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50"
+              className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 disabled:opacity-50"
             >
               {signingOut ? "..." : t("signOut")}
             </button>
@@ -1876,7 +1876,7 @@ export default function Home() {
                 <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
                   {selectedVm ? selectedVm.name : t("tenantDashboard")}
                 </h1>
-                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
                   {selectedVm
                     ? `${selectedVm.tenantName ?? tenantName} / ${selectedVm.cluster || t("noCluster")} / ${selectedVm.host || t("unknownHost")}`
                     : t("consolidatedSummary", { tenant: tenantName || t("activeTenantFallback") })}
@@ -1888,7 +1888,7 @@ export default function Home() {
                     <StatusBadge status={selectedVm.status} />
                     <button
                       onClick={() => setSelectedVmId("")}
-                      className="rounded border border-gray-200 dark:border-white/10 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                      className="rounded border border-gray-200 dark:border-white/10 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                     >
                       {t("back")}
                     </button>
@@ -1896,7 +1896,7 @@ export default function Home() {
                 )}
                 <button
                   onClick={refresh}
-                  className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                  className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 transition hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                 >
                   {loading ? "..." : "↻"}
                 </button>
@@ -1918,7 +1918,7 @@ export default function Home() {
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-3">
                 {/* CPU */}
                   <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">{t("totalCpu")}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{t("totalCpu")}</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.cpuPct} color="#3b82f6" />
                       <div>
@@ -1933,7 +1933,7 @@ export default function Home() {
                   </div>
                   {/* RAM */}
                   <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">{t("totalRam")}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{t("totalRam")}</p>
                     <div className="flex items-center gap-3">
                       <DonutRing value={tenantResourceSummary.memPct} color="#10b981" />
                       <div>
@@ -1944,14 +1944,14 @@ export default function Home() {
                   </div>
                   {/* Traffic */}
                   <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-2">{t("activeTraffic")}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{t("activeTraffic")}</p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("diskRw")}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">{t("diskRw")}</span>
                         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{formatBytes(tenantResourceSummary.disk)}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("network")}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">{t("network")}</span>
                         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{formatBytes(tenantResourceSummary.net)}</span>
                       </div>
                       <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-[#1b1726]">
@@ -1965,11 +1965,11 @@ export default function Home() {
                 {selectedTenant !== ALL_TENANTS && storageDomains.length > 0 && (
                   <div className="mb-4">
                     <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">Storage Domains</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Storage Domains</p>
                       {isSuperadmin && (
                         <button
                           onClick={() => setShowAllSds((v) => !v)}
-                          className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                          className="rounded border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                         >
                           {showAllSds ? t("assignedOnly") : t("viewAll")}
                         </button>
@@ -2004,7 +2004,7 @@ export default function Home() {
                 {/* Per-tenant summary (only in "Todos los tenants" mode) */}
                 {selectedTenant === ALL_TENANTS && perTenantSummary.length > 1 && (
                   <div className="mb-4">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("tenantSummary")}</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("tenantSummary")}</p>
                     <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {perTenantSummary.map((tenantSummary) => {
                         const cpuPct = tenantSummary.provisionedCpu > 0 ? (tenantSummary.estCpu / tenantSummary.provisionedCpu) * 100 : 0;
@@ -2077,7 +2077,7 @@ export default function Home() {
                 <div className="mb-4 grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
                   {/* RAM por VM */}
                   <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("topRam")}</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("topRam")}</p>
                     {topMemVms.length === 0
                       ? <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noData")}</p>
                       : topMemVms.map((vm) => {
@@ -2095,7 +2095,7 @@ export default function Home() {
                   </div>
                   {/* CPU por VM */}
                   <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("topCpu")}</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("topCpu")}</p>
                     {topCpuVms.length === 0
                       ? <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noData")}</p>
                       : topCpuVms.map((vm) => (
@@ -2113,7 +2113,7 @@ export default function Home() {
                 {/* VM table */}
                 <div className="rounded-lg border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       {t("virtualMachines", { count: vms.length })}
                     </p>
                   </div>
@@ -2140,20 +2140,20 @@ export default function Home() {
                           <tr
                             key={vm.id}
                             onClick={() => setSelectedVmId(vm.id)}
-                            className="cursor-pointer border-b transition-colors hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                            className="cursor-pointer border-b transition-colors hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                             style={{ borderColor: "var(--border)" }}
                           >
                             <td className="px-3 py-2"><StatusBadge status={vm.status} /></td>
                             <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100 max-w-[120px] truncate">{vm.name}</td>
-                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 dark:text-gray-500 max-w-[100px] truncate">{vm.cluster || "—"}</td>
-                            <td className="hidden lg:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 dark:text-gray-500 max-w-[100px] truncate">{vm.host || "—"}</td>
+                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{vm.cluster || "—"}</td>
+                            <td className="hidden lg:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{vm.host || "—"}</td>
                             <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.cpuPercent} color="bg-violet-400" />
                             </td>
                             <td className="hidden sm:table-cell px-3 py-2 w-28">
                               <MiniBar value={vm.metrics?.memoryPercent} color="bg-emerald-400" />
                             </td>
-                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 dark:text-gray-400 dark:text-gray-500">{vm.cpuCores ?? "—"}</td>
+                            <td className="hidden md:table-cell px-3 py-2 text-gray-500 dark:text-gray-400">{vm.cpuCores ?? "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2169,7 +2169,7 @@ export default function Home() {
                       {actionHistory.map((entry) => (
                         <div key={`${entry.vmId}-${entry.timestamp}`}
                           className="flex items-center justify-between gap-3 text-[11px]">
-                          <span className="text-gray-600 dark:text-gray-400 dark:text-gray-500">{actionLabel(entry.action)} · <span className="text-gray-400 dark:text-gray-500">{entry.vmId}</span></span>
+                          <span className="text-gray-600 dark:text-gray-400">{actionLabel(entry.action)} · <span className="text-gray-400 dark:text-gray-500">{entry.vmId}</span></span>
                           <span className="text-gray-400 dark:text-gray-500">{new Date(entry.timestamp).toLocaleTimeString(locale)}</span>
                           <span className={entry.status === "ok" ? "text-emerald-600 dark:text-emerald-400" : entry.status === "pending" ? "text-amber-500" : "text-red-500"}>
                             {entry.status === "pending" ? t("actionPending") : entry.status === "ok" ? t("actionOk") : t("actionError")}
@@ -2216,7 +2216,7 @@ export default function Home() {
                     </div>
                     <div className="flex gap-2">
                       <dt className="w-32 shrink-0 text-gray-400 dark:text-gray-500">ID</dt>
-                      <dd className="min-w-0 break-all text-gray-500 dark:text-gray-400 dark:text-gray-500">{selectedVm.id}</dd>
+                      <dd className="min-w-0 break-all text-gray-500 dark:text-gray-400">{selectedVm.id}</dd>
                     </div>
                   </dl>
                 </div>
@@ -2258,7 +2258,7 @@ export default function Home() {
                         return (
                         <div key={n.id} className="flex flex-col gap-0.5">
                           <div className="flex justify-between text-xs">
-                            <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                            <span className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
                               <span className={`h-2 w-2 shrink-0 rounded-full ${isUp ? "bg-emerald-500" : "bg-gray-300"}`} title={isUp ? t("nicUp") : t("nicDown")} />
                               {n.networkName || n.name}
                             </span>
@@ -2306,15 +2306,15 @@ export default function Home() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">I/O</p>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between">
-                       <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("diskRead")}</span>
+                       <span className="text-gray-500 dark:text-gray-400">{t("diskRead")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskReadBytes)}</span>
                     </div>
                     <div className="flex justify-between">
-                       <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("diskWrite")}</span>
+                       <span className="text-gray-500 dark:text-gray-400">{t("diskWrite")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.diskWriteBytes)}</span>
                     </div>
                     <div className="flex justify-between">
-                       <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("network")}</span>
+                       <span className="text-gray-500 dark:text-gray-400">{t("network")}</span>
                       <span className="font-semibold">{formatBytes(selectedVm.metrics?.networkBytes)}</span>
                     </div>
                   </div>
@@ -2335,7 +2335,7 @@ export default function Home() {
                         <div className="space-y-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
                           {vmDisks.disks.map((d, i) => (
                             <div key={i} className="flex justify-between">
-                               <span className="truncate text-gray-500 dark:text-gray-400 dark:text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
+                               <span className="truncate text-gray-500 dark:text-gray-400" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
                                <span className="shrink-0 font-semibold">{formatNumber(d.sizeGB)} GB{d.usedGB != null ? ` (${formatNumber(d.usedGB)})` : ""}</span>
                             </div>
                           ))}
@@ -2435,7 +2435,7 @@ export default function Home() {
                             {vmDisks.disks.map((d, i) => (
                               <div key={i} className="space-y-0.5">
                                 <div className="flex justify-between text-[11px]">
-                                   <span className="truncate text-gray-500 dark:text-gray-400 dark:text-gray-500" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
+                                   <span className="truncate text-gray-500 dark:text-gray-400" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
                                   <span className="shrink-0 font-medium text-gray-700 dark:text-gray-300">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })} GB</span>
                                 </div>
                                 <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#1b1726]">
@@ -2456,7 +2456,7 @@ export default function Home() {
                 ) : (
                   <div className="space-y-2">
                     <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
-                       <p className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("selectVmDetail")}</p>
+                       <p className="text-[11px] text-gray-500 dark:text-gray-400">{t("selectVmDetail")}</p>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">
                       <div className="rounded-md border p-2 text-center" style={{ borderColor: "var(--border)" }}>
@@ -2610,7 +2610,7 @@ export default function Home() {
                           ))}
                         </select>
                         {isSuperadmin && (
-                          <label className={`flex w-full cursor-pointer items-center justify-center rounded-md border border-dashed border-gray-300 dark:border-white/15 py-1.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 ${uploadingIso ? "opacity-50 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
+                          <label className={`flex w-full cursor-pointer items-center justify-center rounded-md border border-dashed border-gray-300 dark:border-white/15 py-1.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 ${uploadingIso ? "opacity-50 pointer-events-none" : ""}`} style={{ borderColor: "var(--border)" }}>
                              {uploadingIso ? t("uploadingIso") : t("uploadIso")}
                             <input
                               type="file"
@@ -2635,9 +2635,9 @@ export default function Home() {
                           <div className="space-y-1">
                             {vmDiskList.map((d) => (
                               <div key={d.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1" style={{ borderColor: "var(--border)" }}>
-                                <span className="flex-1 truncate text-[10px] text-gray-600 dark:text-gray-400 dark:text-gray-500">{d.name}</span>
+                                <span className="flex-1 truncate text-[10px] text-gray-600 dark:text-gray-400">{d.name}</span>
                                 <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">{formatNumber(d.sizeGB, { maximumFractionDigits: 0 })}GB</span>
-                                <span className="shrink-0 rounded bg-gray-100 dark:bg-[#1b1726] px-1 py-0.5 text-[9px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{d.interface || "?"}</span>
+                                <span className="shrink-0 rounded bg-gray-100 dark:bg-[#1b1726] px-1 py-0.5 text-[9px] text-gray-500 dark:text-gray-400">{d.interface || "?"}</span>
                                 {d.bootable && <span className="shrink-0 rounded bg-violet-50 dark:bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-600 dark:text-violet-400">boot</span>}
                                 <button
                                   onClick={() => {
@@ -2709,7 +2709,7 @@ export default function Home() {
                     />
                     <button
                       onClick={() => setSelectedVmId("")}
-                      className="w-full rounded-md border border-gray-200 dark:border-white/10 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                      className="w-full rounded-md border border-gray-200 dark:border-white/10 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                     >
                        {t("backDashboard")}
                     </button>
@@ -2797,8 +2797,8 @@ export default function Home() {
                           {vmDiskList.map((disk) => (
                             <div key={disk.attachmentId} className="flex items-center gap-1.5 rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
                               <span className="flex-1 truncate text-[10px] font-medium text-gray-700 dark:text-gray-300">{disk.name}</span>
-                              <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{formatNumber(disk.sizeGB, { maximumFractionDigits: 0 })} GB</span>
-                              <span className="rounded bg-gray-100 dark:bg-[#1b1726] px-1 py-0.5 text-[9px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{disk.interface || "?"}</span>
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400">{formatNumber(disk.sizeGB, { maximumFractionDigits: 0 })} GB</span>
+                              <span className="rounded bg-gray-100 dark:bg-[#1b1726] px-1 py-0.5 text-[9px] text-gray-500 dark:text-gray-400">{disk.interface || "?"}</span>
                             </div>
                           ))}
                         </div>
@@ -2828,7 +2828,7 @@ export default function Home() {
                             <div className="flex items-center gap-1.5">
                                <span className={`h-2 w-2 shrink-0 rounded-full ${isOn ? "bg-emerald-500" : n.plugged ? "bg-amber-400" : "bg-gray-300"}`} title={isOn ? t("connected") : n.plugged ? t("pluggedNoLink") : t("disconnected")} />
                               <span className="flex-1 truncate text-[10px] font-medium text-gray-700 dark:text-gray-300">{n.name}</span>
-                              <span className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{n.networkName || "?"}</span>
+                              <span className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400">{n.networkName || "?"}</span>
                               {n.ipv4 && (
                                 <span className="shrink-0 rounded bg-violet-50 dark:bg-violet-500/10 px-1 text-[9px] font-medium text-violet-600 dark:text-violet-400">{n.ipv4}</span>
                               )}
@@ -2892,7 +2892,7 @@ export default function Home() {
                           <span className="truncate font-medium text-gray-700 dark:text-gray-300">{domain.name}</span>
                           <span className="text-gray-400 dark:text-gray-500">{domain.status ?? domain.type}</span>
                         </div>
-                         <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("usedGb", { used: formatNumber(domain.usedGB), total: formatNumber(domain.totalGB) })}</p>
+                         <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">{t("usedGb", { used: formatNumber(domain.usedGB), total: formatNumber(domain.totalGB) })}</p>
                       </div>
                      )) : <p className="text-[11px] text-gray-400 dark:text-gray-500">{t("noVisibleStorage")}</p>}
 
@@ -2966,7 +2966,7 @@ export default function Home() {
                              <span className="text-[9px] text-gray-400 dark:text-gray-500">{t("uploadNew")}</span>
                             <div className="h-px flex-1 bg-gray-200 dark:bg-[#241f33]" />
                           </div>
-                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-2 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
+                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-2 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
                             <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
@@ -2979,7 +2979,7 @@ export default function Home() {
                               <div className="h-1.5 overflow-hidden rounded-full bg-violet-100"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${ovaUploadProgress}%` }} /></div>
                             </div>
                           )}
-                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-3 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
+                          <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-3 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
                             <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
@@ -3046,7 +3046,7 @@ export default function Home() {
                         </select>
                       </Field>}
                       {newVmSource !== "ova" && newVm.vnicProfileId && (
-                        <label className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                        <label className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400">
                           <input type="checkbox" checked={useCloudInit} onChange={(e) => setUseCloudInit(e.target.checked)} className="h-3 w-3" />
                            {t("configureAutomaticIp")}
                         </label>
@@ -3166,7 +3166,7 @@ export default function Home() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-xs font-medium text-gray-900 dark:text-gray-100">{selectedVm.name}</p>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">
                                {selectedVm.status === "up" ? t("running") : selectedVm.status}
                             </p>
                           </div>
@@ -3176,7 +3176,7 @@ export default function Home() {
                       {selectedVm.status === "up" && !consolePreviewIframe && !consolePreviewLoading && (
                         <button
                           onClick={() => generateConsolePreview(selectedVm.id)}
-                          className="w-full rounded-md border border-gray-200 dark:border-white/10 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                          className="w-full rounded-md border border-gray-200 dark:border-white/10 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                         >
                            {t("generatePreview")}
                         </button>
@@ -3213,7 +3213,7 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border bg-white dark:bg-[#171326] p-5 shadow-xl" style={{ borderColor: "var(--border)" }}>
              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t("cloneVm")}</h2>
-            <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                {t("cloneSourceDescription", { name: cloneWizard.sourceVmName })}
             </p>
              <Field label={t("newName")}>
@@ -3231,7 +3231,7 @@ export default function Home() {
               <button
                 onClick={closeCloneWizard}
                 disabled={cloneWizard.submitting}
-                className="rounded-md border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50"
+                className="rounded-md border border-gray-200 dark:border-white/10 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 disabled:opacity-50"
                >{t("cancel")}</button>
               <button
                 onClick={submitCloneWizard}
@@ -3249,17 +3249,17 @@ export default function Home() {
             <div className="flex flex-col rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)", width: "min(88vw, calc((78vh - 54px) * 16 / 9))", maxHeight: "78vh" }}>
             <div className="flex items-center justify-between border-b px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
               <div>
-                 <p className="text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("embeddedConsole")}</p>
+                 <p className="text-[11px] text-gray-500 dark:text-gray-400">{t("embeddedConsole")}</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{selectedVm?.name ?? embeddedConsole.vmId}</p>
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
                   <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)} className="h-3 w-3" />
                    {t("localWsProxy")}
                 </label>
                 <button
                   onClick={closeEmbeddedConsole}
-                  className="rounded-md border border-gray-200 dark:border-white/10 px-2.5 py-1 text-[11px] font-medium hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+                  className="rounded-md border border-gray-200 dark:border-white/10 px-2.5 py-1 text-[11px] font-medium hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
                  >{t("close")}</button>
               </div>
             </div>

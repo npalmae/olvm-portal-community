@@ -64,7 +64,7 @@ const roleBadge = (role: string) => {
     return "bg-violet-100 text-violet-800 border-violet-300 dark:border-violet-500/40";
   if (role === "operator")
     return "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200";
-  return "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 dark:text-gray-500 border-gray-200 dark:border-white/10";
+  return "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/10";
 };
 
 export default function AdminUsersPage() {
@@ -300,7 +300,7 @@ export default function AdminUsersPage() {
               <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
               <button
                 onClick={() => router.push("/admin/clusters")}
-                className="shrink-0 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400"
+                className="shrink-0 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:text-violet-400"
               >
                 {t("settings")}
               </button>
@@ -308,30 +308,30 @@ export default function AdminUsersPage() {
               <span className="truncate text-gray-700 dark:text-gray-300">{t("users")}</span>
             </div>
             <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("usersTitle")}</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("usersSubtitle")}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("usersSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/email")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("emailConfigNav")}
             </button>
             <button
               onClick={() => router.push("/admin/clusters")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("clusters")}
             </button>
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("backups")}
             </button>
             <button
               onClick={() => router.push("/admin/branding")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("branding")}
             </button>
@@ -349,7 +349,7 @@ export default function AdminUsersPage() {
         <div className="mb-6">
           <button
             onClick={() => setShowForm(!showForm)}
-            className="px-6 py-3 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg"
+            className="px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg"
           >
             {showForm ? t("cancel") : t("createUser")}
           </button>
@@ -362,7 +362,7 @@ export default function AdminUsersPage() {
           >
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{t("newUser")}</h2>
             <div className="grid grid-cols-2 gap-4">
-              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400">
                 {t("name")}
                 <input
                   type="text"
@@ -372,7 +372,7 @@ export default function AdminUsersPage() {
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400">
                 {t("alias")}
                 <input
                   type="text"
@@ -382,7 +382,7 @@ export default function AdminUsersPage() {
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400">
                 {t("email")}
                 <input
                   type="email"
@@ -392,7 +392,7 @@ export default function AdminUsersPage() {
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400">
                 {t("password")}
                 <input
                   type="password"
@@ -402,7 +402,7 @@ export default function AdminUsersPage() {
                   className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 dark:border-white/10 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
                 />
               </label>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <label className="block text-sm text-gray-500 dark:text-gray-400">
                 Tenant
                 <select
                   value={form.tenantId}
@@ -418,7 +418,7 @@ export default function AdminUsersPage() {
                   ))}
                 </select>
               </label>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 col-span-2">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 col-span-2">
                 {t("role")}
                 <select
                   value={form.role}
@@ -446,14 +446,14 @@ export default function AdminUsersPage() {
           <table className="w-full text-left">
             <thead className="bg-gray-50 dark:bg-[#12101a]">
               <tr>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("name")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("alias")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("email")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("tenants")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("role")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">2FA</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("created")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">{t("actions")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("name")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("alias")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("email")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("tenants")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("role")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">2FA</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("created")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -472,7 +472,7 @@ export default function AdminUsersPage() {
                       <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{t("you")}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 dark:text-gray-500">{user.alias || t("noAlias")}</td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{user.alias || t("noAlias")}</td>
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
@@ -510,26 +510,26 @@ export default function AdminUsersPage() {
                       className={`px-2 py-1 rounded text-xs border ${
                         user.twoFactorEnabled
                           ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200"
-                          : "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 dark:text-gray-500 border-gray-200 dark:border-white/10"
+                          : "bg-gray-100 dark:bg-[#1b1726] text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/10"
                       }`}
                     >
                       {user.twoFactorEnabled ? t("active") : t("disabled")}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                     {new Date(user.createdAt).toLocaleDateString({ es: "es-ES", en: "en-GB", de: "de-DE", pt: "pt-PT" }[locale])}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setModal({ type: "edit", user })}
-                        className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
+                        className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
                       >
                         {t("edit")}
                       </button>
                       <button
                         onClick={() => setModal({ type: "password", user })}
-                        className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
+                        className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
                       >
                         {t("key")}
                       </button>
@@ -737,7 +737,7 @@ function EditModal({
     <ModalShell title={t("editUserTitle", { email: user.email })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+          <label className="block text-sm text-gray-600 dark:text-gray-400">
             {t("name")}
             <input
               type="text"
@@ -747,7 +747,7 @@ function EditModal({
               className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
             />
           </label>
-          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+          <label className="block text-sm text-gray-600 dark:text-gray-400">
             {t("alias")}
             <input
               type="text"
@@ -758,7 +758,7 @@ function EditModal({
               className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
             />
           </label>
-          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+          <label className="block text-sm text-gray-600 dark:text-gray-400">
             Email
             <input
               type="email"
@@ -772,7 +772,7 @@ function EditModal({
 
         {isSuperadmin ? (
           <>
-            <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+            <label className="block text-sm text-gray-600 dark:text-gray-400">
               {t("globalRole")}
               <select
                 value={globalRole ?? ""}
@@ -790,7 +790,7 @@ function EditModal({
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("tenantMemberships")}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t("tenantMemberships")}</p>
                 <button
                   type="button"
                   onClick={addMembership}
@@ -798,7 +798,7 @@ function EditModal({
                     memberships.filter((m) => m.tenantId).length >= tenants.length ||
                     tenants.length === 0
                   }
-                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded disabled:opacity-40"
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] rounded disabled:opacity-40"
                 >
                   {t("addTenant")}
                 </button>
@@ -855,7 +855,7 @@ function EditModal({
               </div>
             </div>
 
-            <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+            <label className="block text-sm text-gray-600 dark:text-gray-400">
               {t("defaultTenant")}
               <select
                 value={defaultTenantId}
@@ -874,7 +874,7 @@ function EditModal({
             <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] px-4 py-3">
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {t("twoFactor")}
-                <span className="block text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
                   {twoFactor
                     ? t("twoFactorRequired")
                     : t("passwordOnlyLogin")}
@@ -884,12 +884,12 @@ function EditModal({
                 type="checkbox"
                 checked={twoFactor}
                 onChange={(e) => setTwoFactor(e.target.checked)}
-                className="h-5 w-5 accent-[#3ad4ad]"
+                className="h-5 w-5 accent-violet-600"
               />
             </label>
           </>
         ) : (
-          <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+          <label className="block text-sm text-gray-600 dark:text-gray-400">
             {t("roleInTenant", { id: adminTenantId })}
             <select
               value={tenantRole}
@@ -907,14 +907,14 @@ function EditModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded-lg"
+            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] rounded-lg"
           >
             {t("cancel")}
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="px-6 py-2 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg disabled:opacity-50"
+            className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg disabled:opacity-50"
           >
             {busy ? t("saving") : t("save")}
           </button>
@@ -924,7 +924,7 @@ function EditModal({
         {isSuperadmin && (
           <div className="mt-4 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] p-4">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{t("apiKeysTitle")}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                {t("apiKeysDescription", { email: user.email })}
             </p>
             <div className="flex gap-2 mb-3">
@@ -939,7 +939,7 @@ function EditModal({
               <button
                 onClick={handleCreateKey}
                 disabled={creatingKey || !newKeyName.trim()}
-                className="px-4 py-1.5 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg text-sm disabled:opacity-50"
+                className="px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg text-sm disabled:opacity-50"
               >
                 {creatingKey ? "…" : t("createApiKey")}
               </button>
@@ -953,13 +953,13 @@ function EditModal({
                       <span className={`px-1.5 py-0.5 rounded text-[10px] border ${k.active ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200" : "bg-gray-100 dark:bg-[#1b1726] text-gray-400 dark:text-gray-500 border-gray-200 dark:border-white/10"}`}>
                         {k.active ? "ON" : "OFF"}
                       </span>
-                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400">{k.active ? t("deactivateShort") : t("activateShort")}</button>
+                       <button onClick={() => handleToggleKey(k.id)} className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-violet-600 dark:text-violet-400">{k.active ? t("deactivateShort") : t("activateShort")}</button>
                        <button onClick={() => handleDeleteKey(k.id)} className="text-[10px] text-red-500 hover:text-red-700 dark:text-red-300">{t("deleteShort")}</button>
                     </div>
                     <div className="mt-1.5 flex items-center gap-2">
                       {revealedKeyId === k.id && k.key ? (
                         <>
-                          <code className="flex-1 text-[11px] text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-[#12101a] rounded px-2 py-1 break-all">{k.key}</code>
+                          <code className="flex-1 text-[11px] text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-[#12101a] rounded px-2 py-1 break-all">{k.key}</code>
                           <button
                             onClick={() => {
                               const ta = document.createElement("textarea");
@@ -972,7 +972,7 @@ function EditModal({
                             }}
                             className="shrink-0 text-[10px] bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-500/30 rounded px-2 py-1 hover:bg-violet-100"
                            >{t("copy")}</button>
-                           <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300">{t("hide")}</button>
+                           <button onClick={() => setRevealedKeyId(null)} className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-300">{t("hide")}</button>
                         </>
                       ) : (
                         <>
@@ -986,7 +986,7 @@ function EditModal({
                     {revealedKeyId === k.id && k.key && (
                       <div className="mt-1.5 rounded bg-gray-50 dark:bg-[#12101a] border border-gray-200 dark:border-white/10 px-2.5 py-1.5">
                          <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-0.5">{t("usage")}</p>
-                         <code className="text-[10px] text-gray-600 dark:text-gray-400 dark:text-gray-500 break-all">curl -H "X-API-Key: {k.key}" {apiBaseUrl}/api/v1/vms</code>
+                         <code className="text-[10px] text-gray-600 dark:text-gray-400 break-all">curl -H "X-API-Key: {k.key}" {apiBaseUrl}/api/v1/vms</code>
                       </div>
                     )}
                   </div>
@@ -1021,7 +1021,7 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
   return (
     <ModalShell title={t("resetPasswordTitle", { email: user.email })} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+        <label className="block text-sm text-gray-600 dark:text-gray-400">
           {t("newPassword")}
           <input
             type="password"
@@ -1031,7 +1031,7 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
             className="mt-1 w-full px-4 py-2 bg-white dark:bg-[#171326] border border-gray-200 dark:border-white/10 rounded-lg"
           />
         </label>
-        <label className="block text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+        <label className="block text-sm text-gray-600 dark:text-gray-400">
           {t("confirmPassword")}
           <input
             type="password"
@@ -1048,14 +1048,14 @@ function PasswordModal({ user, busy, onClose, onSave }: PasswordModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded-lg"
+            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] rounded-lg"
           >
             {t("cancel")}
           </button>
           <button
             type="submit"
             disabled={busy || password.length < 6 || mismatch}
-            className="px-6 py-2 bg-[#3ad4ad] hover:bg-[#2bc095] text-black font-semibold rounded-lg disabled:opacity-50"
+            className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg disabled:opacity-50"
           >
             {busy ? t("saving") : t("save")}
           </button>
@@ -1084,7 +1084,7 @@ function DeleteModal({ user, busy, onClose, onConfirm }: DeleteModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] hover:bg-gray-200 dark:bg-[#241f33] rounded-lg"
+            className="px-4 py-2 bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] rounded-lg"
           >
             {t("cancel")}
           </button>

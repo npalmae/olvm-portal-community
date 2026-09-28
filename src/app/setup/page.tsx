@@ -8,9 +8,9 @@ import { SixmanagerMark } from "@/components/SixmanagerMark";
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const inputCls = "mt-1 w-full rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
-const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500";
+const labelCls = "block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
 const btnPrimary = "rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50";
-const btnSecondary = "rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50";
+const btnSecondary = "rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 disabled:opacity-50";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -151,8 +151,8 @@ export default function SetupPage() {
           {step === 0 && (
             <div className="text-center">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Bienvenido</h2>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Este wizard te guiará por la configuración inicial del portal en unos minutos.</p>
-              <div className="mt-5 space-y-1.5 text-left text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Este wizard te guiará por la configuración inicial del portal en unos minutos.</p>
+              <div className="mt-5 space-y-1.5 text-left text-xs text-gray-500 dark:text-gray-400">
                 <p>1. Crear el usuario <strong>superadmin</strong></p>
                 <p>2. Conectar el <strong>motor OLVM</strong></p>
                 <p>3. Crear el primer <strong>tenant</strong> con su tag</p>
@@ -190,7 +190,7 @@ export default function SetupPage() {
                 <div><label className={labelCls}>URL del engine</label><input className={inputCls} type="url" value={engUrl} onChange={(e) => setEngUrl(e.target.value)} placeholder="https://engine.example.com/ovirt-engine/api" /></div>
                 <div><label className={labelCls}>Usuario</label><input className={inputCls} value={engUser} onChange={(e) => setEngUser(e.target.value)} placeholder="admin@internal" /></div>
                 <div><label className={labelCls}>Contraseña</label><input className={inputCls} type="password" value={engPass} onChange={(e) => setEngPass(e.target.value)} placeholder="••••••••" /></div>
-                <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-violet-600" /> Permitir certificados self-signed</label>
+                <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-violet-600" /> Permitir certificados self-signed</label>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <button onClick={handleEngineTest} disabled={loading || !engUrl || !engPass} className={btnSecondary}>Probar conexión</button>
@@ -261,13 +261,13 @@ export default function SetupPage() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">¡Configuración completa!</h2>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">El portal está listo para usar. Serás redirigido al dashboard.</p>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">El portal está listo para usar. Serás redirigido al dashboard.</p>
               <button onClick={() => router.push("/")} className={`${btnPrimary} mt-6 w-full`}>Ir al portal →</button>
             </div>
           )}
         </div>
 
-        <p className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">OLVM Portal · Powered by <a href="https://sixmanager.com" className="hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">Sixmanager</a></p>
+        <p className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">OLVM Portal · Powered by <a href="https://sixmanager.com" className="hover:text-gray-600 dark:text-gray-400">Sixmanager</a></p>
       </div>
     </div>
   );

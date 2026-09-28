@@ -59,7 +59,7 @@ const json = async (res: Response) => {
 
 const inputCls =
   "w-full rounded-md border border-gray-200 dark:border-white/10 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30";
-const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500";
+const labelCls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
 
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
@@ -136,7 +136,7 @@ export default function AdminClustersPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ background: "var(--bg)" }}>
+      <div className="flex min-h-screen items-center justify-center text-gray-500 dark:text-gray-400" style={{ background: "var(--bg)" }}>
         {t("loading")}
       </div>
     );
@@ -164,30 +164,30 @@ export default function AdminClustersPage() {
               <span className="truncate text-gray-700 dark:text-gray-300">{t("settings")}</span>
             </div>
             <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("connectionsTitle")}</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("connectionsSubtitle")}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("connectionsSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/email")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("emailConfigNav")}
             </button>
             <button
               onClick={() => router.push("/admin/users")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("users")}
             </button>
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("backups")}
             </button>
             <button
               onClick={() => router.push("/admin/branding")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("branding")}
             </button>
@@ -220,7 +220,7 @@ export default function AdminClustersPage() {
           <div className="overflow-hidden rounded-xl border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ borderColor: "var(--border)" }}>
+                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400" style={{ borderColor: "var(--border)" }}>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("name")}</th>
                   <th className="px-3 py-2.5 text-left font-semibold">URL</th>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("auth")}</th>
@@ -244,7 +244,7 @@ export default function AdminClustersPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400 dark:text-gray-500 text-xs">{e.baseUrl}</td>
+                    <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400 text-xs">{e.baseUrl}</td>
                     <td className="px-3 py-2.5">
                       <span className="rounded border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-700 dark:text-violet-300">
                         {e.authMethod === "token" ? "Token" : t("usernameAuth")}
@@ -253,8 +253,8 @@ export default function AdminClustersPage() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1.5">
-                        <button onClick={() => testEngine(e)} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("test")}</button>
-                        <button onClick={() => setEngineModal({ type: "edit", engine: e })} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("edit")}</button>
+                        <button onClick={() => testEngine(e)} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("test")}</button>
+                        <button onClick={() => setEngineModal({ type: "edit", engine: e })} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("edit")}</button>
                         <button onClick={() => setEngineModal({ type: "delete", engine: e })} className="rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:bg-red-100">{t("delete")}</button>
                       </div>
                     </td>
@@ -285,7 +285,7 @@ export default function AdminClustersPage() {
           <div className="overflow-hidden rounded-xl border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500" style={{ borderColor: "var(--border)" }}>
+                <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400" style={{ borderColor: "var(--border)" }}>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("name")}</th>
                   <th className="px-3 py-2.5 text-left font-semibold">Engine</th>
                   <th className="px-3 py-2.5 text-left font-semibold">Tag</th>
@@ -315,15 +315,15 @@ export default function AdminClustersPage() {
                     </td>
                     <td className="px-3 py-2.5">
                       {tenant.tag ? (
-                        <span className="rounded bg-gray-100 dark:bg-[#1b1726] px-1.5 py-0.5 text-[11px] text-gray-600 dark:text-gray-400 dark:text-gray-500">{tenant.tag}</span>
+                        <span className="rounded bg-gray-100 dark:bg-[#1b1726] px-1.5 py-0.5 text-[11px] text-gray-600 dark:text-gray-400">{tenant.tag}</span>
                       ) : (
                         <span className="text-[11px] text-gray-400 dark:text-gray-500">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1.5">
-                        <button onClick={() => testTenant(tenant)} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("test")}</button>
-                        <button onClick={() => setTenantModal({ type: "edit", tenant })} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("edit")}</button>
+                        <button onClick={() => testTenant(tenant)} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("test")}</button>
+                        <button onClick={() => setTenantModal({ type: "edit", tenant })} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("edit")}</button>
                         <button onClick={() => setTenantModal({ type: "delete", tenant })} className="rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:bg-red-100">{t("delete")}</button>
                       </div>
                     </td>
@@ -499,7 +499,7 @@ function EngineForm({
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editing ? t("editEngine") : t("newOlvmEngine")}</h2>
-          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">×</button>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400">×</button>
         </div>
 
         <form onSubmit={save} className="space-y-3 p-4">
@@ -515,7 +515,7 @@ function EngineForm({
 
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={allowInsecure} onChange={(e) => setAllowInsecure(e.target.checked)} className="h-4 w-4" />
-            <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("allowSelfSigned")}</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">{t("allowSelfSigned")}</span>
           </label>
 
           <div>
@@ -563,7 +563,7 @@ function EngineForm({
               ) : (
                 <div className="mt-1 space-y-1">
                   {availableSds.map((sd) => (
-                    <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5" style={{ borderColor: "var(--border)" }}>
+                    <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5" style={{ borderColor: "var(--border)" }}>
                       <input type="checkbox" checked={sharedSds.includes(sd.name)} onChange={() => toggleSharedSd(sd.name)} className="h-4 w-4" />
                       <span className="text-xs text-gray-700 dark:text-gray-300">{sd.name}</span>
                       <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">{t("gbFree", { value: sd.availableGB.toFixed(0) })}</span>
@@ -590,11 +590,11 @@ function EngineForm({
           )}
 
           <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <button type="button" onClick={runTest} disabled={testing} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5 disabled:opacity-50">
+            <button type="button" onClick={runTest} disabled={testing} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 disabled:opacity-50">
               {testing ? t("testing") : t("testConnection")}
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("cancel")}</button>
+              <button type="button" onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("cancel")}</button>
               <button type="submit" disabled={saving} className="rounded-md bg-[#2563eb] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-50">
                  {saving ? t("saving") : t("save")}
               </button>
@@ -696,7 +696,7 @@ function TenantForm({
       <div className="w-full max-w-md rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editing ? t("editTenant") : t("newTenant").replace("+ ", "")}</h2>
-          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">×</button>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400">×</button>
         </div>
 
         <form onSubmit={save} className="space-y-3 p-4">
@@ -738,7 +738,7 @@ function TenantForm({
             ) : (
               <div className="mt-1 space-y-1">
                 {availableSds.map((sd) => (
-                  <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5" style={{ borderColor: "var(--border)" }}>
+                  <label key={sd.name} className="flex items-center gap-2 rounded-md border px-2 py-1.5 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5" style={{ borderColor: "var(--border)" }}>
                     <input
                       type="checkbox"
                       checked={selectedSds.includes(sd.name)}
@@ -764,7 +764,7 @@ function TenantForm({
               <div className="mt-1 space-y-1">
                 {availableNetworks.map((netName) => (
                   <div key={netName} className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--border)" }}>
-                    <label className="flex items-center gap-2 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">
+                    <label className="flex items-center gap-2 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">
                       <input
                         type="checkbox"
                         checked={selectedNetworks.includes(netName)}
@@ -798,7 +798,7 @@ function TenantForm({
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-            <button type="button" onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("cancel")}</button>
+            <button type="button" onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("cancel")}</button>
             <button type="submit" disabled={saving || (!editing && engines.length === 0)} className="rounded-md bg-[#2563eb] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-50">
               {saving ? t("saving") : t("save")}
             </button>
@@ -822,11 +822,11 @@ function ConfirmDelete({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-xl border bg-white dark:bg-[#171326] p-4 shadow-xl" style={{ borderColor: "var(--border)" }}>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 dark:text-gray-500">
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           {t("deleteQuestion", { name, id, description })}
         </p>
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5">{t("cancel")}</button>
+          <button onClick={onClose} className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-3 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5">{t("cancel")}</button>
           <button onClick={onConfirm} className="rounded-md bg-red-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-red-700">{t("delete")}</button>
         </div>
       </div>

@@ -73,7 +73,7 @@ export default function RegisterPage() {
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t("register.title")}</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             {t("register.description")}
           </p>
         </div>
@@ -91,7 +91,7 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
               {t("register.name")}
               <input
                 value={name}
@@ -101,7 +101,7 @@ export default function RegisterPage() {
                 placeholder={t("register.namePlaceholder")}
               />
             </label>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
               {t("common.email")}
               <input
                 type="email"
@@ -112,7 +112,7 @@ export default function RegisterPage() {
                 placeholder={t("common.emailPlaceholder")}
               />
             </label>
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
               {t("common.password")}
               <input
                 type="password"
@@ -124,7 +124,7 @@ export default function RegisterPage() {
               />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                 {t("register.tenantId")}
                 <input
                   value={tenantId}
@@ -134,7 +134,7 @@ export default function RegisterPage() {
                   placeholder="default"
                 />
               </label>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                 {t("register.role")}
                 <select
                   value={role}
@@ -147,7 +147,7 @@ export default function RegisterPage() {
                 </select>
               </label>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {t("register.roleHelpBefore")} <span className="font-semibold text-amber-700 dark:text-amber-300">superadmin</span> {t("register.roleHelpAfter")}
             </p>
 
@@ -161,7 +161,7 @@ export default function RegisterPage() {
           </form>
         </div>
 
-        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
           {t("register.haveAccount")}{" "}
           <Link href="/login" className="font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:text-violet-300">
             {t("register.signIn")}

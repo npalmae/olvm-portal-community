@@ -104,7 +104,7 @@ export default function EmailConfigPage() {
     }
   }, [testEmail, locale]);
 
-  if (loading) return <div className="p-8 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("loading")}</div>;
+  if (loading) return <div className="p-8 text-sm text-gray-500 dark:text-gray-400">{t("loading")}</div>;
   if (!isSuperadmin) return null;
 
   return (
@@ -127,7 +127,7 @@ export default function EmailConfigPage() {
             <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
             <button
               onClick={() => router.push("/admin/clusters")}
-              className="shrink-0 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400"
+              className="shrink-0 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:text-violet-400"
             >
               {t("settings")}
             </button>
@@ -135,12 +135,12 @@ export default function EmailConfigPage() {
             <span className="truncate text-gray-700 dark:text-gray-300">{t("email")}</span>
           </div>
           <h1 className="mt-3 text-lg font-bold text-gray-900 dark:text-gray-100">{t("emailTitle")}</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("emailSubtitle")}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t("emailSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("backups")}
             </button>
@@ -157,7 +157,7 @@ export default function EmailConfigPage() {
 
         <div className="space-y-4 rounded-lg border bg-white dark:bg-[#171326] p-6" style={{ borderColor: "var(--border)" }}>
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">{t("provider")}</label>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t("provider")}</label>
             <div className="flex items-center gap-2">
               <span className="rounded-md border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#12101a] px-3 py-2 text-sm text-gray-700 dark:text-gray-300">Resend</span>
               {config?.hasApiKey ? (
@@ -169,7 +169,7 @@ export default function EmailConfigPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
               API Key de Resend
             </label>
             <input
@@ -183,7 +183,7 @@ export default function EmailConfigPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
               {t("senderEmail")}
             </label>
             <input

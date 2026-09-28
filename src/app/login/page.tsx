@@ -149,7 +149,7 @@ function LoginPageContent() {
                 ? t("login.title", { brand: branding.brandName })
                 : t("login.twoFactorTitle")}
           </h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             {step === "forgot"
               ? t("login.forgotDescription")
               : step === 1
@@ -178,7 +178,7 @@ function LoginPageContent() {
             ) : (
               <form onSubmit={submitForgot} className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                     {t("common.email")}
                   </label>
                   <input
@@ -200,7 +200,7 @@ function LoginPageContent() {
           ) : step === 1 ? (
             <form onSubmit={requestChallenge} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                   {t("common.email")}
                 </label>
                 <input
@@ -212,7 +212,7 @@ function LoginPageContent() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                   {t("common.password")}
                 </label>
                 <div className="relative">
@@ -226,7 +226,7 @@ function LoginPageContent() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400"
                   tabIndex={-1}
                   aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 >
@@ -248,7 +248,7 @@ function LoginPageContent() {
           ) : (
             <form onSubmit={verifyAndSignIn} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                   {t("login.verificationCode")}
                 </label>
                 <input
@@ -268,13 +268,13 @@ function LoginPageContent() {
               </button>
               <button
                 type="button" onClick={requestChallenge} disabled={loading}
-                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500 disabled:opacity-50"
+                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 disabled:opacity-50"
               >
                 {t("login.resendCode")}
               </button>
               <button
                 type="button" onClick={backToCredentials}
-                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500"
+                className="w-full text-center text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400"
               >
                 {t("login.back")}
               </button>
@@ -283,7 +283,7 @@ function LoginPageContent() {
         </div>
 
         {(step === 1 || step === "forgot") && (
-          <div className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 space-y-1">
+          <div className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 space-y-1">
             {step === 1 && (
               <>
                 <p>

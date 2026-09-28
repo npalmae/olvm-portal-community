@@ -66,7 +66,7 @@ function ResetPasswordContent() {
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t("reset.title")}</h1>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             {success ? t("reset.updated") : t("reset.description")}
           </p>
         </div>
@@ -88,7 +88,7 @@ function ResetPasswordContent() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                   {t("reset.newPassword")}
                 </label>
                 <input
@@ -100,7 +100,7 @@ function ResetPasswordContent() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
                   {t("reset.confirmPassword")}
                 </label>
                 <input
@@ -123,7 +123,7 @@ function ResetPasswordContent() {
           )}
         </div>
 
-        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
           <Link href="/login" className="font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:text-violet-300">{t("common.backToLogin")}</Link>
         </p>
       </div>

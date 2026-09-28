@@ -182,7 +182,7 @@ export default function AdminBrandingPage() {
               <span className="shrink-0 text-gray-400 dark:text-gray-500">/</span>
               <button
                 onClick={() => router.push("/admin/clusters")}
-                className="shrink-0 text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:text-violet-600 dark:text-violet-400"
+                className="shrink-0 text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:text-violet-400"
               >
                 {t("settings")}
               </button>
@@ -190,26 +190,26 @@ export default function AdminBrandingPage() {
               <span className="truncate text-gray-700 dark:text-gray-300">{t("branding")}</span>
             </div>
             <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("brandingTitle")}</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {t("brandingSubtitle")}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/admin/email")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("email")}
             </button>
             <button
               onClick={() => router.push("/admin/backups")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("backups")}
             </button>
             <button
               onClick={() => router.push("/admin/clusters")}
-              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white dark:bg-[#171326]/5"
+              className="rounded-md border border-gray-200 dark:border-white/10 bg-white dark:bg-[#171326] px-2.5 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
             >
               {t("clusters")}
             </button>
@@ -241,7 +241,7 @@ export default function AdminBrandingPage() {
                   <SixmanagerMark subtitle="OLVM Portal" />
                 )}
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {brandName || "OLVM Portal"}
               </p>
             </div>
@@ -252,7 +252,7 @@ export default function AdminBrandingPage() {
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t("settings")}</h2>
 
             <label className="block">
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500">{t("brandName")}</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{t("brandName")}</span>
               <input
                 type="text"
                 value={brandName}
@@ -267,19 +267,19 @@ export default function AdminBrandingPage() {
             </label>
 
             <div>
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 dark:text-gray-500 block mb-1">Logo</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Logo</span>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".png,.jpg,.jpeg,.webp,.gif"
                 onChange={(e) => onSelectFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 file:mr-3 file:rounded-md file:border-0 file:bg-violet-50 dark:bg-violet-500/10 file:px-3 file:py-2 file:text-xs file:font-medium file:text-violet-700 dark:text-violet-300 hover:file:bg-violet-100"
+                className="block w-full text-xs text-gray-500 dark:text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-violet-50 dark:bg-violet-500/10 file:px-3 file:py-2 file:text-xs file:font-medium file:text-violet-700 dark:text-violet-300 hover:file:bg-violet-100"
               />
               <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
                 {t("logoRules", { max: state ? Math.round(state.maxBytes / 1024 / 1024) : 2 })}
               </p>
               {state?.hasLogo && !selectedFile && (
-                <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
                   {t("currentLogo", { width: state.logoWidth, height: state.logoHeight, size: (state.logoSize / 1024).toFixed(1), mime: state.logoMime })}
                 </p>
               )}
