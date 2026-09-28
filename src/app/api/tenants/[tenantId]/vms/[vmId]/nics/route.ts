@@ -7,7 +7,7 @@ import {
   enforceVmTagPolicy,
   fetchVmNics,
   updateNicLink,
-} from "@/lib/olvmClient";
+} from "@/lib/engineClient";
 import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";

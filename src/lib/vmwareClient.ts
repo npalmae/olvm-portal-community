@@ -870,6 +870,93 @@ export const fetchVnicProfiles = async (tenantId: string): Promise<VnicProfile[]
   return networks.map((n) => ({ id: n.id, name: n.name, networkId: n.id }));
 };
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * NICs de una VM (REST /api/vcenter/vm/{vm}/nics)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type RawNic = {
+  nic?: string;
+  label?: string;
+  mac_address?: string;
+  backing?: { type?: string; network?: string };
+  state?: { connected?: boolean; start_connected?: boolean };
+};
+
+const nicNetworkName = async (tenant: TenantConfig, networkId?: string) => {
+  if (!networkId) return "";
+  try {
+    const networks = await fetchNetworks(tenantId2(tenant));
+    return networks.find((n) => n.id === networkId)?.name ?? networkId;
+  } catch {
+    return networkId;
+  }
+};
+
+// helper puente (fetchNetworks recibe tenantId)
+const tenantId2 = (tenant: TenantConfig) => tenant.id;
+
+export const fetchVmNics = async (tenantId: string, vmId: string): Promise<import("./olvmClient").VmNic[]> => {
+  const tenant = await getTenantById(tenantId);
+  const list = await viFetch<RawNic[]>(tenant, `/api/vcenter/vm/${vmId}/nics`);
+  const nics: import("./olvmClient").VmNic[] = [];
+  for (const raw of list ?? []) {
+    const networkId = raw.backing?.network ?? "";
+    nics.push({
+      id: raw.nic ?? "",
+      name: raw.label ?? raw.nic ?? "NIC",
+      mac: raw.mac_address ?? "",
+      linked: raw.state?.connected ?? false,
+      plugged: raw.state?.start_connected ?? false,
+      interface: raw.backing?.type ?? "",
+      networkId,
+      networkName: await nicNetworkName(tenant, networkId),
+      vnicProfileId: networkId,
+    });
+  }
+  return nics;
+};
+
+export const addNicToVm = async (
+  tenantId: string,
+  vmId: string,
+  params: { name?: string; interface?: string; vnicProfileId: string },
+): Promise<void> => {
+  await enforceVmTagPolicy(tenantId, vmId);
+  const tenant = await getTenantById(tenantId);
+  const networkId = params.vnicProfileId?.trim() || (await fetchNetworks(tenantId))[0]?.id;
+  if (!networkId) throw new Error("No hay redes disponibles para conectar la NIC");
+  await viFetch(tenant, `/api/vcenter/vm/${vmId}/nics`, {
+    method: "POST",
+    body: JSON.stringify({
+      backing: { type: "STANDARD_PORTGROUP", network: networkId },
+      start_connected: true,
+    }),
+  });
+};
+
+export const updateNicLink = async (
+  tenantId: string,
+  vmId: string,
+  nicId: string,
+  linked: boolean,
+): Promise<void> => {
+  await enforceVmTagPolicy(tenantId, vmId);
+  const tenant = await getTenantById(tenantId);
+  await viFetch(tenant, `/api/vcenter/vm/${vmId}/nics/${nicId}?action=${linked ? "connect" : "disconnect"}`, {
+    method: "POST",
+  });
+};
+
+export const deleteNicFromVm = async (
+  tenantId: string,
+  vmId: string,
+  nicId: string,
+): Promise<void> => {
+  await enforceVmTagPolicy(tenantId, vmId);
+  const tenant = await getTenantById(tenantId);
+  await viFetch(tenant, `/api/vcenter/vm/${vmId}/nics/${nicId}`, { method: "DELETE" });
+};
+
 /** TODO(lab): templates via Content Library (OVF/vVMTX) o VMs marcadas template. */
 export const fetchTemplates = async (_tenantId: string): Promise<OlvmTemplate[]> => [];
 

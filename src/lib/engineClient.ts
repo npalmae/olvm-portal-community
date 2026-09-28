@@ -41,6 +41,10 @@ type EngineModule = {
   isSupportedAction: (action: string) => boolean;
   assignTagToVm: (tenantId: string, vmId: string) => Promise<void>;
   removeTagFromVm: (tenantId: string, vmId: string) => Promise<void>;
+  fetchVmNics: typeof olvm.fetchVmNics;
+  addNicToVm: typeof olvm.addNicToVm;
+  updateNicLink: typeof olvm.updateNicLink;
+  deleteNicFromVm: typeof olvm.deleteNicFromVm;
 };
 
 /** El modulo VMware implementa (sub)conjunto compatible; lo tipamos como olvm
@@ -120,6 +124,21 @@ export const assignTagToVm = (tenantId: string, vmId: string) =>
   engineForTenant(tenantId).then((m) => m.assignTagToVm(tenantId, vmId));
 export const removeTagFromVm = (tenantId: string, vmId: string) =>
   engineForTenant(tenantId).then((m) => m.removeTagFromVm(tenantId, vmId));
+export const fetchVmNics = (tenantId: string, vmId: string) =>
+  engineForTenant(tenantId).then((m) => m.fetchVmNics(tenantId, vmId));
+export const addNicToVm = (
+  tenantId: string,
+  vmId: string,
+  params: Parameters<typeof olvm.addNicToVm>[2],
+) => engineForTenant(tenantId).then((m) => m.addNicToVm(tenantId, vmId, params));
+export const updateNicLink = (
+  tenantId: string,
+  vmId: string,
+  nicId: string,
+  linked: boolean,
+) => engineForTenant(tenantId).then((m) => m.updateNicLink(tenantId, vmId, nicId, linked));
+export const deleteNicFromVm = (tenantId: string, vmId: string, nicId: string) =>
+  engineForTenant(tenantId).then((m) => m.deleteNicFromVm(tenantId, vmId, nicId));
 
 const engineForTenant = async (tenantId: string): Promise<EngineModule> => {
   const type = await engineTypeForTenant(tenantId);
