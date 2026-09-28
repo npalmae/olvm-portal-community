@@ -442,8 +442,8 @@ export default function AdminUsersPage() {
           </form>
         )}
 
-        <div className="bg-white dark:bg-[#171326] rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-          <table className="w-full text-left">
+        <div className="bg-white dark:bg-[#171326] rounded-lg border overflow-x-auto" style={{ borderColor: "var(--border)" }}>
+          <table className="w-full min-w-[880px] text-left">
             <thead className="bg-gray-50 dark:bg-[#12101a]">
               <tr>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("name")}</th>
@@ -519,8 +519,8 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                     {new Date(user.createdAt).toLocaleDateString({ es: "es-ES", en: "en-GB", de: "de-DE", pt: "pt-PT" }[locale])}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-4 py-4">
+                    <div className="flex justify-end gap-2 whitespace-nowrap">
                       <button
                         onClick={() => setModal({ type: "edit", user })}
                         className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-[#1b1726] dark:hover:bg-[#241f33] text-gray-700 dark:text-gray-300 rounded-lg"
