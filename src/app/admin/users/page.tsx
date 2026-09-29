@@ -442,8 +442,8 @@ export default function AdminUsersPage() {
           </form>
         )}
 
-        <div className="bg-white rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-          <table className="w-full text-left">
+        <div className="bg-white rounded-lg border overflow-x-auto" style={{ borderColor: "var(--border)" }}>
+          <table className="w-full text-left min-w-[880px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("name")}</th>
@@ -453,7 +453,7 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("role")}</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">2FA</th>
                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("created")}</th>
-                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("actions")}</th>
+                <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -519,8 +519,8 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString({ es: "es-ES", en: "en-GB", de: "de-DE", pt: "pt-PT" }[locale])}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex justify-end gap-2 flex-nowrap">
                       <button
                         onClick={() => setModal({ type: "edit", user })}
                         className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"

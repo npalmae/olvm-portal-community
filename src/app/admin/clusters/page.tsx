@@ -217,8 +217,8 @@ export default function AdminClustersPage() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500" style={{ borderColor: "var(--border)" }}>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("name")}</th>
@@ -282,8 +282,8 @@ export default function AdminClustersPage() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white" style={{ borderColor: "var(--border)" }}>
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b text-[11px] uppercase tracking-wide text-gray-500" style={{ borderColor: "var(--border)" }}>
                   <th className="px-3 py-2.5 text-left font-semibold">{t("name")}</th>
@@ -510,7 +510,7 @@ function EngineForm({
 
           <label className="block">
             <span className={labelCls}>{t("engineUrl")}</span>
-            <input className={`${inputCls} mt-1`} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://olvm.example.com/ovirt-engine/api" required />
+            <input className={`${inputCls} mt-1`} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://10.141.11.63/ovirt-engine/api" required />
           </label>
 
           <label className="flex items-center gap-2">
