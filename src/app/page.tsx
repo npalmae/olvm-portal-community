@@ -2756,18 +2756,16 @@ export default function Home() {
                           const isUp = selectedVm.status?.toLowerCase?.() === "up";
                           return (
                             <>
-                              {isUp && (
+                              {isUp && engineType !== "vmware" && (
                                 <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
-                                  {engineType === "vmware" ? t("resourcesWillCycle") : t("vmMustBeOff")}
-                                  {engineType !== "vmware" && (
-                                    <button
-                                      onClick={() => runAction(selectedVm.id, "shutdown")}
-                                      disabled={actionLoading === `${selectedVm.id}-shutdown`}
-                                      className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
-                                    >
-                                      {t("shutDownNow")}
-                                    </button>
-                                  )}
+                                  {t("vmMustBeOff")}
+                                  <button
+                                    onClick={() => runAction(selectedVm.id, "shutdown")}
+                                    disabled={actionLoading === `${selectedVm.id}-shutdown`}
+                                    className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                                  >
+                                    {t("shutDownNow")}
+                                  </button>
                                 </div>
                               )}
                               <button
