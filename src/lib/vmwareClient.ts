@@ -1211,33 +1211,19 @@ const applyResourceChanges = async (
   vmId: string,
   payload: UpdateVmInput,
 ) => {
+  // Este build no expone REST/vAPI de hardware: CPU/RAM van por SOAP.
+  // Nota de laboratorio: en un solo spec, memoryMB+numCPUs juntos rompen el
+  // parser (orden estricto del ConfigSpec), asi que van en llamadas separadas.
   if (payload.cpuCores) {
-    await runCapability(tenant, "vm.cpu.update", {
-      api: {
-        method: "POST",
-        path: `/api/vcenter/vm/${vmId}/hardware/cpu?action=update`,
-        build: () => ({ spec: { count: payload.cpuCores } }),
-      },
-      vapi: {
-        service: "vcenter.vm.hardware.cpu",
-        action: "update",
-        build: () => ({ vm: vmId, spec: { count: payload.cpuCores } }),
-      },
-    }, { vm: vmId, spec: { count: payload.cpuCores } });
+    const cores = Math.max(1, Math.round(payload.cpuCores));
+    const sockets = payload.sockets && payload.sockets > 0 ? Math.round(payload.sockets) : 0;
+    const coresPerSocket = sockets > 0 && cores % sockets === 0 ? cores / sockets : null;
+    const spec = `<numCPUs>${cores}</numCPUs>` +
+      (coresPerSocket ? `<numCoresPerSocket>${coresPerSocket}</numCoresPerSocket>` : "");
+    await soapCall(tenant, reconfigureVm(vmId, spec));
   }
   if (payload.memoryMB) {
-    await runCapability(tenant, "vm.memory.update", {
-      api: {
-        method: "POST",
-        path: `/api/vcenter/vm/${vmId}/hardware/memory?action=update`,
-        build: () => ({ spec: { size_MiB: payload.memoryMB } }),
-      },
-      vapi: {
-        service: "vcenter.vm.hardware.memory",
-        action: "update",
-        build: () => ({ vm: vmId, spec: { size_MiB: payload.memoryMB } }),
-      },
-    }, { vm: vmId, spec: { size_MiB: payload.memoryMB } });
+    await soapCall(tenant, reconfigureVm(vmId, `<memoryMB>${Math.round(payload.memoryMB)}</memoryMB>`));
   }
 };
 
