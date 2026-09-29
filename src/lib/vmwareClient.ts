@@ -1175,24 +1175,51 @@ export const updateVmResources = async (
   await enforceVmTagPolicy(tenantId, vmId);
   const tenant = await getTenantById(tenantId);
 
-  // vSphere solo cambia CPU/RAM en caliente con hot-plug habilitado (raro en
-  // labs). Si esta encendida, orquestamos: apagar -> aplicar -> encender.
-  const detail = await viFetch<{ power_state?: string }>(tenant, `/api/vcenter/vm/${vmId}`);
+  type VmDetail = {
+    power_state?: string;
+    cpu?: { count?: number; hot_add_enabled?: boolean };
+    memory?: { size_MiB?: number; hot_add_enabled?: boolean };
+  };
+  const detail = await viFetch<VmDetail>(tenant, `/api/vcenter/vm/${vmId}`);
   const wasOn = detail?.power_state === "POWERED_ON";
-  const waitPower = async (desired: string, tries = 30) => {
+  const hotReady = Boolean(detail?.cpu?.hot_add_enabled && detail?.memory?.hot_add_enabled);
+  const increasing =
+    (!payload.cpuCores || payload.cpuCores >= (detail?.cpu?.count ?? 0)) &&
+    (!payload.memoryMB || payload.memoryMB >= (detail?.memory?.size_MiB ?? 0));
+
+  const waitPower = async (desired: string, tries = 45) => {
     for (let i = 0; i < tries; i++) {
       await new Promise((r) => setTimeout(r, 2000));
-      const d = await viFetch<{ power_state?: string }>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null);
+      const d = await viFetch<VmDetail>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null);
       if (d?.power_state === desired) return;
     }
     throw new Error(`La VM no alcanzó el estado ${desired} a tiempo`);
   };
+  const enableHotAdd = async () => {
+    await soapCall(tenant, reconfigureVm(vmId,
+      `<memoryHotAddEnabled>true</memoryHotAddEnabled>` +
+      `<cpuHotAddEnabled>true</cpuHotAddEnabled>`));
+  };
+
+  // VMware aplica CPU/RAM en caliente cuando la VM tiene hot-add habilitado.
+  // Si aun no lo tiene: se habilita con un ciclo de energia UNA sola vez;
+  // a partir de ahi los cambios son en vivo.
+  if (wasOn && hotReady && increasing) {
+    try {
+      await applyResourceChanges(tenant, vmId, payload);
+      return;
+    } catch {
+      // vCenter puede rechazar (p. ej. reducir RAM en caliente): ciclo completo
+    }
+  }
+
   if (wasOn) {
     await doPower(tenant, vmId, "stop");
     await waitPower("POWERED_OFF");
   }
 
   try {
+    await enableHotAdd().catch(() => undefined);
     await applyResourceChanges(tenant, vmId, payload);
   } catch (error) {
     if (wasOn) {
