@@ -954,6 +954,10 @@ const reconfigureVm = (vmId: string, deviceChange: string) =>
   `<ReconfigVM_Task><_this type="VirtualMachine">${vmId}</_this>` +
   `<spec><deviceChange>${deviceChange}</deviceChange></spec></ReconfigVM_Task>`;
 
+const reconfigureSpec = (vmId: string, specInner: string) =>
+  `<ReconfigVM_Task><_this type="VirtualMachine">${vmId}</_this>` +
+  `<spec>${specInner}</spec></ReconfigVM_Task>`;
+
 /** Espera a que la cantidad de NICs en el detalle REST cambie (add/remove). */
 const waitNicCount = async (tenant: TenantConfig, vmId: string, expected: number) => {
   for (let i = 0; i < 20; i++) {
@@ -1196,7 +1200,7 @@ export const updateVmResources = async (
     throw new Error(`La VM no alcanzó el estado ${desired} a tiempo`);
   };
   const enableHotAdd = async () => {
-    await soapCall(tenant, reconfigureVm(vmId,
+    await soapCall(tenant, reconfigureSpec(vmId,
       `<memoryHotAddEnabled>true</memoryHotAddEnabled>` +
       `<cpuHotAddEnabled>true</cpuHotAddEnabled>`));
   };
@@ -1247,10 +1251,10 @@ const applyResourceChanges = async (
     const coresPerSocket = sockets > 0 && cores % sockets === 0 ? cores / sockets : null;
     const spec = `<numCPUs>${cores}</numCPUs>` +
       (coresPerSocket ? `<numCoresPerSocket>${coresPerSocket}</numCoresPerSocket>` : "");
-    await soapCall(tenant, reconfigureVm(vmId, spec));
+    await soapCall(tenant, reconfigureSpec(vmId, spec));
   }
   if (payload.memoryMB) {
-    await soapCall(tenant, reconfigureVm(vmId, `<memoryMB>${Math.round(payload.memoryMB)}</memoryMB>`));
+    await soapCall(tenant, reconfigureSpec(vmId, `<memoryMB>${Math.round(payload.memoryMB)}</memoryMB>`));
   }
 };
 
