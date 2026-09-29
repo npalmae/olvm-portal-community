@@ -4,6 +4,8 @@ import { isPlatformSuperadmin } from "@/lib/authz";
 import { getEngineById } from "@/lib/engineStore";
 import { listClusters } from "@/lib/clusterStore";
 import { fetchAllStorageDomains } from "@/lib/olvmClient";
+import { listAllDatastores } from "@/lib/vmwareClient";
+import type { TenantConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +26,26 @@ export async function GET(_: Request, context: Params) {
   const engine = await getEngineById(id);
   if (!engine) return NextResponse.json({ error: "Engine no encontrado" }, { status: 404 });
 
-  // Buscar un tenant que use este engine para resolver la conexion
+  // VMware: conecta directo con las credenciales del engine (no requiere tenant)
+  if (engine.type === "vmware") {
+    try {
+      const pseudoTenant = {
+        id: `engine-${engine.id}`,
+        baseUrl: engine.baseUrl,
+        username: engine.username ?? undefined,
+        password: engine.password ?? undefined,
+        token: engine.token ?? undefined,
+        allowInsecure: engine.allowInsecure,
+        caCert: engine.caCert ?? undefined,
+      } as unknown as TenantConfig;
+      const sds = await listAllDatastores(pseudoTenant);
+      return NextResponse.json(sds);
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+    }
+  }
+
+  // OLVM: requiere un tenant del engine para resolver la conexion
   const tenant = (await listClusters()).find((c) => c.engineId === id);
   if (!tenant) return NextResponse.json({ error: "No hay tenants asignados a este engine" }, { status: 400 });
 

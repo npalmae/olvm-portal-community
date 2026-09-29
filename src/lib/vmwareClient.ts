@@ -825,6 +825,11 @@ export const fetchHosts = async (tenantId: string): Promise<OlvmHost[]> => {
 
 export const fetchStorageDomains = async (tenantId: string): Promise<StorageDomainInfo[]> => {
   const tenant = await getTenantById(tenantId);
+  return listAllDatastores(tenant);
+};
+
+/** Datastores de un engine sin filtro por tenant (para el setup de tenants). */
+export const listAllDatastores = async (tenant: TenantConfig): Promise<StorageDomainInfo[]> => {
   type Ds = {
     datastore: string; name: string; type: string; capacity?: number; free_space?: number;
   };
