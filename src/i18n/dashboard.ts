@@ -213,6 +213,7 @@ export const dashboardMessages: Messages = {
   selectVmActions: msg("Selecciona una VM para habilitar acciones.", "Select a VM to enable actions.", "Wählen Sie eine VM, um Aktionen zu aktivieren.", "Selecione uma VM para ativar ações."),
   memoryMb: msg("Memoria (MB)", "Memory (MB)", "Arbeitsspeicher (MB)", "Memória (MB)"),
   vmMustBeOff: msg("La VM debe estar apagada para cambiar recursos (RAM/CPU).", "The VM must be powered off to change resources (RAM/CPU).", "Die VM muss ausgeschaltet sein, um Ressourcen (RAM/CPU) zu ändern.", "A VM deve estar desligada para alterar recursos (RAM/CPU)."),
+  resourcesWillCycle: msg("Los cambios se aplican automáticamente: la VM se apagará y encenderá (~1 minuto).", "Changes apply automatically: the VM will power off and back on (~1 minute).", "Die Änderungen werden automatisch angewendet: Die VM wird aus- und wieder eingeschaltet (~1 Minute).", "Los cambios se aplican automáticamente: la VM se apagará y encenderá (~1 minuto)."),
   resourcesWillRestart: msg("La VM se reiniciará automáticamente para aplicar los cambios (CPU/RAM).", "The VM will restart automatically to apply the changes (CPU/RAM).", "Die VM wird zum Anwenden der Änderungen (CPU/RAM) automatisch neu gestartet.", "A VM será reiniciada automaticamente para aplicar as alterações (CPU/RAM)."),
   shutDownNow: msg("Apagar ahora", "Shut down now", "Jetzt herunterfahren", "Desligar agora"),
   updating: msg("Actualizando...", "Updating...", "Wird aktualisiert...", "A atualizar..."),

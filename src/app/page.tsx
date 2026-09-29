@@ -2751,26 +2751,35 @@ export default function Home() {
                             />
                           </Field>
                         </div>
-                        {selectedVm.status?.toLowerCase?.() === "up" ? (
-                          <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
-                             {(tenants.find((tt) => tt.id === selectedTenant)?.engineType ?? (tenants.find((tt) => tt.id === tenantForVm(selectedVm.id))?.engineType)) === "vmware" ? t("resourcesWillRestart") : t("vmMustBeOff")}
-                            <button
-                              onClick={() => runAction(selectedVm.id, "shutdown")}
-                              disabled={actionLoading === `${selectedVm.id}-shutdown`}
-                              className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
-                            >
-                               {t("shutDownNow")}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => updateResources(selectedVm.id)}
-                            disabled={actionLoading === `${selectedVm.id}-update`}
-                            className="w-full rounded-md bg-violet-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
-                          >
-                             {actionLoading === `${selectedVm.id}-update` ? t("updating") : t("updateResources")}
-                          </button>
-                        )}
+                        {(() => {
+                          const engineType = tenants.find((tt) => tt.id === tenantForVm(selectedVm.id))?.engineType ?? (tenants.find((tt) => tt.id === selectedTenant)?.engineType);
+                          const isUp = selectedVm.status?.toLowerCase?.() === "up";
+                          return (
+                            <>
+                              {isUp && (
+                                <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
+                                  {engineType === "vmware" ? t("resourcesWillCycle") : t("vmMustBeOff")}
+                                  {engineType !== "vmware" && (
+                                    <button
+                                      onClick={() => runAction(selectedVm.id, "shutdown")}
+                                      disabled={actionLoading === `${selectedVm.id}-shutdown`}
+                                      className="mt-1 w-full rounded-md border border-amber-300 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                                    >
+                                      {t("shutDownNow")}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              <button
+                                onClick={() => updateResources(selectedVm.id)}
+                                disabled={actionLoading === `${selectedVm.id}-update`}
+                                className="w-full rounded-md bg-violet-600 py-1.5 text-[11px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
+                              >
+                                {actionLoading === `${selectedVm.id}-update` ? t("updating") : t("updateResources")}
+                              </button>
+                            </>
+                          );
+                        })()}
                       </>
                     ) : (
                       <div className="grid grid-cols-3 gap-1.5">
