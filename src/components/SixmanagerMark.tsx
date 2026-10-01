@@ -4,12 +4,14 @@ type SixmanagerMarkProps = {
   compact?: boolean;
   subtitle?: string;
   align?: "left" | "center";
+  name?: string;
 };
 
 export function SixmanagerMark({
   compact = false,
   subtitle,
   align = "left",
+  name = "Virtual Portal",
 }: SixmanagerMarkProps) {
   const isCenter = align === "center";
 
@@ -29,7 +31,7 @@ export function SixmanagerMark({
             compact ? "text-lg" : "text-xl"
           }`}
         >
-          Virtual Portal
+          {name}
         </span>
       </div>
       {subtitle ? (

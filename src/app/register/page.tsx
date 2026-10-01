@@ -69,7 +69,7 @@ export default function RegisterPage() {
                 className="h-auto w-[130px] sm:w-[160px] object-contain"
               />
             ) : (
-              <SixmanagerMark subtitle="OLVM Portal" />
+              <SixmanagerMark subtitle="Virtual Portal" />
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t("register.title")}</h1>

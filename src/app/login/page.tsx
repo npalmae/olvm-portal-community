@@ -139,7 +139,7 @@ function LoginPageContent() {
                 className="h-auto w-[130px] sm:w-[160px] object-contain"
               />
             ) : (
-              <SixmanagerMark subtitle="Virtual Portal" />
+              <SixmanagerMark name={branding.brandName || "Virtual Portal"} />
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">

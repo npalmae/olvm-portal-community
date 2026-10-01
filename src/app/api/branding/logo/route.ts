@@ -17,7 +17,7 @@ export async function GET() {
   const headers = new Headers();
   headers.set("Content-Type", mime);
   headers.set("Content-Length", String(logo.length));
-  headers.set("Cache-Control", "public, max-age=3600, must-revalidate");
+  headers.set("Cache-Control", "no-cache, must-revalidate");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Content-Security-Policy", "default-src 'none'; img-src 'self'");
 
