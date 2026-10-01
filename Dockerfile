@@ -12,6 +12,11 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
+# Metadatos de version inyectados por el build (F1 — /api/system/version).
+# El tag de git es la fuente de verdad; CI los pasa como build-args.
+ARG PORTAL_VERSION
+ARG PORTAL_COMMIT
+ARG PORTAL_BUILD_DATE
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
@@ -20,6 +25,13 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Se propagan del stage builder para quedar disponibles en runtime.
+ARG PORTAL_VERSION
+ARG PORTAL_COMMIT
+ARG PORTAL_BUILD_DATE
+ENV PORTAL_VERSION=${PORTAL_VERSION}
+ENV PORTAL_COMMIT=${PORTAL_COMMIT}
+ENV PORTAL_BUILD_DATE=${PORTAL_BUILD_DATE}
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl openssh-client sshpass tar gzip \
@@ -40,6 +52,7 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/CHANGELOG.md ./CHANGELOG.md
 
 COPY scripts/migrate-json.cjs ./scripts/migrate-json.cjs
 COPY scripts/backup-scheduler.cjs ./scripts/backup-scheduler.cjs

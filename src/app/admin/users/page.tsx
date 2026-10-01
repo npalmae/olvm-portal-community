@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLocale, useTranslations } from "@/components/LocaleProvider";
 import { adminMessages } from "@/i18n/admin";
 
@@ -335,7 +336,7 @@ export default function AdminUsersPage() {
             >
               {t("branding")}
             </button>
-            <LanguageSelector />
+            <ThemeToggle /><LanguageSelector />
           </div>
         </div>
 

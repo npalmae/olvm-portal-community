@@ -37,7 +37,15 @@ export default async function RootLayout({
 }>) {
   const locale = await getRequestLocale();
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        {/* Tema anti-FOUC: fija data-theme antes del primer paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('olvm-theme');var t=m==='light'||m==='dark'?m:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t;}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="antialiased">
         {process.env.NODE_ENV === "development" ? (
           <Script id="disable-next-overlay" strategy="beforeInteractive">

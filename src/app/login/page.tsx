@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 import { usePortalBranding } from "@/components/usePortalBranding";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTranslations } from "@/components/LocaleProvider";
 import { authMessages } from "@/i18n/auth";
 
@@ -125,7 +126,7 @@ function LoginPageContent() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-sm">
-        <div className="mb-2 flex justify-end"><LanguageSelector /></div>
+        <div className="mb-2 flex items-center justify-end gap-2"><ThemeToggle /><LanguageSelector /></div>
         {/* Logo */}
         <div className="mb-6 text-center">
           <div className="mb-3 inline-flex items-center justify-center rounded-xl border bg-white p-3 shadow-sm" style={{ borderColor: "var(--border)" }}>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLocale, useTranslations } from "@/components/LocaleProvider";
 import { adminMessages } from "@/i18n/admin";
 
@@ -298,7 +299,7 @@ export default function AdminBackupsPage() {
             <NavButton label={t("users")} onClick={() => router.push("/admin/users")} />
             <NavButton label={t("email")} onClick={() => router.push("/admin/email")} />
             <NavButton label={t("branding")} onClick={() => router.push("/admin/branding")} />
-            <LanguageSelector />
+            <ThemeToggle /><LanguageSelector />
           </div>
         </header>
 

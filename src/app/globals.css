@@ -52,3 +52,86 @@ a { color: inherit; text-decoration: none; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 4px; }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Tema oscuro (v1.3.0) — doble vía:
+ *   1) Tokens: se redefinen las variables de :root bajo [data-theme="dark"]
+ *   2) Utilidades: las clases grises literales de Tailwind usadas en la UI
+ *      se remapean a la paleta oscura (inventario cerrado, auditado)
+ * El atributo data-theme lo fija el script anti-FOUC del layout.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] {
+  --bg:            #0f1219;
+  --surface:       #161b26;
+  --surface-2:     #1c2230;
+  --border:        #262e3f;
+  --border-dark:   #33405a;
+
+  --text-primary:   #e9edf5;
+  --text-secondary: #9aa4b8;
+  --text-muted:     #6b7280;
+
+  --accent:       #3b82f6;
+  --accent-light: #16233f;
+  --accent-hover: #60a5fa;
+
+  --success-light: #0c2b22;
+  --warning-light: #33260c;
+  --danger-light:  #331b1b;
+
+  --sidebar-bg:      #151a26;
+  --sidebar-hover:   rgba(255,255,255,0.06);
+  --sidebar-active:  rgba(37,99,235,0.25);
+  --sidebar-text:    #e5e7eb;
+  --sidebar-muted:   rgba(229,231,235,0.5);
+  --sidebar-border:  rgba(255,255,255,0.07);
+}
+
+[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Utilidades Tailwind remapeadas (inventario auditado) */
+[data-theme="dark"] .bg-white     { background-color: #161b26; }
+[data-theme="dark"] .bg-gray-50   { background-color: #11151e; }
+[data-theme="dark"] .bg-gray-100  { background-color: #1c2230; }
+[data-theme="dark"] .bg-gray-200  { background-color: #262e3f; }
+[data-theme="dark"] .bg-gray-300  { background-color: #33405a; }
+[data-theme="dark"] .border-gray-200 { border-color: #262e3f; }
+[data-theme="dark"] .border-gray-300 { border-color: #33405a; }
+
+[data-theme="dark"] .text-gray-400 { color: #8a93a6; }
+[data-theme="dark"] .text-gray-500 { color: #7c869a; }
+[data-theme="dark"] .text-gray-600 { color: #9aa4b8; }
+[data-theme="dark"] .text-gray-700 { color: #b5bdcd; }
+[data-theme="dark"] .text-gray-800 { color: #d3d9e5; }
+[data-theme="dark"] .text-gray-900 { color: #e9edf5; }
+
+[data-theme="dark"] .hover\:bg-gray-50:hover  { background-color: #1c2230; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: #262e3f; }
+[data-theme="dark"] .hover\:bg-gray-200:hover { background-color: #33405a; }
+
+[data-theme="dark"] .bg-blue-50    { background-color: rgba(37,99,235,0.12); }
+[data-theme="dark"] .bg-blue-100   { background-color: rgba(37,99,235,0.20); }
+[data-theme="dark"] .bg-emerald-50 { background-color: rgba(16,185,129,0.12); }
+[data-theme="dark"] .bg-emerald-100{ background-color: rgba(16,185,129,0.20); }
+[data-theme="dark"] .bg-red-50     { background-color: rgba(239,68,68,0.12); }
+[data-theme="dark"] .bg-red-100    { background-color: rgba(239,68,68,0.20); }
+[data-theme="dark"] .bg-amber-50   { background-color: rgba(245,158,11,0.14); }
+[data-theme="dark"] .bg-amber-100  { background-color: rgba(245,158,11,0.22); }
+
+[data-theme="dark"] .text-blue-700    { color: #93c5fd; }
+[data-theme="dark"] .text-blue-600    { color: #60a5fa; }
+[data-theme="dark"] .text-emerald-700 { color: #6ee7b7; }
+[data-theme="dark"] .text-red-700     { color: #fca5a5; }
+[data-theme="dark"] .text-amber-700   { color: #fcd34d; }
+[data-theme="dark"] .border-blue-300  { border-color: rgba(96,165,250,0.35); }
+[data-theme="dark"] .border-emerald-200 { border-color: rgba(110,231,183,0.25); }
+[data-theme="dark"] .border-red-300   { border-color: rgba(252,165,165,0.3); }

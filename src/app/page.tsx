@@ -7,8 +7,11 @@ import { signOut, useSession } from "next-auth/react";
 import { usePortalBranding } from "@/components/usePortalBranding";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { VersionBadge } from "@/components/VersionBadge";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLocale, useTranslations } from "@/components/LocaleProvider";
 import { dashboardMessages } from "@/i18n/dashboard";
+import { updateMessages } from "@/i18n/admin";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -216,7 +219,7 @@ export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
   const { locale } = useLocale();
-  const t = useTranslations(dashboardMessages);
+  const t = useTranslations({ ...dashboardMessages, ...updateMessages });
   const formatNumber = (value?: number, opts: Intl.NumberFormatOptions = {}) => formatLocaleNumber(locale, value, opts);
   const formatBytes = (value?: number) => formatLocaleBytes(locale, value);
   const toGB = (value?: number) => toLocaleGB(locale, value);
@@ -244,7 +247,9 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadFileName, setUploadFileName] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
   const [sidebarPeek, setSidebarPeek] = useState(false);
+  const sidebarHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showLabels = !sidebarCollapsed || sidebarPeek;
 
   useEffect(() => {
@@ -1229,6 +1234,16 @@ export default function Home() {
   const selectedVm = useMemo(() => vms.find((vm) => vm.id === selectedVmId) ?? null, [selectedVmId, vms]);
 
   useEffect(() => {
+    if (!isSuperadmin) return;
+    fetch("/api/system/updates")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.available && data?.latest) setUpdateAvailable(data.latest as string);
+      })
+      .catch(() => undefined);
+  }, [isSuperadmin]);
+
+  useEffect(() => {
     if (canOperate && selectedVm?.status === "up" && selectedVm.id) {
       generateConsolePreview(selectedVm.id);
     } else {
@@ -1442,7 +1457,7 @@ export default function Home() {
         style={{
           width: SIDEBAR_W,
           minWidth: 0,
-          transition: "width 0.2s ease, transform 0.2s ease",
+          transition: "width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease",
         }}
         className={`
           fixed left-0 top-0 z-40 h-full flex-col
@@ -1450,21 +1465,30 @@ export default function Home() {
           ${sidebarCollapsed ? "-translate-x-full sm:translate-x-0" : "translate-x-0 flex"}
           ${peeking ? "overflow-visible" : "overflow-hidden"}
         `}
-        onMouseEnter={() => { if (sidebarCollapsed && canHover()) setSidebarPeek(true); }}
-        onMouseLeave={() => setSidebarPeek(false)}
+        onMouseEnter={() => {
+          if (!sidebarCollapsed || !canHover()) return;
+          if (sidebarHoverTimer.current) clearTimeout(sidebarHoverTimer.current);
+          sidebarHoverTimer.current = setTimeout(() => setSidebarPeek(true), 180);
+        }}
+        onMouseLeave={() => {
+          if (sidebarHoverTimer.current) clearTimeout(sidebarHoverTimer.current);
+          setSidebarPeek(false);
+        }}
       >
         <div
           style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            zIndex: peeking ? 50 : undefined,
             width: peeking ? 240 : SIDEBAR_W,
             height: "100%",
             background: "var(--sidebar-bg)",
             borderRight: "1px solid var(--sidebar-border)",
             display: "flex",
             flexDirection: "column",
-            transition: "width 0.15s ease",
-            ...(peeking
-              ? { position: "absolute", left: 0, top: 0, zIndex: 50, boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }
-              : {}),
+            transition: "width 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: peeking ? "0 12px 32px rgba(0,0,0,0.35)" : "0 0 0 rgba(0,0,0,0)",
           }}
         >
         {/* Logo row */}
@@ -1691,7 +1715,7 @@ export default function Home() {
               <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{totals.down} down</span>
               <span>{totals.total} {t("total")}</span>
             </div>
-            <div className="mt-2 flex justify-center border-t pt-2" style={{ borderColor: "var(--sidebar-border)" }}>
+            <div className="mt-2 flex items-center justify-center gap-2 border-t pt-2" style={{ borderColor: "var(--sidebar-border)" }}>
               <a
                 href="https://sixmanager.com"
                 target="_blank"
@@ -1701,6 +1725,7 @@ export default function Home() {
               >
                 {t("poweredBy")} <span className="font-semibold text-gray-300">Sixmanager</span>
               </a>
+              <VersionBadge />
             </div>
           </div>
         )}
@@ -1746,6 +1771,7 @@ export default function Home() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               <span className="max-w-[140px] truncate">{session?.user?.email ?? t("unknownUser")}</span>
             </span>
+            <ThemeToggle />
             <LanguageSelector />
             {/* Mobile: right panel toggle */}
             <button
@@ -1785,6 +1811,18 @@ export default function Home() {
             </button>
           </div>
         </header>
+      {updateAvailable && isSuperadmin && (
+        <div className="flex items-center justify-center gap-2 border-b px-3 py-1.5 text-[11px]" style={{ borderColor: "var(--border)", background: "var(--accent-light)" }}>
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+          <span className="font-medium text-blue-700 dark:text-blue-300">
+            v{updateAvailable} {t("updateBanner")}
+          </span>
+          <a href="/admin/system" className="font-semibold text-blue-700 underline underline-offset-2">
+            →
+          </a>
+        </div>
+      )}
+
 
         {/* Content */}
         <div className="flex flex-1 min-h-0 overflow-hidden">

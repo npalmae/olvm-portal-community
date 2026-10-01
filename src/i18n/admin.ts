@@ -286,3 +286,30 @@ export const adminMessages = {
   backupStageCompleted: { es: "Completado", en: "Completed", de: "Abgeschlossen", pt: "Concluído" },
   backupStageFailed: { es: "Fallido", en: "Failed", de: "Fehlgeschlagen", pt: "Falhou" },
 } satisfies Messages;
+
+// Módulo de versión y actualizaciones (roadmap F1)
+export const systemMessages = {
+  systemNav: { es: "Sistema", en: "System", de: "System", pt: "Sistema" },
+  systemTitle: { es: "Sistema y versiones", en: "System and versions", de: "System und Versionen", pt: "Sistema e versões" },
+  systemSubtitle: { es: "Versión instalada, canal y novedades del portal", en: "Installed version, channel and release notes", de: "Installierte Version, Kanal und Neuigkeiten", pt: "Versão instalada, canal e novidades" },
+  currentVersion: { es: "Versión actual", en: "Current version", de: "Aktuelle Version", pt: "Versão atual" },
+  channel: { es: "Canal", en: "Channel", de: "Kanal", pt: "Canal" },
+  commit: { es: "Commit", en: "Commit", de: "Commit", pt: "Commit" },
+  buildDate: { es: "Fecha de build", en: "Build date", de: "Build-Datum", pt: "Data do build" },
+  changelog: { es: "Novedades", en: "Changelog", de: "Neuigkeiten", pt: "Novidades" },
+  noChangelog: { es: "Sin changelog disponible en este build.", en: "No changelog available in this build.", de: "Kein Changelog in diesem Build verfügbar.", pt: "Sem changelog neste build." },
+  updatesComingSoon: { es: "La detección y actualización automática (F2/F3) llegará en próximas versiones.", en: "Automatic detection and self-update (F2/F3) will arrive in upcoming versions.", de: "Automatische Erkennung und Selbst-Update (F2/F3) kommen in künftigen Versionen.", pt: "Detecção automática e auto-atualização (F2/F3) chegarão em próximas versões." },
+} as const;
+
+// F2 — Detección de actualizaciones
+export const updateMessages = {
+  updatesTitle: { es: "Actualizaciones", en: "Updates", de: "Updates", pt: "Atualizações" },
+  upToDate: { es: "Estás al día — no hay versiones nuevas.", en: "You are up to date — no new versions.", de: "Du bist auf dem neuesten Stand — keine neuen Versionen.", pt: "Você está em dia — sem novas versões." },
+  newVersionAvailable: { es: "versión disponible", en: "version available", de: "Version verfügbar", pt: "versão disponível" },
+  howToUpdate: { es: "Cómo actualizar", en: "How to update", de: "So wird aktualisiert", pt: "Como atualizar" },
+  checklistNote: { es: "Ejecuta estos pasos en el server (ajusta la ruta si tu instalación vive en otro directorio):", en: "Run these steps on the server (adjust the path if your install lives elsewhere):", de: "Führe diese Schritte auf dem Server aus (Pfad anpassen, falls deine Installation woanders liegt):", pt: "Execute estes passos no server (ajuste o caminho se sua instalação estiver em outro diretório):" },
+  afterUpdate: { es: "Tras el build, el portal se reinicia solo; verifica el badge de versión en el sidebar.", en: "After the build the portal restarts itself; check the version badge in the sidebar.", de: "Nach dem Build startet das Portal neu; prüfe das Versions-Badge in der Seitenleiste.", pt: "Após o build o portal reinicia sozinho; verifique o badge de versão na sidebar." },
+  viewRelease: { es: "Ver release en GitHub", en: "View release on GitHub", de: "Release auf GitHub ansehen", pt: "Ver release no GitHub" },
+  checkNow: { es: "Buscar ahora", en: "Check now", de: "Jetzt prüfen", pt: "Verificar agora" },
+  updateBanner: { es: "disponible — ver actualizaciones", en: "available — view updates", de: "verfügbar — Updates ansehen", pt: "disponível — ver atualizações" },
+} as const;

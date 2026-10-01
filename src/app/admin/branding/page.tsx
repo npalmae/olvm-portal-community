@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { SixmanagerMark } from "@/components/SixmanagerMark";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLocale, useTranslations } from "@/components/LocaleProvider";
 import { adminMessages } from "@/i18n/admin";
 
@@ -213,7 +214,7 @@ export default function AdminBrandingPage() {
             >
               {t("clusters")}
             </button>
-            <LanguageSelector />
+            <ThemeToggle /><LanguageSelector />
           </div>
         </div>
 
