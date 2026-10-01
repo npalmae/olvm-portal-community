@@ -7,7 +7,8 @@ export default auth((req) => {
   const user = req.auth?.user;
 
   // Permitir rutas de auth, setup y API v1 (API key propia) sin autenticación de sesión
-  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/setup") || pathname.startsWith("/api/v1") || pathname.startsWith("/api/internal/backups/") || pathname === "/login" || pathname === "/register" || pathname === "/reset-password" || pathname === "/setup") {
+  // Branding global/logo son publicos: el login los necesita antes de autenticar
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/setup") || pathname.startsWith("/api/v1") || pathname.startsWith("/api/internal/backups/") || pathname.startsWith("/api/branding/global") || pathname.startsWith("/api/branding/logo") || pathname === "/login" || pathname === "/register" || pathname === "/reset-password" || pathname === "/setup") {
     return NextResponse.next();
   }
   
