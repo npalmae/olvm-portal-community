@@ -238,11 +238,11 @@ export default function AdminBrandingPage() {
                     className="h-auto w-[130px] sm:w-[160px] object-contain"
                   />
                 ) : (
-                  <SixmanagerMark subtitle="OLVM Portal" />
+                  <SixmanagerMark subtitle="Virtual Portal" />
                 )}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {brandName || "OLVM Portal"}
+                {brandName || "Virtual Portal"}
               </p>
             </div>
           </div>
