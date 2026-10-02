@@ -21,8 +21,9 @@ export async function GET() {
     brandLogoUrl: tenant.brandLogoUrl,
   }));
 
+  const noStore = { headers: { "Cache-Control": "no-store" } };
   if (isPlatformSuperadmin(session.user)) {
-    return NextResponse.json(tenants);
+    return NextResponse.json(tenants, noStore);
   }
 
   const accessibleTenantIds = new Set(getAccessibleTenantIds(session.user));
@@ -37,5 +38,5 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(visibleTenants);
+  return NextResponse.json(visibleTenants, noStore);
 }
