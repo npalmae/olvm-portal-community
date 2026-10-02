@@ -1529,8 +1529,11 @@ export default function Home() {
                 return (
                   <div className="leading-tight text-center">
                     {logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logo} alt={brand} className="mb-1 h-13 w-auto max-w-[180px] object-contain mx-auto" />
+                      <div className="flex flex-col items-center gap-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={logo} alt={brand} className="h-13 w-auto max-w-[180px] object-contain mx-auto" />
+                        <div className="text-[13px] font-bold text-white">{brand}</div>
+                      </div>
                     ) : hasCustomBrand ? (
                       <div className="flex flex-col items-center gap-1.5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
