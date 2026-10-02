@@ -60,17 +60,14 @@ export async function POST(req: NextRequest) {
   const brandName =
     typeof brandNameRaw === "string" ? brandNameRaw.trim().slice(0, 80) : null;
 
-  // Sin imagen: solo actualiza el nombre y conserva el logo actual (o el
-  // logo por defecto del portal si nunca se subio uno).
+  // Sin imagen: actualiza el nombre (vacio = volver al nombre del producto)
+  // y conserva el logo actual, o el logo por defecto del portal.
   if (!hasFile) {
-    if (!brandName) {
-      return JSON_RESP({ error: "Nada que actualizar" }, 400);
-    }
-    const cfg = await writeBrandingConfig({ brandName });
-    return NextResponse.json({
-      ok: true,
-      brandName: cfg.brandName,
-    });
+    const cfg = await writeBrandingConfig({ brandName: brandName || null });
+    return NextResponse.json(
+      { ok: true, brandName: cfg.brandName ?? "" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const raw = Buffer.from(await (file as File).arrayBuffer());
