@@ -1077,6 +1077,7 @@ export default function Home() {
           sockets: newVm.sockets ? Number(newVm.sockets) : undefined,
           comment: newVm.comment || undefined,
           os: newVm.os,
+          guestOsType: (tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" ? newVm.os : undefined,
           vnicProfileId: newVm.vnicProfileId || undefined,
           cloudInit: useCloudInit && cloudInit.ip ? cloudInit : undefined,
         }),
@@ -3006,11 +3007,25 @@ export default function Home() {
                           className={inputCls} placeholder="vm-app-01" />
                       </Field>
                        {newVmSource !== "ova" && <Field label={t("osToInstall")}>
-                        <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
-                          className={inputCls}>
-                          <option value="linux">Linux (virtio)</option>
-                          <option value="windows">Windows (SATA + virtio drivers)</option>
-                        </select>
+                        {(() => {
+                          const engineType = tenants.find((tt) => tt.id === selectedTenant)?.engineType;
+                          return engineType === "vmware" ? (
+                            <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
+                              className={inputCls}>
+                              <option value="UBUNTU_64">Ubuntu Linux (64 bits)</option>
+                              <option value="OTHER_64">Otro Linux (64 bits)</option>
+                              <option value="WINDOWS_2019_64">Windows Server 2019 (64 bits)</option>
+                              <option value="WINDOWS_10_64">Windows 10 / 11 (64 bits)</option>
+                              <option value="OTHER_GUEST">Otro</option>
+                            </select>
+                          ) : (
+                            <select value={newVm.os} onChange={(e) => setNewVm((v) => ({ ...v, os: e.target.value }))}
+                              className={inputCls}>
+                              <option value="linux">Linux (virtio)</option>
+                              <option value="windows">Windows (SATA + virtio drivers)</option>
+                            </select>
+                          );
+                        })()}
                       </Field>}
                       <Field label="Cluster *">
                         <select value={newVm.clusterId} onChange={(e) => setNewVm((v) => ({ ...v, clusterId: e.target.value }))}
