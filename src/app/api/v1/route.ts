@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const base = `${proto}://${host}/api/v1`;
 
   return NextResponse.json({
-    api: "OLVM Portal API",
+    api: "Virtual Portal API",
     version: "2.1",
     docs: "https://github.com/npalmae/olvm-portal-community/blob/main/docs/API.md",
     authenticatedAs: ctx.userEmail,

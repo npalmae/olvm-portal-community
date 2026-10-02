@@ -55,7 +55,7 @@ export const sendVerificationCode = async (
   email: string,
   code: string,
 ): Promise<{ delivered: boolean; fallback: boolean; error?: string }> => {
-  const subject = "Tu código de verificación - OLVM Portal";
+  const subject = "Tu código de verificación - Virtual Portal";
   const text = `Tu código de verificación es: ${code}\n\nExpira en 5 minutos. Si no solicitaste este código, ignora este correo.`;
 
   const config = await getEmailConfig();
@@ -96,8 +96,8 @@ export const sendTestEmail = async (
     const { error } = await resend.emails.send({
       from: fromAddress,
       to,
-      subject: "Prueba de configuración - OLVM Portal",
-      text: "Este es un email de prueba desde OLVM Portal. Si lo recibiste, la configuración funciona correctamente.",
+      subject: "Prueba de configuración - Virtual Portal",
+      text: "Este es un email de prueba desde Virtual Portal. Si lo recibiste, la configuración funciona correctamente.",
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -110,7 +110,7 @@ export const sendPasswordResetEmail = async (
   email: string,
   resetUrl: string,
 ): Promise<{ delivered: boolean; fallback: boolean; error?: string }> => {
-  const subject = "Recuperar contraseña - OLVM Portal";
+  const subject = "Recuperar contraseña - Virtual Portal";
   const text = `Recibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace para crear una nueva contraseña:\n${resetUrl}\n\nEste enlace expira en 30 minutos.\n\nSi no solicitaste este cambio, ignora este correo.`;
 
   const config = await getEmailConfig();

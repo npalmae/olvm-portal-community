@@ -47,7 +47,7 @@ export default function SetupPage() {
 
   const steps = [
     { n: 1, label: "Superadmin" },
-    { n: 2, label: "Motor OLVM" },
+    { n: 2, label: "Motor de virtualización" },
     { n: 3, label: "Tenant" },
     { n: 4, label: "Email" },
     { n: 5, label: "SSH Hosts" },
@@ -125,7 +125,7 @@ export default function SetupPage() {
       <div className="w-full max-w-xl">
         <div className="mb-6 flex flex-col items-center">
           <SixmanagerMark />
-          <h1 className="mt-3 text-xl font-bold text-gray-900 dark:text-gray-100">OLVM Portal — Instalación</h1>
+          <h1 className="mt-3 text-xl font-bold text-gray-900 dark:text-gray-100">Virtual Portal — Instalación</h1>
         </div>
 
         {/* Progress */}
@@ -206,10 +206,10 @@ export default function SetupPage() {
           {step === 3 && (
             <div>
               <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">Crear tenant</h2>
-              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">El tenant asocia el portal con un tag de OLVM para el aislamiento multitenant.</p>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">El tenant asocia el portal con un tag de la plataforma para el aislamiento multitenant.</p>
               <div className="space-y-3">
                 <div><label className={labelCls}>Nombre del tenant</label><input className={inputCls} value={tenantName} onChange={(e) => setTenantName(e.target.value)} placeholder="produccion" /></div>
-                <div><label className={labelCls}>Tag OLVM</label><input className={inputCls} value={tenantTag} onChange={(e) => setTenantTag(e.target.value)} placeholder="produccion" /></div>
+                <div><label className={labelCls}>Tag del tenant</label><input className={inputCls} value={tenantTag} onChange={(e) => setTenantTag(e.target.value)} placeholder="produccion" /></div>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">Las VMs con este tag en OLVM pertenecerán a este tenant. El tag se crea automáticamente si no existe.</p>
               </div>
               <button onClick={handleTenant} disabled={loading || !tenantName || !tenantTag} className={`${btnPrimary} mt-5 w-full`}>
@@ -267,7 +267,7 @@ export default function SetupPage() {
           )}
         </div>
 
-        <p className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">OLVM Portal · Powered by <a href="https://sixmanager.com" className="hover:text-gray-600 dark:text-gray-400">Sixmanager</a></p>
+        <p className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">Virtual Portal · Powered by <a href="https://sixmanager.com" className="hover:text-gray-600 dark:text-gray-400">Sixmanager</a></p>
       </div>
     </div>
   );

@@ -714,7 +714,7 @@ function TenantForm({
           </div>
 
           <label className="block">
-            <span className={labelCls}>Engine OLVM</span>
+            <span className={labelCls}>Motor de virtualización</span>
             <select className={`${inputCls} mt-1`} value={engineId} onChange={(e) => setEngineId(e.target.value)} required>
                {engines.length === 0 && <option value="">{t("noEnginesAvailable")}</option>}
               {engines.map((e) => (
