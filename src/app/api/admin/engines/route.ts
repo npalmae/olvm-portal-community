@@ -55,6 +55,7 @@ export async function POST(request: Request) {
 
   try {
     const created = await createEngine({
+      type: body.type === "vmware" ? "vmware" : "olvm",
       id: typeof body.id === "string" ? body.id : undefined,
       name: typeof body.name === "string" ? body.name : "",
       baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : "",

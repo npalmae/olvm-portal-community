@@ -68,6 +68,7 @@ export async function PATCH(request: Request, context: Params) {
 
   try {
     const updated = await updateEngine(id, {
+      type: body.type === "vmware" ? "vmware" : body.type === "olvm" ? "olvm" : existing.type,
       name: typeof body.name === "string" ? body.name : existing.name,
       baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : existing.baseUrl,
       username: typeof body.username === "string" ? body.username : existing.username,

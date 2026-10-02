@@ -26,6 +26,7 @@ export default function SetupPage() {
   const [adminPass2, setAdminPass2] = useState("");
 
   // Step 2: engine
+  const [engType, setEngType] = useState<"vmware" | "olvm">("vmware");
   const [engName, setEngName] = useState("");
   const [engUrl, setEngUrl] = useState("");
   const [engUser, setEngUser] = useState("admin@internal");
@@ -75,7 +76,7 @@ export default function SetupPage() {
   const handleEngineTest = async () => {
     setLoading(true); setError(null);
     try {
-      await api("/api/admin/engines/test", { baseUrl: engUrl, username: engUser, password: engPass, allowInsecure: engInsecure });
+      await api("/api/admin/engines/test", { type: engType, baseUrl: engUrl, username: engUser, password: engPass, allowInsecure: engInsecure });
       setEngineTested(true);
     } catch (e) { setError((e as Error).message); setEngineTested(false); }
     finally { setLoading(false); }
@@ -84,7 +85,7 @@ export default function SetupPage() {
   const handleEngineSave = async () => {
     setLoading(true); setError(null);
     try {
-      const data = await api("/api/admin/engines", { name: engName, baseUrl: engUrl, username: engUser, password: engPass, allowInsecure: engInsecure });
+      const data = await api("/api/admin/engines", { type: engType, name: engName, baseUrl: engUrl, username: engUser, password: engPass, allowInsecure: engInsecure });
       setEngineId(data.id);
       setStep(3);
     } catch (e) { setError((e as Error).message); }
@@ -154,10 +155,10 @@ export default function SetupPage() {
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Este wizard te guiará por la configuración inicial del portal en unos minutos.</p>
               <div className="mt-5 space-y-1.5 text-left text-xs text-gray-500 dark:text-gray-400">
                 <p>1. Crear el usuario <strong>superadmin</strong></p>
-                <p>2. Conectar el <strong>motor OLVM</strong></p>
+                <p>2. Conectar el <strong>motor de virtualización</strong></p>
                 <p>3. Crear el primer <strong>tenant</strong> con su tag</p>
                 <p>4. Configurar <strong>email</strong> (opcional)</p>
-                <p>5. Configurar <strong>SSH de hosts</strong> OLVM (opcional)</p>
+                {engType === "olvm" && <p>5. Configurar <strong>SSH de hosts</strong> OLVM (opcional)</p>}
               </div>
               <button onClick={() => setStep(1)} className={`${btnPrimary} mt-6 w-full`}>Comenzar →</button>
             </div>
@@ -183,11 +184,37 @@ export default function SetupPage() {
           {/* Step 2: Engine */}
           {step === 2 && (
             <div>
-              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">Conectar motor OLVM</h2>
-              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">Datos de acceso a la API REST del engine (oVirt/OLVM).</p>
+              <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">
+                {engType === "vmware" ? "Conectar VMware vCenter" : "Conectar motor OLVM"}
+              </h2>
+              <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">
+                {engType === "vmware"
+                  ? "Datos de acceso a la API REST del vCenter."
+                  : "Datos de acceso a la API REST del engine (oVirt/OLVM)."}
+              </p>
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                {([
+                  { v: "vmware", label: "VMware vSphere" },
+                  { v: "olvm", label: "OLVM / oVirt" },
+                ] as const).map((option) => (
+                  <button
+                    key={option.v}
+                    type="button"
+                    onClick={() => setEngType(option.v)}
+                    className="rounded-lg border px-3 py-2 text-xs font-semibold transition"
+                    style={
+                      engType === option.v
+                        ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                        : { background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text-secondary)" }
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
               <div className="space-y-3">
                 <div><label className={labelCls}>Nombre descriptivo</label><input className={inputCls} value={engName} onChange={(e) => setEngName(e.target.value)} placeholder="Engine Producción" /></div>
-                <div><label className={labelCls}>URL del engine</label><input className={inputCls} type="url" value={engUrl} onChange={(e) => setEngUrl(e.target.value)} placeholder="https://engine.example.com/ovirt-engine/api" /></div>
+                <div><label className={labelCls}>URL del engine</label><input className={inputCls} type="url" value={engUrl} onChange={(e) => setEngUrl(e.target.value)} placeholder={engType === "vmware" ? "https://vcenter.lab.local" : "https://engine.example.com/ovirt-engine/api"} /></div>
                 <div><label className={labelCls}>Usuario</label><input className={inputCls} value={engUser} onChange={(e) => setEngUser(e.target.value)} placeholder="admin@internal" /></div>
                 <div><label className={labelCls}>Contraseña</label><input className={inputCls} type="password" value={engPass} onChange={(e) => setEngPass(e.target.value)} placeholder="••••••••" /></div>
                 <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"><input type="checkbox" checked={engInsecure} onChange={(e) => setEngInsecure(e.target.checked)} className="h-4 w-4 accent-violet-600" /> Permitir certificados self-signed</label>
@@ -210,7 +237,7 @@ export default function SetupPage() {
               <div className="space-y-3">
                 <div><label className={labelCls}>Nombre del tenant</label><input className={inputCls} value={tenantName} onChange={(e) => setTenantName(e.target.value)} placeholder="produccion" /></div>
                 <div><label className={labelCls}>Tag del tenant</label><input className={inputCls} value={tenantTag} onChange={(e) => setTenantTag(e.target.value)} placeholder="produccion" /></div>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500">Las VMs con este tag en OLVM pertenecerán a este tenant. El tag se crea automáticamente si no existe.</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500">Las VMs con este tag en la plataforma pertenecerán a este tenant. El tag se crea automáticamente si no existe.</p>
               </div>
               <button onClick={handleTenant} disabled={loading || !tenantName || !tenantTag} className={`${btnPrimary} mt-5 w-full`}>
                 {loading ? "Creando..." : "Crear tenant →"}
@@ -239,6 +266,13 @@ export default function SetupPage() {
           {/* Step 5: SSH */}
           {step === 5 && (
             <div>
+              {engType === "vmware" ? (
+                <div className="text-center">
+                  <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">El acceso SSH a hosts no aplica para vSphere. Continúa al siguiente paso.</p>
+                  <button onClick={() => handleSsh(true)} className={`${btnPrimary} w-full`}>Continuar →</button>
+                </div>
+              ) : (
+              <>
               <h2 className="mb-1 text-sm font-bold text-gray-900 dark:text-gray-100">SSH hosts OLVM (opcional)</h2>
               <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">Credenciales SSH de los hosts OLVM. Necesarias para importar OVAs/qcow2 y conversiones.</p>
               <div className="space-y-3">
@@ -251,6 +285,8 @@ export default function SetupPage() {
                   {loading ? "Guardando..." : "Guardar →"}
                 </button>
               </div>
+              </>
+              )}
             </div>
           )}
 

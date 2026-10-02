@@ -11,6 +11,7 @@ import { adminMessages } from "@/i18n/admin";
 
 type Engine = {
   id: string;
+  type?: "olvm" | "vmware";
   name: string;
   baseUrl: string;
   authMethod: "basic" | "token";
@@ -423,11 +424,12 @@ function EngineForm({
 }) {
   const t = useTranslations(adminMessages);
   const editing = Boolean(engine);
+  const [engineType, setEngineType] = useState<"olvm" | "vmware">(engine?.type ?? "vmware");
   const [name, setName] = useState(engine?.name ?? "");
   const [baseUrl, setBaseUrl] = useState(engine?.baseUrl ?? "");
   const [allowInsecure, setAllowInsecure] = useState(engine?.allowInsecure ?? true);
   const [authMethod, setAuthMethod] = useState<"basic" | "token">(engine?.authMethod ?? "basic");
-  const [username, setUsername] = useState(engine?.username ?? "admin@internal");
+  const [username, setUsername] = useState(engine?.username ?? (engine?.type === "olvm" ? "admin@internal" : ""));
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
   const [showCa, setShowCa] = useState(Boolean(engine?.hasCa));
@@ -457,7 +459,7 @@ function EngineForm({
   };
 
   const buildPayload = () => {
-    const payload: Record<string, unknown> = { name, baseUrl, allowInsecure, sharedStorageDomains: sharedSds };
+    const payload: Record<string, unknown> = { type: engineType, name, baseUrl, allowInsecure, sharedStorageDomains: sharedSds };
     if (authMethod === "basic") {
       payload.username = username;
       if (password) payload.password = password;
@@ -498,11 +500,35 @@ function EngineForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border bg-white dark:bg-[#171326] shadow-xl" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editing ? t("editEngine") : t("newOlvmEngine")}</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editing ? t("editEngine") : "Nuevo motor de virtualización"}</h2>
           <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400">×</button>
         </div>
 
         <form onSubmit={save} className="space-y-3 p-4">
+          <label className="block">
+            <span className={labelCls}>Tipo de motor</span>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              {([
+                { v: "vmware", label: "VMware vSphere" },
+                { v: "olvm", label: "OLVM / oVirt" },
+              ] as const).map((option) => (
+                <button
+                  key={option.v}
+                  type="button"
+                  onClick={() => { setEngineType(option.v); if (!editing) setUsername(""); }}
+                  className="rounded-lg border px-3 py-2 text-xs font-semibold transition"
+                  style={
+                    engineType === option.v
+                      ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                      : { background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text-secondary)" }
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </label>
+
           <label className="block">
             <span className={labelCls}>{t("name")}</span>
             <input className={`${inputCls} mt-1`} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("engineNamePlaceholder")} required />
@@ -510,7 +536,7 @@ function EngineForm({
 
           <label className="block">
             <span className={labelCls}>{t("engineUrl")}</span>
-            <input className={`${inputCls} mt-1`} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://10.141.11.63/ovirt-engine/api" required />
+            <input className={`${inputCls} mt-1`} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={engineType === "vmware" ? "https://vcenter.lab.local" : "https://engine.example.com/ovirt-engine/api"} required />
           </label>
 
           <label className="flex items-center gap-2">
