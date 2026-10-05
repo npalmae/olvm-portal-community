@@ -45,6 +45,7 @@ export async function POST(request: Request, context: Params) {
     assertTenantAccess(session.user, tenantId, "admin");
 
     const body = await request.json();
+    console.log("[deploy] POST vms:", JSON.stringify(body).slice(0, 200));
     const name = asString(body?.name);
     const clusterId = asString(body?.clusterId);
     const templateId = asString(body?.templateId);
@@ -75,6 +76,7 @@ export async function POST(request: Request, context: Params) {
       vnicProfileId: vnicProfileId || undefined,
       cloudInit,
     };
+    console.log("[deploy] job creado para", name);
     const job = await createOperationJob({ tenantId, action: "deploy", targetVmName: name,
       requestedBy: session.user.email!, origin: "portal", input });
     void runOperationJob(job.id).catch(() => undefined);
