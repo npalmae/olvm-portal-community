@@ -481,8 +481,12 @@ export default function Home() {
         } catch { return [] as CloneJob[]; }
       }))).flat();
       if (cancelled) return;
-      const completed = jobs.some((job) => knownCloneStatuses.current[job.id]
-        && knownCloneStatuses.current[job.id] !== "completed" && job.status === "completed");
+      // Un job que llega ya completado entre polls (creaciones rapidas) tambien
+      // debe refrescar el inventario: basta con que el estado conocido previo
+      // (incluido "nunca visto") difiera del estado terminal actual.
+      const completed = jobs.some((job) =>
+        (job.status === "completed" || job.status === "failed")
+        && knownCloneStatuses.current[job.id] !== job.status);
       knownCloneStatuses.current = Object.fromEntries(jobs.map((job) => [job.id, job.status]));
       const recentCutoff = Date.now() - 45_000;
       setCloneJobs(jobs.filter((job) => job.status === "queued" || job.status === "running"
