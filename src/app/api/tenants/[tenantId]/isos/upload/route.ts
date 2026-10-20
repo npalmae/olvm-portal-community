@@ -9,7 +9,7 @@ export const maxDuration = 600;
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
-const CHUNK_SIZE = 50 * 1024 * 1024;
+const CHUNK_SIZE = 8 * 1024 * 1024; // <10MB: el proxy de Next trunca bodies mayores
 
 // Sesiones en memoria del proceso
 const sessions = new Map<string, {

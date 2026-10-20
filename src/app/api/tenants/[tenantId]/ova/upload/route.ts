@@ -12,7 +12,7 @@ export const maxDuration = 600;
 export const runtime = "nodejs";
 
 const execFileAsync = promisify(execFile);
-const CHUNK_SIZE = 50 * 1024 * 1024;
+const CHUNK_SIZE = 8 * 1024 * 1024; // <10MB: el proxy de Next trunca bodies mayores
 const sessions = new Map<string, {
   filePath: string;
   fileSize: number;

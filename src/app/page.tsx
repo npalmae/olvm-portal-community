@@ -870,7 +870,7 @@ export default function Home() {
     setUploadFileName(file.name);
     setUploadProgress(0);
     try {
-      const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB
+      const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB (<10MB del proxy)
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
       // 1. Iniciar sesión de upload
@@ -945,7 +945,7 @@ export default function Home() {
     if (!tid || tid === ALL_TENANTS) return;
     setUploadingOva(true); setOvaUploadProgress(0); setError(null); setSuccess(null);
     try {
-      const chunkSize = 50 * 1024 * 1024;
+      const chunkSize = 8 * 1024 * 1024; // 8MB (<10MB del proxy)
       const totalChunks = Math.ceil(file.size / chunkSize);
       const initRes = await fetch(`/api/tenants/${tid}/ova/upload`, {
         method: "POST",
