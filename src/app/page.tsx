@@ -491,7 +491,12 @@ export default function Home() {
       const recentCutoff = Date.now() - 45_000;
       setCloneJobs(jobs.filter((job) => job.status === "queued" || job.status === "running"
         || (job.finishedAt && new Date(job.finishedAt).getTime() >= recentCutoff)));
-      if (completed) loadVms(selectedTenant);
+      if (completed) {
+        loadVms(selectedTenant);
+        // El attach del tag/listado de vCenter puede propagarse unos segundos
+        // despues de que el job marco completed: refrescar de nuevo.
+        setTimeout(() => loadVms(selectedTenant), 4000);
+      }
     };
     void poll();
     const interval = setInterval(() => void poll(), 3000);
