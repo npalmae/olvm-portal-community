@@ -3,6 +3,12 @@ import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { resolveTenant } from "@/lib/config";
 import { Agent as UndiciAgent, fetch as undiciFetch } from "undici";
+import { engineTypeForTenant } from "@/lib/engineClient";
+import { getOvaStagingDir } from "@/lib/ovaStaging";
+import { putIsoToDatastore, listAllDatastores } from "@/lib/vmwareClient";
+import { open, rm, mkdir } from "fs/promises";
+import path from "path";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -22,6 +28,70 @@ const sessions = new Map<string, {
   totalChunks: number;
   dispatcher: UndiciAgent;
 }>();
+
+// Sesiones de upload ISO para engine vmware (staging local + PUT final al datastore)
+const vmwareSessions = new Map<string, {
+  tenantId: string;
+  fileName: string;
+  datastoreId: string;
+  fileSize: number;
+  received: Set<number>;
+  totalChunks: number;
+  filePath: string;
+}>();
+
+/** Upload ISO para vCenter: chunks a staging y PUT final via /folder del datastore. */
+const handleVmwareUpload = async (
+  req: NextRequest,
+  tenantId: string,
+  chunkIndex: string | null,
+): Promise<NextResponse | null> => {
+  if (chunkIndex === null) {
+    const fileName = decodeURIComponent(req.headers.get("x-file-name") ?? "").replace(/[\\/]/g, "_");
+    const fileSize = Number(req.headers.get("x-file-size") ?? 0);
+    const datastoreId = req.headers.get("x-storage-domain-id") ?? "";
+    if (!fileName.toLowerCase().endsWith(".iso") || !fileSize || !datastoreId) {
+      return NextResponse.json({ error: "Faltan headers validos (iso/size/storage-domain)" }, { status: 400 });
+    }
+    const id = crypto.randomUUID();
+    const dir = getOvaStagingDir();
+    await mkdir(dir, { recursive: true });
+    const filePath = path.join(/* turbopackIgnore: true */ dir, `${id}.iso`);
+    await open(filePath, "w").then((f) => f.close());
+    vmwareSessions.set(id, {
+      tenantId, fileName, datastoreId, fileSize,
+      received: new Set(), totalChunks: Math.ceil(fileSize / CHUNK_SIZE), filePath,
+    });
+    return NextResponse.json({ sessionId: id });
+  }
+
+  const id = req.headers.get("x-session-id") ?? "";
+  const s = vmwareSessions.get(id);
+  if (!s || s.tenantId !== tenantId) return null; // no es una sesion vmware
+  const idx = Number(chunkIndex);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= s.totalChunks) {
+    return NextResponse.json({ error: "Chunk invalido" }, { status: 400 });
+  }
+  const buffer = Buffer.from(await req.arrayBuffer());
+  const file = await open(s.filePath, "r+");
+  await file.write(buffer, 0, buffer.length, idx * CHUNK_SIZE);
+  await file.close();
+  s.received.add(idx);
+  if (s.received.size !== s.totalChunks) return NextResponse.json({ ok: true, chunk: idx, done: false });
+
+  // Ultimo chunk: PUT al datastore y limpieza
+  try {
+    const tenant = await resolveTenant(tenantId);
+    const datastores = await listAllDatastores(tenant);
+    const ds = datastores.find((d) => d.id === s.datastoreId) ?? datastores[0];
+    if (!ds) throw new Error("No hay datastore disponible para la ISO");
+    const isoPath = await putIsoToDatastore(tenant, ds.name, s.fileName, s.filePath);
+    return NextResponse.json({ ok: true, done: true, isoId: isoPath });
+  } finally {
+    await rm(s.filePath, { force: true }).catch(() => {});
+    vmwareSessions.delete(id);
+  }
+};
 
 const olvmRaw = async (tenant: Awaited<ReturnType<typeof resolveTenant>>, path: string, options?: RequestInit) => {
   const url = `${tenant.baseUrl}${path}`;
@@ -50,6 +120,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
     const fileSize = req.headers.get("x-file-size");
     const storageDomainId = req.headers.get("x-storage-domain-id");
     const sessionId = req.headers.get("x-session-id") || "";
+
+    // Engine vmware: staging local + PUT final al datastore.
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      const handled = await handleVmwareUpload(req, tenantId, chunkIndex);
+      if (handled) return handled;
+      return NextResponse.json({ error: "Sesión de subida inválida o expirada" }, { status: 404 });
+    }
 
     // === INIT: sin x-chunk-index ===
     if (chunkIndex === null) {

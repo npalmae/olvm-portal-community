@@ -1101,10 +1101,11 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
   }
 
   // guest_OS exige el enum vSphere (UBUNTU_64, WINDOWS_11_64...). Bundles viejos
-  // del frontend mandan valores tipo "linux": caen a OTHER_GUEST.
+  // del frontend mandan valores tipo "linux": caen a OTHER (este build no acepta
+  // OTHER_GUEST en el enum REST).
   const VSPHERE_GUEST_OS = new Set([
     "DOS", "FREEBSD_64", "MANDRAKE", "MANDRAKE64", "OS2", "OTHER_24X86", "OTHER_24X86_64",
-    "OTHER_32", "OTHER_32INUX", "OTHER_64", "OTHER_GUEST", "OTHER_LINUX", "OTHER_LINUX_64",
+    "OTHER_32", "OTHER_32INUX", "OTHER_64", "OTHER_LINUX", "OTHER_LINUX_64",
     "OTHER_PRE65", "REDHAT", "RHEL_2", "RHEL_3", "RHEL_3_64", "RHEL_4", "RHEL_4_64", "RHEL_5",
     "RHEL_5_64", "RHEL_6", "RHEL_6_64", "RHEL_7", "RHEL_7_64", "RHEL_8_64", "RHEL_9_64",
     "SLES", "SLES_64", "SOLARIS_10", "SOLARIS_10_64", "SOLARIS_11_64", "SOLARIS_6_7",
@@ -1119,7 +1120,7 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
   ]);
   const guestOs = input.guestOsType && VSPHERE_GUEST_OS.has(input.guestOsType)
     ? input.guestOsType
-    : "OTHER_GUEST";
+    : "OTHER";
 
   const spec = {
     name: input.name,
@@ -1384,6 +1385,128 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
     }
   }
   return { vmId, pending: false };
+};
+
+/* ── ISOs sobre datastore (vCenter) ─────────────────────────────────────
+ *  El build del lab no expone Content Library: las ISOs viven como archivos
+ *  en <datastore>/iso/ y se gestionan por el canal de archivos del datastore
+ *  (PUT/GET /folder con cookie de sesion SOAP), igual que el browser del
+ *  vSphere Client. El montaje es un ReconfigVM del VirtualCdrom. */
+
+const datastoreIsoDir = async (tenant: TenantConfig): Promise<{ dsName: string; dcName: string } | null> => {
+  const ds = (await listAllDatastores(tenant))[0];
+  if (!ds) return null;
+  const dcs = await viFetch<{ name: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
+  return { dsName: ds.name, dcName: dcs[0]?.name ?? "" };
+};
+
+/** Lista las ISOs disponibles en el datastore del tenant. */
+export const fetchIsos = async (tenantId: string): Promise<{ id: string; name: string }[]> => {
+  const tenant = await getTenantById(tenantId);
+  const dir = await datastoreIsoDir(tenant);
+  if (!dir) return [];
+  const cookie = await soapLogin(tenant);
+  const res = await undiciFetch(
+    `${tenant.baseUrl}/folder/iso/?dsName=${encodeURIComponent(dir.dsName)}&dcPath=${encodeURIComponent(dir.dcName)}`,
+    { headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
+  );
+  if (!res.ok) return [];
+  const html = await res.text();
+  // hrefs tipo /folder/iso/test.iso?dcPath=...&dsName=... : capturar solo el nombre base.
+  const names = [...html.matchAll(/href="[^"]*\/([^"/?]+\.iso)[^"]*"/gi)]
+    .map((m) => decodeURIComponent(m[1]))
+    .filter(Boolean);
+  return [...new Set(names)].map((n) => ({ id: `[${dir.dsName}] iso/${n}`, name: n }));
+};
+
+/** Sube un archivo local al datastore como <ds>/iso/<fileName>. Devuelve el path vSphere. */
+export const putIsoToDatastore = async (
+  tenant: TenantConfig, datastoreName: string, fileName: string, filePath: string,
+): Promise<string> => {
+  const dcs = await viFetch<{ name: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
+  const dcName = dcs[0]?.name ?? "";
+  const cookie = await soapLogin(tenant);
+  const { readFile } = await import("fs/promises");
+  const body = await readFile(filePath);
+  const url = `${tenant.baseUrl}/folder/iso/${encodeURIComponent(fileName)}` +
+    `?dsName=${encodeURIComponent(datastoreName)}&dcPath=${encodeURIComponent(dcName)}`;
+  const res = await undiciFetch(url, {
+    method: "PUT",
+    headers: { Cookie: cookie, "Content-Type": "application/octet-stream" },
+    body: new Uint8Array(body),
+    dispatcher: getDispatcher(tenant) as never,
+  });
+  if (res.status >= 400) {
+    throw new Error(`Subida de ISO al datastore fallo (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`);
+  }
+  return `[${datastoreName}] iso/${fileName}`;
+};
+
+const vmDevicesXml = async (tenant: TenantConfig, vmId: string): Promise<string> =>
+  soapCall(tenant,
+    `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+    `<specSet><propSet><type>VirtualMachine</type><pathSet>config.hardware.device</pathSet></propSet>` +
+    `<objectSet><obj type="VirtualMachine">${vmId}</obj></objectSet></specSet><options/></RetrievePropertiesEx>`);
+
+const cdromConnectable = (on: boolean) =>
+  // Orden exigido por el parser SOAP de este build: startConnected, allowGuestControl, connected.
+  `<connectable><startConnected>${on}</startConnected><allowGuestControl>true</allowGuestControl><connected>${on}</connected></connectable>`;
+
+/** ISO montada en la VM (path del backing) o null. */
+export const fetchCurrentIso = async (tenantId: string, vmId: string): Promise<string | null> => {
+  const tenant = await getTenantById(tenantId);
+  const xml = await vmDevicesXml(tenant, vmId);
+  for (const block of xml.match(/<VirtualDevice xsi:type="VirtualCdrom">[\s\S]*?<\/VirtualDevice>/g) ?? []) {
+    const file = /<fileName>([^<]+)<\/fileName>/.exec(block)?.[1];
+    if (file) return file;
+  }
+  return null;
+};
+
+/** Monta una ISO (path "[DS] iso/x.iso") en el primer CDROM; lo crea si no existe. */
+export const mountIsoToVm = async (tenantId: string, vmId: string, isoPath: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  const xml = await vmDevicesXml(tenant, vmId);
+  const cdromBlock = (xml.match(/<VirtualDevice xsi:type="VirtualCdrom">[\s\S]*?<\/VirtualDevice>/g) ?? [])[0] ?? "";
+  const cdromKey = /<key>(-?\d+)<\/key>/.exec(cdromBlock)?.[1];
+  let changes: string;
+  if (cdromKey) {
+    changes = `<deviceChange><operation>edit</operation>` +
+      `<device xsi:type="VirtualCdrom"><key>${cdromKey}</key>` +
+      `<backing xsi:type="VirtualCdromIsoBackingInfo"><fileName>${escapeXml(isoPath)}</fileName></backing>` +
+      cdromConnectable(true) + `</device></deviceChange>`;
+  } else {
+    const ideBlock = (xml.match(/<VirtualDevice xsi:type="VirtualIDEController">[\s\S]*?<\/VirtualDevice>/g) ?? [])[0] ?? "";
+    const ideKey = /<key>(\d+)<\/key>/.exec(ideBlock)?.[1];
+    let ideAdd = "";
+    const controllerKey = ideKey ?? "-43";
+    if (!ideKey) {
+      // VMs "blank" sin IDE: agregar el controlador en el mismo cambio,
+      // con el CDROM referenciando la key temporal.
+      ideAdd = `<deviceChange><operation>add</operation>` +
+        `<device xsi:type="VirtualIDEController"><key>-43</key><busNumber>0</busNumber></device></deviceChange>`;
+    }
+    changes = ideAdd +
+      `<deviceChange><operation>add</operation>` +
+      `<device xsi:type="VirtualCdrom"><key>-42</key>` +
+      `<backing xsi:type="VirtualCdromIsoBackingInfo"><fileName>${escapeXml(isoPath)}</fileName></backing>` +
+      cdromConnectable(true) +
+      `<controllerKey>${controllerKey}</controllerKey><unitNumber>0</unitNumber></device></deviceChange>`;
+  }
+  await soapCall(tenant, reconfigureSpec(vmId, changes));
+};
+
+/** Expulsa la ISO: en este build el edit del backing se ignora, se remueve el CDROM
+ *  (el proximo montaje lo vuelve a crear). */
+export const unmountIsoFromVm = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  const xml = await vmDevicesXml(tenant, vmId);
+  const cdromBlock = (xml.match(/<VirtualDevice xsi:type="VirtualCdrom">[\s\S]*?<\/VirtualDevice>/g) ?? [])[0] ?? "";
+  const cdromKey = /<key>(-?\d+)<\/key>/.exec(cdromBlock)?.[1];
+  if (!cdromKey) return;
+  await soapCall(tenant, reconfigureVm(vmId,
+    `<operation>remove</operation>` +
+    `<device xsi:type="VirtualCdrom"><key>${cdromKey}</key></device>`));
 };
 
 type CloneVmProgress = (stage: string, progress: number) => void | Promise<void>;
