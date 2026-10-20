@@ -107,6 +107,18 @@ export const fetchVmConsoleInfo = (
 ) => engineForTenant(tenantId).then((m) => m.fetchVmConsoleInfo(tenantId, vmId, protocol, opts));
 export const createVm = (tenantId: string, input: Parameters<typeof olvm.createVm>[1]) =>
   engineForTenant(tenantId).then((m) => m.createVm(tenantId, input));
+export const importOvaVm = (
+  tenantId: string,
+  payload: Parameters<typeof olvm.importOvaVm>[1] & Parameters<typeof vmware.importOvaVm>[1],
+): Promise<{ vmId: string; pending: boolean }> => {
+  const engine = engineTypeForTenant(tenantId).then(async (type) => {
+    if (type === "vmware") {
+      return vmware.importOvaVm(tenantId, payload as Parameters<typeof vmware.importOvaVm>[1]);
+    }
+    return olvm.importOvaVm(tenantId, payload as Parameters<typeof olvm.importOvaVm>[1]);
+  });
+  return engine;
+};
 export const cloneVm = (
   tenantId: string,
   sourceVmId: string,

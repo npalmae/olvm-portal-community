@@ -17,6 +17,7 @@ import {
   fetchDiskName,
 } from "@/lib/olvmClient";
 import { getOvaUploadPaths } from "@/lib/ovaStaging";
+import { engineTypeForTenant } from "@/lib/engineClient";
 import {
   getSystemSecretWithEnvFallback,
   SYSTEM_SECRET_KEYS,
@@ -77,6 +78,19 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
     const hostId = asString(body?.hostId);
     hostAddr = asString(body?.hostAddress);
     const ovaName = asString(body?.ovaName);
+
+    // Engine vCenter: import nativo por SOAP (sin SSH al host ni staging remoto).
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      if (!name || !uploadId) {
+        return NextResponse.json({ error: "name y uploadId son obligatorios" }, { status: 400 });
+      }
+      const { importOvaVm: importOvaVmVmware } = await import("@/lib/vmwareClient");
+      const { vmId } = await importOvaVmVmware(tenantId, {
+        name, clusterId, storageDomainId, hostId, uploadId, ovaName,
+      });
+      return NextResponse.json({ vmId, pending: false });
+    }
+
     if (!name || !clusterId || !storageDomainId || !hostId || !hostAddr) {
       return NextResponse.json(
         { error: "name, clusterId, storageDomainId, hostId y hostAddress son obligatorios" },
