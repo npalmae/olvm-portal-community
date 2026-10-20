@@ -1071,6 +1071,8 @@ type CreateVmInput = {
   diskGB?: number;
   guestOsType?: string; // ej. "VMWARE_ESX_7_0_GUEST_..."; en blanco = otherGuest
   networkId?: string;
+  /** Nombre OLVM que usa el frontend para la red elegida (equivale a networkId). */
+  vnicProfileId?: string;
 };
 
 /** Creacion de VM "blank". 9.x: REST POST /api/vcenter/vm; 7/8: vAPI VM.create.
@@ -1150,9 +1152,10 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
     return id;
   });
   await applyTenantTag(tenant, vmId);
-  if (input.vnicProfileId) {
+  const nicNetworkId = input.vnicProfileId ?? input.networkId;
+  if (nicNetworkId) {
     // Best effort: la VM ya quedo creada; una NIC fallida no debe revertirla.
-    await addNicToVm(tenantId, vmId, { vnicProfileId: input.vnicProfileId }).catch(() => {});
+    await addNicToVm(tenantId, vmId, { vnicProfileId: nicNetworkId }).catch(() => {});
   }
   return vmId;
 };
