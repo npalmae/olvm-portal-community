@@ -45,6 +45,8 @@ export type VmSummary = {
   memoryMB?: number;
   cpuCores?: number;
   diskGB?: number;
+  /** thin (default) | eagerZeroedThick. El REST crea siempre thin: el eager se infla post-create. */
+  diskProvType?: "thin" | "eagerZeroedThick";
   sockets?: number;
   host?: string;
   os?: string;
@@ -1069,6 +1071,8 @@ type CreateVmInput = {
   memoryMB?: number;
   cpuCores?: number;
   diskGB?: number;
+  /** thin (default) | eagerZeroedThick. El REST crea siempre thin: el eager se infla post-create. */
+  diskProvType?: "thin" | "eagerZeroedThick";
   guestOsType?: string; // ej. "VMWARE_ESX_7_0_GUEST_..."; en blanco = otherGuest
   networkId?: string;
   /** Nombre OLVM que usa el frontend para la red elegida (equivale a networkId). */
@@ -1152,6 +1156,11 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
     return id;
   });
   await applyTenantTag(tenant, vmId);
+  if (input.diskGB && input.diskProvType === "eagerZeroedThick") {
+    const detail = await viFetch<{ disks?: Record<string, { backing?: { vmdk_file?: string } }> }>(tenant, `/api/vcenter/vm/${vmId}`);
+    const fileName = Object.values(detail.disks ?? {})[0]?.backing?.vmdk_file;
+    if (fileName) await inflateDiskToEagerZeroed(tenant, fileName).catch(() => {});
+  }
   const nicNetworkId = input.vnicProfileId ?? input.networkId;
   if (nicNetworkId) {
     // Best effort: la VM ya quedo creada; una NIC fallida no debe revertirla.
@@ -1517,6 +1526,7 @@ export type VmDiskDetail = {
   name?: string;
   sizeGB: number;
   usedGB?: number;
+  provisioning?: "thin" | "eagerZeroedThick" | "lazyZeroedThick";
 };
 
 const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -1527,12 +1537,52 @@ export const fetchVmDiskDetails = async (tenantId: string, vmId: string): Promis
   const detail = await viFetch<{
     disks?: Record<string, { label?: string; capacity?: number; backing?: { vmdk_file?: string } }>;
   }>(tenant, `/api/vcenter/vm/${vmId}`);
-  return Object.entries(detail.disks ?? {}).map(([key, d]) => ({
-    attachmentId: key,
-    diskId: key,
-    name: d.backing?.vmdk_file?.split("/").pop() ?? d.label,
-    sizeGB: Math.round(((d.capacity ?? 0) / 1024 ** 3) * 10) / 10,
-  }));
+  const xml = await vmDevicesXml(tenant, vmId).catch(() => "");
+  return Object.entries(detail.disks ?? {}).map(([key, d]) => {
+    const fileName = d.backing?.vmdk_file;
+    const block = fileName
+      ? (xml.match(/<VirtualDevice xsi:type="VirtualDisk">[\s\S]*?<\/VirtualDevice>/g) ?? [])
+        .find((b) => b.includes(fileName)) ?? ""
+      : "";
+    const provisioning = block.includes("<eagerlyScrub>true")
+      ? "eagerZeroedThick"
+      : block.includes("<thinProvisioned>true") ? "thin" : "lazyZeroedThick";
+    return {
+      attachmentId: key,
+      diskId: key,
+      name: fileName?.split("/").pop() ?? d.label,
+      sizeGB: Math.round(((d.capacity ?? 0) / 1024 ** 3) * 10) / 10,
+      provisioning,
+    };
+  });
+};
+
+/** Convierte un vmdk thin a eager-zeroed thick in place (actualiza el backing solo). */
+export const inflateDiskToEagerZeroed = async (tenant: TenantConfig, fileName: string): Promise<void> => {
+  const dcs = await viFetch<{ datacenter: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
+  const dc = dcs[0]?.datacenter;
+  const taskXml = await soapCall(tenant,
+    `<InflateVirtualDisk_Task>` +
+    `<_this type="VirtualDiskManager">virtualDiskManager</_this>` +
+    `<name>${escapeXml(fileName)}</name>` +
+    (dc ? `<datacenter type="Datacenter">${dc}</datacenter>` : "") +
+    `</InflateVirtualDisk_Task>`);
+  const taskId = /<returnval type="Task">([^<]+)</.exec(taskXml)?.[1];
+  if (!taskId) return;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 15 * 60_000) {
+    const t = await soapCall(tenant,
+      `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+      `<specSet><propSet><type>Task</type><pathSet>info.state</pathSet><pathSet>info.error</pathSet></propSet>` +
+      `<objectSet><obj type="Task">${taskId}</obj></objectSet></specSet><options/></RetrievePropertiesEx>`);
+    const state = /<name>info\.state<\/name><val xsi:type="TaskInfoState">([^<]+)</.exec(t)?.[1] ?? "";
+    if (state === "error") {
+      const er = /<localizedMessage>([^<]+)<\/localizedMessage>/.exec(t)?.[1] ?? "error inflando disco";
+      throw new Error(er.slice(0, 150));
+    }
+    if (state === "success") return;
+    await sleepMs(3000);
+  }
 };
 
 /** Agrega un disco vacio: controlador SCSI por SOAP si falta + vmdk por REST.
@@ -1540,9 +1590,10 @@ export const fetchVmDiskDetails = async (tenantId: string, vmId: string): Promis
 export const addDiskToVm = async (
   tenantId: string,
   vmId: string,
-  params: { sizeGB: number; storageDomainId?: string; name?: string; interface?: string },
+  params: { sizeGB: number; storageDomainId?: string; name?: string; interface?: string; provisioning?: "thin" | "eagerZeroedThick" },
 ): Promise<void> => {
   const tenant = await getTenantById(tenantId);
+  const before = new Set(Object.keys((await viFetch<{ disks?: Record<string, unknown> }>(tenant, `/api/vcenter/vm/${vmId}`)).disks ?? {}));
   const xml = await vmDevicesXml(tenant, vmId);
   const hasScsi = /xsi:type="(ParaVirtualSCSIController|VirtualLsiLogicSASController|VirtualLsiLogicController|VirtualSCSIController)"/.test(xml);
   if (!hasScsi) {
@@ -1562,6 +1613,13 @@ export const addDiskToVm = async (
     }).then(() => true).catch((e: Error) => { lastErr = e.message; return false; });
   }
   if (!ok) throw new Error(lastErr || "No se pudo agregar el disco");
+  if (params.provisioning === "eagerZeroedThick") {
+    // El REST crea siempre thin: inflar el disco recien agregado a eager-zeroed.
+    const after = await viFetch<{ disks?: Record<string, { backing?: { vmdk_file?: string } }> }>(tenant, `/api/vcenter/vm/${vmId}`);
+    const added = Object.entries(after.disks ?? {}).filter(([k]) => !before.has(k));
+    const fileName = added[0]?.[1]?.backing?.vmdk_file;
+    if (fileName) await inflateDiskToEagerZeroed(tenant, fileName);
+  }
 };
 
 /** Quita el disco de la VM y borra su vmdk del datastore. */

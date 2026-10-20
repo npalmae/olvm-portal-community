@@ -52,6 +52,7 @@ export async function POST(request: Request, context: Params) {
     const memoryMB = asPositiveNumber(body?.memoryMB);
     const cpuCores = asPositiveNumber(body?.cpuCores);
     const diskGB = asPositiveNumber(body?.diskGB);
+    const diskProvType = body?.diskProvType === "eagerZeroedThick" ? "eagerZeroedThick" as const : undefined;
     const sockets = asPositiveNumber(body?.sockets);
     const comment = asString(body?.comment);
     const os = asString(body?.os);
@@ -72,6 +73,7 @@ export async function POST(request: Request, context: Params) {
       memoryMB,
       cpuCores,
       diskGB,
+      diskProvType,
       sockets,
       comment: comment || undefined,
       os: os || undefined,

@@ -54,12 +54,16 @@ export async function POST(req: NextRequest, context: Params) {
     if (!sizeGB || sizeGB < 1) {
       return NextResponse.json({ error: "sizeGB es requerido (min 1)" }, { status: 400 });
     }
-    if (!storageDomainId) {
+    const isVmwareEngine = (await engineTypeForTenant(tenantId)) === "vmware";
+    if (!storageDomainId && !isVmwareEngine) {
       return NextResponse.json({ error: "storageDomainId es requerido" }, { status: 400 });
     }
 
-    if ((await engineTypeForTenant(tenantId)) === "vmware") {
-      await addDiskToVmVmware(tenantId, vmId, { sizeGB });
+    if (isVmwareEngine) {
+      await addDiskToVmVmware(tenantId, vmId, {
+        sizeGB,
+        provisioning: body.provisioning === "eagerZeroedThick" ? "eagerZeroedThick" : "thin",
+      });
       return NextResponse.json({ ok: true });
     }
     await addDiskToVm(tenantId, vmId, {

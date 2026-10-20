@@ -46,7 +46,7 @@ type VmDraft = { memoryMB?: string; cpuCores?: string; sockets?: string };
 type NewVmDraft = {
   name: string; clusterId: string; templateId: string;
   memoryMB: string; cpuCores: string; sockets: string; comment: string;
-  os: string; vnicProfileId: string; diskGB: string;
+  os: string; vnicProfileId: string; diskGB: string; diskProv: string;
 };
 
 type ActionLog = {
@@ -263,7 +263,7 @@ export default function Home() {
     count: number;
     totalSizeGB: number;
     usedGB: number;
-    disks: { name?: string; sizeGB: number; usedGB?: number }[];
+    disks: { name?: string; sizeGB: number; usedGB?: number; provisioning?: string }[];
   } | null>(null);
   const [tenantDiskMap, setTenantDiskMap] = useState<Record<string, { totalSizeGB: number; usedGB: number; count: number }>>({});
   const [storageDomains, setStorageDomains] = useState<{ id: string; name: string; type: string; status?: string; availableGB: number; usedGB: number; totalGB: number }[]>([]);
@@ -272,6 +272,7 @@ export default function Home() {
   const [mountedIso, setMountedIso] = useState<string | null>(null);
   const [newDiskSize, setNewDiskSize] = useState("50");
   const [newDiskSd, setNewDiskSd] = useState("");
+  const [newDiskProv, setNewDiskProv] = useState("thin");
   const [newDiskIface, setNewDiskIface] = useState("virtio_scsi");
   const [vmDiskList, setVmDiskList] = useState<{ attachmentId: string; diskId: string; name: string; sizeGB: number; interface: string; bootable: boolean; status: string }[]>([]);
   const [uploadingIso, setUploadingIso] = useState(false);
@@ -288,7 +289,7 @@ export default function Home() {
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
     memoryMB: "", cpuCores: "", sockets: "1", comment: "",
-    os: "linux", vnicProfileId: "", diskGB: "20",
+    os: "linux", vnicProfileId: "", diskGB: "20", diskProv: "thin",
   });
   const [cloudInit, setCloudInit] = useState({ ip: "", netmask: "", gateway: "", dns: "" });
   const [useCloudInit, setUseCloudInit] = useState(false);
@@ -732,7 +733,8 @@ export default function Home() {
       const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/disk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sizeGB: Number(newDiskSize) || 50, storageDomainId: sdId, interface: newDiskIface }),
+        body: JSON.stringify({ sizeGB: Number(newDiskSize) || 50, storageDomainId: sdId, interface: newDiskIface,
+          ...(tenants.find((tt) => tt.id === tid)?.engineType === "vmware" ? { provisioning: newDiskProv } : {}) }),
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? t("genericError"));
@@ -1084,6 +1086,7 @@ export default function Home() {
           memoryMB: newVm.memoryMB ? Number(newVm.memoryMB) : undefined,
           cpuCores: newVm.cpuCores ? Number(newVm.cpuCores) : undefined,
           diskGB: newVm.diskGB ? Number(newVm.diskGB) : undefined,
+          diskProvType: newVm.diskProv === "eagerZeroedThick" ? "eagerZeroedThick" : undefined,
           sockets: newVm.sockets ? Number(newVm.sockets) : undefined,
           comment: newVm.comment || undefined,
           os: newVm.os,
@@ -1099,7 +1102,7 @@ export default function Home() {
           ? t("ovaImportPending")
           : t("ovaImported")
         : t("vmCreated"));
-      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "", diskGB: "20" });
+      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "", diskGB: "20", diskProv: "thin" });
       if (isOva) setUploadedOva(null);
       setCloudInit({ ip: "", netmask: "", gateway: "", dns: "" });
       setUseCloudInit(false);
@@ -2350,7 +2353,7 @@ export default function Home() {
                           {vmDisks.disks.map((d, i) => (
                             <div key={i} className="flex justify-between">
                                <span className="truncate text-gray-500 dark:text-gray-400" title={d.name}>{d.name ?? t("diskNumber", { number: i + 1 })}</span>
-                               <span className="shrink-0 font-semibold">{formatNumber(d.sizeGB)} GB{d.usedGB != null ? ` (${formatNumber(d.usedGB)})` : ""}</span>
+                               <span className="shrink-0 font-semibold">{formatNumber(d.sizeGB)} GB{d.usedGB != null ? ` (${formatNumber(d.usedGB)})` : ""}{d.provisioning ? ` · ${d.provisioning === "eagerZeroedThick" ? "thick (eager)" : d.provisioning}` : ""}</span>
                             </div>
                           ))}
                         </div>
@@ -2698,6 +2701,12 @@ export default function Home() {
                           <option value="virtio_scsi">VirtIO SCSI (Linux)</option>
                           <option value="sata">SATA (Windows)</option>
                            <option value="ide">IDE ({t("compatibility")})</option>
+                        </select>
+                        <select value={newDiskProv} onChange={(e) => setNewDiskProv(e.target.value)}
+                          className="w-full rounded-md border px-2 py-1.5 text-[11px]"
+                          style={{ borderColor: "var(--border)" }}>
+                          <option value="thin">Thin</option>
+                          <option value="eagerZeroedThick">Thick (eager zeroed)</option>
                         </select>
                         <ActionButton
                            label={t("addDisk")}
@@ -3121,6 +3130,12 @@ export default function Home() {
                             <input type="number" min={1} value={newVm.diskGB}
                               onChange={(e) => setNewVm((v) => ({ ...v, diskGB: e.target.value }))}
                               className={inputCls} placeholder="20" />
+                          </Field>
+                          <Field label="Provisionamiento">
+                            <select value={newVm.diskProv} onChange={(e) => setNewVm((v) => ({ ...v, diskProv: e.target.value }))} className={inputCls}>
+                              <option value="thin">Thin</option>
+                              <option value="eagerZeroedThick">Thick (eager zeroed)</option>
+                            </select>
                           </Field>
                           <Field label="vCPU">
                             <input type="number" min={1} value={newVm.cpuCores}
