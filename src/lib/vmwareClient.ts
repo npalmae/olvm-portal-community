@@ -1509,6 +1509,88 @@ export const mountIsoToVm = async (tenantId: string, vmId: string, isoPath: stri
   await soapCall(tenant, reconfigureSpec(vmId, changes));
 };
 
+/* ── Discos adicionales (recursos de la VM) ────────────────────────────── */
+
+export type VmDiskDetail = {
+  attachmentId: string;
+  diskId: string;
+  name?: string;
+  sizeGB: number;
+  usedGB?: number;
+};
+
+const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Discos de la VM (device key como attachmentId/diskId, paridad OLVM). */
+export const fetchVmDiskDetails = async (tenantId: string, vmId: string): Promise<VmDiskDetail[]> => {
+  const tenant = await getTenantById(tenantId);
+  const detail = await viFetch<{
+    disks?: Record<string, { label?: string; capacity?: number; backing?: { vmdk_file?: string } }>;
+  }>(tenant, `/api/vcenter/vm/${vmId}`);
+  return Object.entries(detail.disks ?? {}).map(([key, d]) => ({
+    attachmentId: key,
+    diskId: key,
+    name: d.backing?.vmdk_file?.split("/").pop() ?? d.label,
+    sizeGB: Math.round(((d.capacity ?? 0) / 1024 ** 3) * 10) / 10,
+  }));
+};
+
+/** Agrega un disco vacio: controlador SCSI por SOAP si falta + vmdk por REST.
+ *  El disco cae en el datastore home de la VM (storageDomainId se ignora). */
+export const addDiskToVm = async (
+  tenantId: string,
+  vmId: string,
+  params: { sizeGB: number; storageDomainId?: string; name?: string; interface?: string },
+): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  const xml = await vmDevicesXml(tenant, vmId);
+  const hasScsi = /xsi:type="(ParaVirtualSCSIController|VirtualLsiLogicSASController|VirtualLsiLogicController|VirtualSCSIController)"/.test(xml);
+  if (!hasScsi) {
+    await soapCall(tenant, reconfigureVm(vmId,
+      `<operation>add</operation>` +
+      `<device xsi:type="VirtualLsiLogicSASController">` +
+      `<key>-101</key><busNumber>0</busNumber><sharedBus>noSharing</sharedBus>` +
+      `</device>`));
+  }
+  let ok = false;
+  let lastErr = "";
+  for (let i = 0; i < 5 && !ok; i++) {
+    await sleepMs(i ? 2000 : 0);
+    ok = await viFetch(tenant, `/api/vcenter/vm/${vmId}/hardware/disk`, {
+      method: "POST",
+      body: JSON.stringify({ new_vmdk: { capacity: Math.round(params.sizeGB * 1024 ** 3) } }),
+    }).then(() => true).catch((e: Error) => { lastErr = e.message; return false; });
+  }
+  if (!ok) throw new Error(lastErr || "No se pudo agregar el disco");
+};
+
+/** Quita el disco de la VM y borra su vmdk del datastore. */
+export const deleteVmDisk = async (tenantId: string, vmId: string, attachmentId: string, diskId: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  const key = attachmentId || diskId;
+  const xml = await vmDevicesXml(tenant, vmId);
+  const diskBlock = (xml.match(/<VirtualDevice xsi:type="VirtualDisk">[\s\S]*?<\/VirtualDevice>/g) ?? [])
+    .find((b) => b.includes(`<key>${key}</key>`)) ?? "";
+  const file = /<fileName>([^<]+)<\/fileName>/.exec(diskBlock)?.[1];
+  // Este build exige capacityInKB incluso para remover el dispositivo.
+  const capacityInKB = /<capacityInKB>(\d+)<\/capacityInKB>/.exec(diskBlock)?.[1] ?? "0";
+  await soapCall(tenant, reconfigureVm(vmId,
+    `<operation>remove</operation>` +
+    `<device xsi:type="VirtualDisk"><key>${key}</key><capacityInKB>${capacityInKB}</capacityInKB></device>`));
+  if (file) {
+    const m = /^\[([^\]]+)\]\s*(.+)$/.exec(file);
+    if (m) {
+      const cookie = await soapLogin(tenant);
+      const dcs = await viFetch<{ name: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
+      const path = m[2].split("/").map(encodeURIComponent).join("/");
+      await undiciFetch(
+        `${tenant.baseUrl}/folder/${path}?dsName=${encodeURIComponent(m[1])}&dcPath=${encodeURIComponent(dcs[0]?.name ?? "")}`,
+        { method: "DELETE", headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
+      ).catch(() => { /* best effort */ });
+    }
+  }
+};
+
 /** Accion "iniciar desde CD": boot order CD-primero (best effort) y encendido.
  *  En VMs con disco vacio el BIOS arranca el CD de todas formas, por lo que el
  *  bootOrder es optimistico: si el parser SOAP lo rechaza, se enciende igual. */

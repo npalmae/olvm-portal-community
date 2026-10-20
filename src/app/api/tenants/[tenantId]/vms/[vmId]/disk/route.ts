@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { addDiskToVm, enforceVmTagPolicy, fetchVmDiskDetails, deleteVmDisk } from "@/lib/olvmClient";
+import {
+  addDiskToVm as addDiskToVmVmware,
+  fetchVmDiskDetails as fetchVmDiskDetailsVmware,
+  deleteVmDisk as deleteVmDiskVmware,
+} from "@/lib/vmwareClient";
 import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +18,14 @@ type Params = {
 export async function GET(_req: NextRequest, context: Params) {
   const { tenantId, vmId } = await context.params;
   if ((await engineTypeForTenant(tenantId)) === "vmware") {
-    return NextResponse.json({ disks: [] });
+    try {
+      const session = await auth();
+      if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      assertTenantAccess(session.user, tenantId, "operator");
+      return NextResponse.json(await fetchVmDiskDetailsVmware(tenantId, vmId));
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+    }
   }
   try {
     const session = await auth();
@@ -46,6 +58,10 @@ export async function POST(req: NextRequest, context: Params) {
       return NextResponse.json({ error: "storageDomainId es requerido" }, { status: 400 });
     }
 
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      await addDiskToVmVmware(tenantId, vmId, { sizeGB });
+      return NextResponse.json({ ok: true });
+    }
     await addDiskToVm(tenantId, vmId, {
       sizeGB,
       storageDomainId,
@@ -74,6 +90,10 @@ export async function DELETE(req: NextRequest, context: Params) {
       return NextResponse.json({ error: "attachmentId y diskId son requeridos" }, { status: 400 });
     }
 
+    if ((await engineTypeForTenant(tenantId)) === "vmware") {
+      await deleteVmDiskVmware(tenantId, vmId, attachmentId, diskId);
+      return NextResponse.json({ ok: true });
+    }
     await deleteVmDisk(tenantId, vmId, attachmentId, diskId);
     return NextResponse.json({ ok: true });
   } catch (error) {

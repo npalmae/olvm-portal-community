@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess, isPlatformSuperadmin } from "@/lib/authz";
 import { enforceVmTagPolicy, fetchVmDisks } from "@/lib/olvmClient";
+import { fetchVmDiskDetails as fetchVmDiskDetailsVmware } from "@/lib/vmwareClient";
 import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,14 @@ type Params = {
 export async function GET(_: Request, context: Params) {
   const { tenantId, vmId } = await context.params;
   if ((await engineTypeForTenant(tenantId)) === "vmware") {
-    return NextResponse.json([]);
+    try {
+      const session = await auth();
+      if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      assertTenantAccess(session.user, tenantId, "operator");
+      return NextResponse.json(await fetchVmDiskDetailsVmware(tenantId, vmId));
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+    }
   }
   try {
     const session = await auth();
