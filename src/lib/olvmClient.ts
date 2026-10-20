@@ -63,6 +63,7 @@ export type VmSummary = {
   memoryMB?: number;
   cpuCores?: number;
   sockets?: number;
+  diskGB?: number;
   host?: string;
   os?: string;
   ip?: string;
@@ -1544,6 +1545,7 @@ type CreateVmInput = {
   memoryMB?: number;
   cpuCores?: number;
   sockets?: number;
+  diskGB?: number;
   comment?: string;
   os?: string;
   vnicProfileId?: string;
@@ -1971,6 +1973,7 @@ type UpdateVmInput = {
   memoryMB?: number;
   cpuCores?: number;
   sockets?: number;
+  diskGB?: number;
 };
 
 export const updateVmResources = async (

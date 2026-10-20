@@ -44,6 +44,7 @@ export type VmSummary = {
   template?: string;
   memoryMB?: number;
   cpuCores?: number;
+  diskGB?: number;
   sockets?: number;
   host?: string;
   os?: string;
@@ -1067,6 +1068,7 @@ type CreateVmInput = {
   folderId?: string;
   memoryMB?: number;
   cpuCores?: number;
+  diskGB?: number;
   guestOsType?: string; // ej. "VMWARE_ESX_7_0_GUEST_..."; en blanco = otherGuest
   networkId?: string;
 };
@@ -1128,6 +1130,10 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
     placement,
     cpu: { count: input.cpuCores ?? 1 },
     memory: { size_MiB: input.memoryMB ?? 2048 },
+    // Disco de arranque: sin el, la VM nace sin destino de instalacion.
+    ...(input.diskGB && input.diskGB > 0
+      ? { disks: [{ new_vmdk: { capacity: Math.round(input.diskGB * 1024 ** 3) } }] }
+      : {}),
   };
 
   const vmId = await runCapability<string | { vm?: string }>(
@@ -1144,6 +1150,10 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
     return id;
   });
   await applyTenantTag(tenant, vmId);
+  if (input.vnicProfileId) {
+    // Best effort: la VM ya quedo creada; una NIC fallida no debe revertirla.
+    await addNicToVm(tenantId, vmId, { vnicProfileId: input.vnicProfileId }).catch(() => {});
+  }
   return vmId;
 };
 

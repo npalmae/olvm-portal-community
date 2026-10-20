@@ -46,7 +46,7 @@ type VmDraft = { memoryMB?: string; cpuCores?: string; sockets?: string };
 type NewVmDraft = {
   name: string; clusterId: string; templateId: string;
   memoryMB: string; cpuCores: string; sockets: string; comment: string;
-  os: string; vnicProfileId: string;
+  os: string; vnicProfileId: string; diskGB: string;
 };
 
 type ActionLog = {
@@ -288,7 +288,7 @@ export default function Home() {
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
     memoryMB: "", cpuCores: "", sockets: "1", comment: "",
-    os: "linux", vnicProfileId: "",
+    os: "linux", vnicProfileId: "", diskGB: "20",
   });
   const [cloudInit, setCloudInit] = useState({ ip: "", netmask: "", gateway: "", dns: "" });
   const [useCloudInit, setUseCloudInit] = useState(false);
@@ -1083,6 +1083,7 @@ export default function Home() {
           templateId: newVmSource === "template" ? newVm.templateId || undefined : undefined,
           memoryMB: newVm.memoryMB ? Number(newVm.memoryMB) : undefined,
           cpuCores: newVm.cpuCores ? Number(newVm.cpuCores) : undefined,
+          diskGB: newVm.diskGB ? Number(newVm.diskGB) : undefined,
           sockets: newVm.sockets ? Number(newVm.sockets) : undefined,
           comment: newVm.comment || undefined,
           os: newVm.os,
@@ -1098,7 +1099,7 @@ export default function Home() {
           ? t("ovaImportPending")
           : t("ovaImported")
         : t("vmCreated"));
-      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "" });
+      setNewVm({ name: "", clusterId: "", templateId: "", memoryMB: "", cpuCores: "", sockets: "1", comment: "", os: "linux", vnicProfileId: "", diskGB: "20" });
       if (isOva) setUploadedOva(null);
       setCloudInit({ ip: "", netmask: "", gateway: "", dns: "" });
       setUseCloudInit(false);
@@ -3115,6 +3116,11 @@ export default function Home() {
                             <input type="number" min={512} value={newVm.memoryMB}
                               onChange={(e) => setNewVm((v) => ({ ...v, memoryMB: e.target.value }))}
                               className={inputCls} placeholder="4096" />
+                          </Field>
+                          <Field label="Disco (GB)">
+                            <input type="number" min={1} value={newVm.diskGB}
+                              onChange={(e) => setNewVm((v) => ({ ...v, diskGB: e.target.value }))}
+                              className={inputCls} placeholder="20" />
                           </Field>
                           <Field label="vCPU">
                             <input type="number" min={1} value={newVm.cpuCores}

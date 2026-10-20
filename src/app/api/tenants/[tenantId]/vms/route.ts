@@ -51,6 +51,7 @@ export async function POST(request: Request, context: Params) {
     const templateId = asString(body?.templateId);
     const memoryMB = asPositiveNumber(body?.memoryMB);
     const cpuCores = asPositiveNumber(body?.cpuCores);
+    const diskGB = asPositiveNumber(body?.diskGB);
     const sockets = asPositiveNumber(body?.sockets);
     const comment = asString(body?.comment);
     const os = asString(body?.os);
@@ -70,6 +71,7 @@ export async function POST(request: Request, context: Params) {
       templateId: templateId || undefined,
       memoryMB,
       cpuCores,
+      diskGB,
       sockets,
       comment: comment || undefined,
       os: os || undefined,
