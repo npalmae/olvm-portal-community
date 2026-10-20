@@ -1496,6 +1496,26 @@ export const mountIsoToVm = async (tenantId: string, vmId: string, isoPath: stri
   await soapCall(tenant, reconfigureSpec(vmId, changes));
 };
 
+/** Accion "iniciar desde CD": boot order CD-primero (best effort) y encendido.
+ *  En VMs con disco vacio el BIOS arranca el CD de todas formas, por lo que el
+ *  bootOrder es optimistico: si el parser SOAP lo rechaza, se enciende igual. */
+export const runOnceFromCd = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  try {
+    const xml = await vmDevicesXml(tenant, vmId);
+    const diskKey = /<VirtualDevice xsi:type="VirtualDisk">[\s\S]*?<key>(\d+)<\/key>/.exec(xml)?.[1];
+    const diskBoot = diskKey
+      ? `<devices xsi:type="VirtualMachineBootOptionsBootableDiskDevice"><deviceKey>${diskKey}</deviceKey></devices>`
+      : "";
+    await soapCall(tenant, reconfigureSpec(vmId,
+      `<bootOptions><bootOrder>` +
+      `<devices xsi:type="VirtualMachineBootOptionsBootableCdromDevice"/>` +
+      diskBoot +
+      `</bootOrder></bootOptions>`));
+  } catch { /* best effort */ }
+  await viFetch(tenant, `/api/vcenter/vm/${vmId}/power?action=start`, { method: "POST" });
+};
+
 /** Expulsa la ISO: en este build el edit del backing se ignora, se remueve el CDROM
  *  (el proximo montaje lo vuelve a crear). */
 export const unmountIsoFromVm = async (tenantId: string, vmId: string): Promise<void> => {

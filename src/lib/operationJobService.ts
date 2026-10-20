@@ -2,6 +2,8 @@ import type { OperationJob, Prisma } from "@prisma/client";
 import { logActivity, type ActivityOrigin } from "./activityStore";
 import { cloneVm, createVm, deleteVm, fetchVmById, sendVmAction } from "./engineClient";
 import { runOnceFromCd } from "./olvmClient";
+import { runOnceFromCd as runOnceFromCdVmware } from "./vmwareClient";
+import { engineTypeForTenant } from "./engineClient";
 import { prisma } from "./prisma";
 
 type JobInput = Record<string, unknown>;
@@ -75,7 +77,9 @@ export const runOperationJob = async (id: string): Promise<void> => {
     } else if (job.action === "delete") {
       await deleteVm(job.tenantId, job.targetVmId!);
     } else if (job.action === "run_once_cd") {
-      await runOnceFromCd(job.tenantId, job.targetVmId!);
+      await ((await engineTypeForTenant(job.tenantId)) === "vmware"
+        ? runOnceFromCdVmware(job.tenantId, job.targetVmId!)
+        : runOnceFromCd(job.tenantId, job.targetVmId!));
     } else {
       await sendVmAction(job.tenantId, job.targetVmId!, job.action === "restart" ? "reboot" : job.action);
       await prisma.operationJob.update({ where: { id }, data: { stage: "waiting", progress: 60 } });
