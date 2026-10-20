@@ -19,8 +19,10 @@
  *     hardware, cdrom y otras operaciones sin endpoint REST directo.
  */
 
+import path from "path";
 import { Agent as UndiciAgent, fetch as undiciFetch } from "undici";
 import { getTenantById, type TenantConfig } from "./config";
+import { getOvaUploadPaths } from "./ovaStaging";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Tipos publicos (paridad con olvmClient)
@@ -281,7 +283,7 @@ const runCapability = async <T>(
   // Respetar resolucion cacheada (evita re-probar el fallback en cada llamada)
   const resolved = capabilityCache.get(cacheKey);
   const attempts = resolved ? [resolved] : order;
-  let lastError: unknown = null;
+  const errors: string[] = [];
 
   for (const transport of attempts) {
     try {
@@ -301,13 +303,11 @@ const runCapability = async <T>(
         return result;
       }
     } catch (error) {
-      lastError = error;
+      errors.push(`${transport}: ${error instanceof Error ? error.message : String(error)}`);
       // 404/405 = endpoint no existe en esta version: probar el siguiente transporte
     }
   }
-  throw lastError instanceof Error
-    ? new Error(`${capability} fallo en todos los transports: ${lastError.message}`)
-    : new Error(`${capability} fallo`);
+  throw new Error(`${capability} fallo en todos los transports -> ${errors.join(" | ")}`);
 };
 
 type ViFetchInit = RequestInit & { raw?: boolean };
@@ -841,7 +841,8 @@ export const listAllDatastores = async (tenant: TenantConfig): Promise<StorageDo
     return {
       id: ds.datastore,
       name: ds.name,
-      type: ds.type,
+      // El UI filtra por type === "data" (semantica oVirt de storage domain).
+      type: "data",
       status: "accessible",
       availableGB: bytesToGB(free),
       usedGB: bytesToGB(capacity - free),
@@ -1071,8 +1072,10 @@ type CreateVmInput = {
 };
 
 /** Creacion de VM "blank". 9.x: REST POST /api/vcenter/vm; 7/8: vAPI VM.create.
- *  TODO(lab): confirmar shape exacto del REST create en 9 (alternativa: deploy
- *  desde Content Library, camino recomendado por VMware para 9.x). */
+ *  El REST de vCenter 8 espera el create_spec directo en el body (sin wrapper
+ *  {"spec": ...}); con wrapper el parser marca todos los campos como unknown.
+ *  Placement obligatorio: datastore + folder + (cluster|host|resource_pool);
+ *  sin datastore el endpoint lo rutea a "register" y exige datastore+path. */
 export const createVm = async (tenantId: string, input: CreateVmInput): Promise<string> => {
   const tenant = await getTenantById(tenantId);
   const placement: Record<string, string> = {};
@@ -1082,9 +1085,45 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
   if (input.datastoreId) placement.datastore = input.datastoreId;
   if (input.resourcePoolId) placement.resource_pool = input.resourcePoolId;
 
+  if (!placement.datastore) {
+    const datastores = await listAllDatastores(tenant);
+    const best = datastores.sort((a, b) => b.availableGB - a.availableGB)[0];
+    if (!best) throw new Error("No hay datastores disponibles para crear la VM");
+    placement.datastore = best.id;
+  }
+  if (!placement.folder) {
+    const folders = await viFetch<{ folder: string; name: string }[]>(
+      tenant,
+      "/api/vcenter/folder?type=VIRTUAL_MACHINE",
+    );
+    placement.folder = (folders.find((f) => f.name === "vm") ?? folders[0])?.folder;
+    if (!placement.folder) throw new Error("No hay carpetas de VMs disponibles para crear la VM");
+  }
+
+  // guest_OS exige el enum vSphere (UBUNTU_64, WINDOWS_11_64...). Bundles viejos
+  // del frontend mandan valores tipo "linux": caen a OTHER_GUEST.
+  const VSPHERE_GUEST_OS = new Set([
+    "DOS", "FREEBSD_64", "MANDRAKE", "MANDRAKE64", "OS2", "OTHER_24X86", "OTHER_24X86_64",
+    "OTHER_32", "OTHER_32INUX", "OTHER_64", "OTHER_GUEST", "OTHER_LINUX", "OTHER_LINUX_64",
+    "OTHER_PRE65", "REDHAT", "RHEL_2", "RHEL_3", "RHEL_3_64", "RHEL_4", "RHEL_4_64", "RHEL_5",
+    "RHEL_5_64", "RHEL_6", "RHEL_6_64", "RHEL_7", "RHEL_7_64", "RHEL_8_64", "RHEL_9_64",
+    "SLES", "SLES_64", "SOLARIS_10", "SOLARIS_10_64", "SOLARIS_11_64", "SOLARIS_6_7",
+    "SOLARIS_8", "SOLARIS_9", "UBUNTU", "UBUNTU_64", "WINDOWS_7", "WINDOWS_7_64", "WINDOWS_8",
+    "WINDOWS_8_64", "WINDOWS_9_64", "WINDOWS_10", "WINDOWS_10_64", "WINDOWS_11_64",
+    "WINDOWS_11_64_ARM", "WINDOWS_2003", "WINDOWS_2003_64", "WINDOWS_2008", "WINDOWS_2008_64",
+    "WINDOWS_2012_64", "WINDOWS_2016_64", "WINDOWS_2019_64", "WINDOWS_2022_64", "WINDOWS_HV_2016",
+    "WINDOWS_SERVER_2025_BETA", "WINDOWS_XP", "CENTOS_6_64", "CENTOS_7_64", "CENTOS_8_64",
+    "DEBIAN_6_64", "DEBIAN_7_64", "DEBIAN_8_64", "DEBIAN_9_64", "DEBIAN_10_64", "DEBIAN_11_64",
+    "DEBIAN_12_64", "FEDORA_64", "ORACLE_LINUX_64", "SUSE_64", "VMWARE_PHOTON_64", "VMWARE_ESXI_6",
+    "VMWARE_ESXI_7", "VMWARE_ESXI_8",
+  ]);
+  const guestOs = input.guestOsType && VSPHERE_GUEST_OS.has(input.guestOsType)
+    ? input.guestOsType
+    : "OTHER_GUEST";
+
   const spec = {
     name: input.name,
-    guest_OS: input.guestOsType || "OTHER_GUEST",
+    guest_OS: guestOs,
     placement,
     cpu: { count: input.cpuCores ?? 1 },
     memory: { size_MiB: input.memoryMB ?? 2048 },
@@ -1094,7 +1133,7 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
     tenant,
     "vm.create",
     {
-      api: { method: "POST", path: "/api/vcenter/vm", build: () => ({ spec }) },
+      api: { method: "POST", path: "/api/vcenter/vm", build: () => spec },
       vapi: { service: "vcenter.VM", action: "create", build: () => ({ spec }) },
     },
     { spec },
@@ -1107,8 +1146,247 @@ export const createVm = async (tenantId: string, input: CreateVmInput): Promise<
   return vmId;
 };
 
-type CloneVmProgress = (stage: string, progress: number) => void | Promise<void>;
+/* ── Importacion OVA (vCenter) ──────────────────────────────────────────
+ *  El REST de Content Library (/api/content/library/item, upload-session y
+ *  ovf/library-item) no esta expuesto en el lab, asi que el import se hace
+ *  por SOAP (OvfManager.CreateImportSpec + CreateVM_Task), el mismo canal
+ *  que ovftool. El parser OVF del lab solo acepta OVFs minimos (cpu+mem):
+ *  se importa la VM con el hardware equivalente y el disco/NIC se agregan
+ *  via REST (mismo criterio que el cliente OLVM original). */
+export type ImportOvaVmInput = {
+  name: string;
+  clusterId?: string;
+  storageDomainId?: string;
+  hostId?: string;
+  uploadId?: string;
+  ovaName?: string;
+};
 
+const soapTaskPoll = async (tenant: TenantConfig, taskId: string): Promise<{ state: string; leaseId: string; vmId: string; error: string }> => {
+  for (let i = 0; i < 60; i++) {
+    const t = await soapCall(tenant,
+      `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+      `<specSet><propSet><type>Task</type><pathSet>info.state</pathSet><pathSet>info.result</pathSet><pathSet>info.error</pathSet></propSet>` +
+      `<objectSet><obj type="Task">${taskId}</obj></objectSet></specSet><options/></RetrievePropertiesEx>`);
+    const state = /<name>info\.state<\/name><val xsi:type="TaskInfoState">([^<]+)</.exec(t)?.[1] ?? "";
+    if (state === "success") {
+      const leaseId = /<name>info\.result<\/name><val xsi:type="ManagedObjectReference" type="HttpNfcLease">([^<]+)</.exec(t)?.[1] ?? "";
+      const vmId = /<name>info\.result<\/name><val xsi:type="ManagedObjectReference" type="VirtualMachine">([^<]+)</.exec(t)?.[1] ?? "";
+      return { state, leaseId, vmId, error: "" };
+    }
+    if (state === "error") {
+      const fault = /<localizedMessage>([^<]+)<\/localizedMessage>/.exec(t)?.[1]
+        ?? /<faultstring>([^<]+)<\/faultstring>/.exec(t)?.[1] ?? "error desconocido";
+      return { state, leaseId: "", vmId: "", error: fault };
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return { state: "timeout", leaseId: "", vmId: "", error: "La tarea de importacion no termino a tiempo" };
+};
+
+/** Crea la VM a partir de un OVF minimo via OvfManager. Devuelve el vmId. */
+const soapImportCreateVm = async (
+  tenant: TenantConfig,
+  opts: { name: string; cpu: number; memMb: number; osDesc: string;
+          datastoreId: string; resourcePoolId: string; folderId: string; hostId?: string; networkId?: string },
+): Promise<string> => {
+  const ovf =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" ` +
+    `xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" ` +
+    `xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" ` +
+    `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n` +
+    `  <References>\n` +
+    `    <File ovf:id="file1" ovf:href="disk0.vmdk" ovf:size="4194304"/>\n` +
+    `  </References>\n` +
+    `  <DiskSection><Info>Discos</Info>` +
+    `<Disk ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:capacity="64" ovf:capacityAllocationUnits="byte * 2^20" ` +
+    `ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized" ovf:populatedSize="0"/></DiskSection>\n` +
+    `  <NetworkSection><Info>Redes</Info><Network ovf:name="NET0"/></NetworkSection>\n` +
+    `  <VirtualSystem ovf:id="${escapeXml(opts.name)}">\n` +
+    `    <Info>VM</Info>\n    <Name>${escapeXml(opts.name)}</Name>\n` +
+    `    <OperatingSystemSection ovf:id="100"><Info>Sistema</Info><Description>${escapeXml(opts.osDesc)}</Description></OperatingSystemSection>\n` +
+    `    <VirtualHardwareSection><Info>Hardware</Info>\n` +
+    `      <System><vssd:ElementName>Virtual Hardware Family</vssd:ElementName><vssd:InstanceID>0</vssd:InstanceID>` +
+    `<vssd:VirtualSystemIdentifier>${escapeXml(opts.name)}</vssd:VirtualSystemIdentifier><vssd:VirtualSystemType>vmx-21</vssd:VirtualSystemType></System>\n` +
+    `      <Item><rasd:ElementName>${opts.cpu} virtual CPU(s)</rasd:ElementName><rasd:InstanceID>1</rasd:InstanceID>` +
+    `<rasd:ResourceType>3</rasd:ResourceType><rasd:VirtualQuantity>${opts.cpu}</rasd:VirtualQuantity></Item>\n` +
+    `      <Item><rasd:ElementName>${opts.memMb}MB of memory</rasd:ElementName><rasd:InstanceID>2</rasd:InstanceID>` +
+    `<rasd:ResourceType>4</rasd:ResourceType><rasd:VirtualQuantity>${opts.memMb}</rasd:VirtualQuantity></Item>\n` +
+    `    </VirtualHardwareSection>\n  </VirtualSystem>\n</Envelope>`;
+
+  const specXml = await soapCall(tenant,
+    `<CreateImportSpec>` +
+    `<_this type="OvfManager">OvfManager</_this>` +
+    `<ovfDescriptor>${escapeXml(ovf)}</ovfDescriptor>` +
+    `<resourcePool type="ResourcePool">${opts.resourcePoolId}</resourcePool>` +
+    `<datastore type="Datastore">${opts.datastoreId}</datastore>` +
+    `<cisp><locale>en</locale><deploymentOption></deploymentOption>` +
+    `<entityName>${escapeXml(opts.name)}</entityName>` +
+    (opts.networkId
+      ? `<networkMapping><name>NET0</name><network type="Network">${opts.networkId}</network></networkMapping>`
+      : "") +
+    `</cisp></CreateImportSpec>`);
+  const importError = /<localizedMessage>([^<]+)<\/localizedMessage>/.exec(specXml)?.[1];
+  if (importError) throw new Error(`El OVF no pasa el validador del vCenter: ${importError}`);
+  const configInner = /<importSpec[\s\S]*?<configSpec>([\s\S]*?)<\/configSpec>[\s\S]*?<\/importSpec>/.exec(specXml)?.[1];
+  if (!configInner) throw new Error("CreateImportSpec no devolvio importSpec");
+
+  const taskXml = await soapCall(tenant,
+    `<CreateVM_Task>` +
+    `<_this type="Folder">${opts.folderId}</_this>` +
+    `<config>${configInner}</config>` +
+    `<pool type="ResourcePool">${opts.resourcePoolId}</pool>` +
+    (opts.hostId ? `<host type="HostSystem">${opts.hostId}</host>` : "") +
+    `</CreateVM_Task>`);
+  const taskId = /<returnval type="Task">([^<]+)</.exec(taskXml)?.[1];
+  if (!taskId) throw new Error(`CreateVM_Task fallo: ${taskXml.slice(0, 200)}`);
+  const { vmId, error, leaseId } = await soapTaskPoll(tenant, taskId);
+  if (error) throw new Error(`Import fallo: ${error}`);
+  if (vmId) return vmId;
+  if (leaseId) {
+    // Sin archivos que subir (OVF minimo): cerrar el lease y leer la VM propietaria.
+    const li = await soapCall(tenant,
+      `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+      `<specSet><propSet><type>HttpNfcLease</type><pathSet>info.entity</pathSet></propSet>` +
+      `<objectSet><obj type="HttpNfcLease">${leaseId}</obj></objectSet></specSet><options/></RetrievePropertiesEx>`);
+    const leasedVm = /type="VirtualMachine">([^<]+)</.exec(li)?.[1] ?? "";
+    await soapCall(tenant, `<HttpNfcLeaseComplete><_this type="HttpNfcLease">${leaseId}</_this></HttpNfcLeaseComplete>`);
+    if (leasedVm) return leasedVm;
+  }
+  // El task puede no exponer info.result: resolver la VM por nombre.
+  const all = await viFetch<{ name: string; vm: string }[]>(tenant, "/api/vcenter/vm");
+  const found = all.find((v) => v.name === opts.name)?.vm;
+  if (found) return found;
+  throw new Error("El import no devolvio la VM creada");
+};
+
+/** Extrae cpu/ram/os/nic/disk del descriptor OVF dentro del OVA staging. */
+const readOvaHardware = async (uploadId: string): Promise<{ cpu: number; memMb: number; osDesc: string; hasNic: boolean; diskCapacityBytes: number }> => {
+  const { execFile } = await import("child_process");
+  const { mkdtemp, readdir, readFile, rm, stat } = await import("fs/promises");
+  const { tmpdir } = await import("os");
+  const src = getOvaUploadPaths(uploadId).filePath;
+  if (!(await stat(src).catch(() => null))?.isFile()) {
+    return { cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 };
+  }
+  const dir = await mkdtemp(path.join(tmpdir(), "ova-"));
+  try {
+    await new Promise<void>((res, rej) =>
+      execFile("tar", ["-xf", src, "-C", dir], { timeout: 120_000 }, (e) => e ? rej(new Error(`OVA corrupto: ${e.message}`)) : res()));
+    const files = await readdir(dir);
+    const ovfName = files.find((f) => f.toLowerCase().endsWith(".ovf"));
+    if (!ovfName) throw new Error("El OVA no contiene descriptor OVF");
+    const ovf = await readFile(path.join(dir, ovfName), "utf8");
+    const num = (re: RegExp) => { const m = re.exec(ovf); return m ? parseInt(m[1], 10) : undefined; };
+    const cpu = num(/<rasd:ResourceType>3<\/rasd:ResourceType>[\s\S]{0,400}?<rasd:VirtualQuantity>(\d+)</) ?? 1;
+    const memMb = num(/<rasd:ResourceType>4<\/rasd:ResourceType>[\s\S]{0,400}?<rasd:VirtualQuantity>(\d+)</) ?? 512;
+    const osDesc = /<OperatingSystemSection[\s\S]*?<Description>([^<]*)<\/Description>/.exec(ovf)?.[1] ?? "otherGuest64";
+    const hasNic = /<rasd:ResourceType>10<\/rasd:ResourceType>/.test(ovf);
+    // DMTF: bytes = capacity x capacityAllocationUnits ("byte", "byte * 2^20", ...)
+    const capRaw = num(/<Disk [^>]*ovf:capacity="(\d+)"/) ?? 0;
+    const unitsStr = /ovf:capacityAllocationUnits="([^"]*)"/.exec(ovf)?.[1]?.trim() ?? "byte";
+    const pow2 = /byte \* 2\^(\d+)/i.exec(unitsStr);
+    const pow10 = /byte \* 10\^(\d+)/i.exec(unitsStr);
+    let mult = 1;
+    if (pow2) mult = 2 ** Number(pow2[1]);
+    else if (pow10) mult = 10 ** Number(pow10[1]);
+    const diskCapacityBytes = capRaw * mult || 8 * 1024 ** 3;
+    return { cpu, memMb, osDesc, hasNic, diskCapacityBytes };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+};
+
+/** Import de OVA para vCenter: VM con hardware equivalente + disco/NIC por REST. */
+export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): Promise<{ vmId: string; pending: boolean }> => {
+  const tenant = await getTenantById(tenantId);
+  const existing = await listAllVms(tenant);
+  if (existing.some((v) => v.name === payload.name)) {
+    throw new Error(`Ya existe una VM con nombre ${payload.name}`);
+  }
+
+  // Recursos de placement: datastore montado en el host elegido (o mayor espacio),
+  // folder "vm", resource pool y host. El datastore debe estar montado en el host
+  // o el import falla con "Unable to access file".
+  const dsList = payload.hostId
+    ? await viFetch<{ datastore: string; name: string }[]>(tenant, `/api/vcenter/datastore?hosts=${payload.hostId}`).catch(() => [])
+    : [];
+  const datastores = await listAllDatastores(tenant);
+  const dsFiltered = dsList.length ? datastores.filter((d) => dsList.some((m) => m.datastore === d.id)) : datastores;
+  const ds = dsFiltered.find((d) => d.id === payload.storageDomainId)
+    ?? dsFiltered.sort((a, b) => b.availableGB - a.availableGB)[0];
+  if (!ds) throw new Error("El datastore solicitado no esta disponible en el host elegido");
+  const folders = await viFetch<{ folder: string; name: string }[]>(tenant, "/api/vcenter/folder?type=VIRTUAL_MACHINE");
+  const folder = (folders.find((f) => f.name === "vm") ?? folders[0])?.folder;
+  if (!folder) throw new Error("No hay carpetas de VMs disponibles para importar");
+  const clusterParam = payload.clusterId ? `?clusters=${payload.clusterId}` : "";
+  const pools = await viFetch<{ resource_pool: string }[]>(tenant, `/api/vcenter/resource-pool${clusterParam}`);
+  const pool = pools[0]?.resource_pool;
+  if (!pool) throw new Error("No se encontro resource pool para el cluster");
+
+  const hw = payload.uploadId
+    ? await readOvaHardware(payload.uploadId).catch(() => ({ cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 }))
+    : { cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 };
+
+  // El datastore elegido puede estar montado pero NO escribible en el host
+  // pedido (datastores locales: Local02 solo escribe en su dueno). Si el
+  // CreateVM falla con CannotAccessFile, reintentar con los demas hosts.
+  const hostCandidates: (string | undefined)[] = payload.hostId ? [payload.hostId] : [];
+  const allHosts = await viFetch<{ host: string; connection_state: string }[]>(tenant, "/api/vcenter/host").catch(() => []);
+  for (const h of allHosts) {
+    if (h.connection_state === "CONNECTED" && !hostCandidates.includes(h.host)) hostCandidates.push(h.host);
+  }
+  if (!hostCandidates.length) hostCandidates.push(undefined);
+
+  let vmId: string | null = null;
+  let lastError: unknown = null;
+  for (const candidate of hostCandidates) {
+    try {
+      vmId = await soapImportCreateVm(tenant, {
+        name: payload.name, cpu: hw.cpu, memMb: hw.memMb, osDesc: hw.osDesc,
+        datastoreId: ds.id, resourcePoolId: pool, folderId: folder, hostId: candidate,
+        networkId: (await fetchNetworks(tenantId)).find((n) => n.name === "VM Network")?.id,
+      });
+      lastError = null;
+      break;
+    } catch (e) {
+      lastError = e;
+      if (!/Unable to access file/i.test((e as Error).message)) throw e;
+    }
+  }
+  if (!vmId) throw lastError instanceof Error ? lastError : new Error("Import fallo");
+  await applyTenantTag(tenant, vmId);
+
+  if (hw.diskCapacityBytes > 0) {
+    // La VM importada no trae controlador SCSI: agregarlo por SOAP antes del disco.
+    await soapCall(tenant, reconfigureVm(vmId,
+      `<operation>add</operation>` +
+      `<device xsi:type="VirtualLsiLogicSASController">` +
+      `<key>-101</key><busNumber>0</busNumber><sharedBus>noSharing</sharedBus>` +
+      `</device>`));
+    let attached = false;
+    for (let i = 0; i < 5 && !attached; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      attached = await viFetch(tenant, `/api/vcenter/vm/${vmId}/hardware/disk`, {
+        method: "POST",
+        body: JSON.stringify({ new_vmdk: { capacity: hw.diskCapacityBytes } }),
+      }).then(() => true).catch(() => false);
+    }
+    if (!attached) throw new Error(`VM importada (${vmId}) pero fallo el attach del disco`);
+  }
+  if (hw.hasNic) {
+    const networks = await fetchNetworks(tenantId);
+    const networkId = networks.find((n) => n.name === "VM Network")?.id ?? networks[0]?.id;
+    if (networkId) {
+      await addNicToVm(tenantId, vmId, { vnicProfileId: networkId })
+        .catch((e) => { throw new Error(`VM importada (${vmId}) pero fallo la NIC: ${e.message}`); });
+    }
+  }
+  return { vmId, pending: false };
+};
+
+type CloneVmProgress = (stage: string, progress: number) => void | Promise<void>;
 export type CloneVmStage =
   | "submitting" | "waiting" | "tagging" | "stopping" | "networking" | "disks";
 
