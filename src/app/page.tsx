@@ -1107,6 +1107,9 @@ export default function Home() {
       setCloudInit({ ip: "", netmask: "", gateway: "", dns: "" });
       setUseCloudInit(false);
       refresh();
+      // El attach del tag del import OVA puede propagarse unos segundos despues
+      // de la respuesta: refrescar de nuevo para que la VM aparezca sola.
+      setTimeout(() => refresh(), 4000);
     } catch (err) { setError((err as Error).message); }
     finally {
       if (progressInterval) clearInterval(progressInterval);
