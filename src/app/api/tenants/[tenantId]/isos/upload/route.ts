@@ -255,6 +255,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
 
     return NextResponse.json({ ok: true, chunk: idx, done });
   } catch (error) {
+    console.error("[iso-upload] fallo:", (error as Error).message);
     return NextResponse.json({ error: (error as Error).message }, { status: 502 });
   }
 }

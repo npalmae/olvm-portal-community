@@ -1455,16 +1455,24 @@ export const putIsoToDatastore = async (
   const dcs = await viFetch<{ name: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
   const dcName = dcs[0]?.name ?? "";
   const cookie = await soapLogin(tenant);
-  const { readFile } = await import("fs/promises");
-  const body = await readFile(filePath);
+  // Streaming: readFile de ISOs grandes (>2GB) excede el Buffer max de Node.
+  const { createReadStream } = await import("fs");
+  const { stat } = await import("fs/promises");
+  const { size } = await stat(filePath);
   const url = `${tenant.baseUrl}/folder/iso/${encodeURIComponent(fileName)}` +
     `?dsName=${encodeURIComponent(datastoreName)}&dcPath=${encodeURIComponent(dcName)}`;
   const res = await undiciFetch(url, {
     method: "PUT",
-    headers: { Cookie: cookie, "Content-Type": "application/octet-stream" },
-    body: new Uint8Array(body),
+    headers: {
+      Cookie: cookie,
+      "Content-Type": "application/octet-stream",
+      "Content-Length": String(size),
+    },
+    body: createReadStream(filePath) as never,
+    duplex: "half" as never,
     dispatcher: getDispatcher(tenant) as never,
   });
+  console.log(`[iso-put] ${decodeURIComponent(url)} -> ${res.status} (${size} bytes)`);
   if (res.status >= 400) {
     throw new Error(`Subida de ISO al datastore fallo (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`);
   }
