@@ -6,6 +6,12 @@ import { promisify } from "util";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { getOvaStagingDir, getOvaUploadPaths, type OvaStagingFormat } from "@/lib/ovaStaging";
+import { engineTypeForTenant } from "@/lib/engineClient";
+import { putFileToDatastore } from "@/lib/vmwareClient";
+import { resolveTenant } from "@/lib/config";
+import { mkdtemp } from "fs/promises";
+import { tmpdir } from "os";
+import path from "path";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 600;
@@ -83,12 +89,34 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
         ovf = stdout.split("\n").find((entry) => entry.toLowerCase().endsWith(".ovf")) ?? "";
         if (!ovf) throw new Error("El OVA no contiene un archivo OVF");
       }
+      let libraryId: string | undefined;
+      if ((await engineTypeForTenant(tenantId)) === "vmware") {
+        // Archivar el OVA al datastore designado del tenant: queda disponible en la
+        // libreria sin re-subir. Se extrae el descriptor para hardware+nombre.
+        try {
+          const tenant = await resolveTenant(tenantId);
+          const base = (upload.originalName || `ova-${id}`).replace(/\.ova$/i, "").replace(/[\\/:*?"<>|]/g, "_");
+          const tmpDir = await mkdtemp(path.join(tmpdir(), "ova-archive-"));
+          try {
+            if (upload.format === "ova" && ovf) {
+              await execFileAsync("tar", ["-xf", upload.filePath, "-C", tmpDir, ovf], { timeout: 120_000 });
+              await putFileToDatastore(tenant, "ova", `${base}.ovf`, path.join(tmpDir, ovf));
+            }
+            const ovaDsPath = await putFileToDatastore(tenant, "ova", `${base}.${upload.format}`, upload.filePath);
+            if (upload.format === "ova") libraryId = ovaDsPath.replace(/\.ova$/i, ".ovf");
+          } finally {
+            await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+          }
+        } catch (e) {
+          console.error("[ova-upload] archivo a libreria fallo:", (e as Error).message);
+        }
+      }
       const { metadataPath } = getOvaUploadPaths(id, upload.format);
       await writeFile(metadataPath, JSON.stringify({ tenantId, originalName: upload.originalName, ovf }), {
         mode: 0o600,
       });
       sessions.delete(id);
-      return NextResponse.json({ ok: true, done: true, uploadId: id, ovf: ovf || null, format: upload.format });
+      return NextResponse.json({ ok: true, done: true, uploadId: id, ovf: ovf || null, format: upload.format, libraryId });
     } catch (error) {
       await rm(upload.filePath, { force: true });
       sessions.delete(id);

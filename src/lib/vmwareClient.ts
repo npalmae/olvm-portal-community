@@ -1183,6 +1183,8 @@ export type ImportOvaVmInput = {
   hostId?: string;
   uploadId?: string;
   ovaName?: string;
+  /** Entrada de la libreria del tenant: path "[DS] ova/<nombre>.ovf". */
+  diskId?: string;
 };
 
 const soapTaskPoll = async (tenant: TenantConfig, taskId: string): Promise<{ state: string; leaseId: string; vmId: string; error: string }> => {
@@ -1285,28 +1287,12 @@ const soapImportCreateVm = async (
 };
 
 /** Extrae cpu/ram/os/nic/disk del descriptor OVF dentro del OVA staging. */
-const readOvaHardware = async (uploadId: string): Promise<{ cpu: number; memMb: number; osDesc: string; hasNic: boolean; diskCapacityBytes: number }> => {
-  const { execFile } = await import("child_process");
-  const { mkdtemp, readdir, readFile, rm, stat } = await import("fs/promises");
-  const { tmpdir } = await import("os");
-  const src = getOvaUploadPaths(uploadId).filePath;
-  if (!(await stat(src).catch(() => null))?.isFile()) {
-    return { cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 };
-  }
-  const dir = await mkdtemp(path.join(tmpdir(), "ova-"));
-  try {
-    await new Promise<void>((res, rej) =>
-      execFile("tar", ["-xf", src, "-C", dir], { timeout: 120_000 }, (e) => e ? rej(new Error(`OVA corrupto: ${e.message}`)) : res()));
-    const files = await readdir(dir);
-    const ovfName = files.find((f) => f.toLowerCase().endsWith(".ovf"));
-    if (!ovfName) throw new Error("El OVA no contiene descriptor OVF");
-    const ovf = await readFile(path.join(dir, ovfName), "utf8");
+const parseOvfString = (ovf: string): { cpu: number; memMb: number; osDesc: string; hasNic: boolean; diskCapacityBytes: number } => {
     const num = (re: RegExp) => { const m = re.exec(ovf); return m ? parseInt(m[1], 10) : undefined; };
     const cpu = num(/<rasd:ResourceType>3<\/rasd:ResourceType>[\s\S]{0,400}?<rasd:VirtualQuantity>(\d+)</) ?? 1;
     const memMb = num(/<rasd:ResourceType>4<\/rasd:ResourceType>[\s\S]{0,400}?<rasd:VirtualQuantity>(\d+)</) ?? 512;
     const osDesc = /<OperatingSystemSection[\s\S]*?<Description>([^<]*)<\/Description>/.exec(ovf)?.[1] ?? "otherGuest64";
     const hasNic = /<rasd:ResourceType>10<\/rasd:ResourceType>/.test(ovf);
-    // DMTF: bytes = capacity x capacityAllocationUnits ("byte", "byte * 2^20", ...)
     const capRaw = num(/<Disk [^>]*ovf:capacity="(\d+)"/) ?? 0;
     const unitsStr = /ovf:capacityAllocationUnits="([^"]*)"/.exec(ovf)?.[1]?.trim() ?? "byte";
     const pow2 = /byte \* 2\^(\d+)/i.exec(unitsStr);
@@ -1316,6 +1302,24 @@ const readOvaHardware = async (uploadId: string): Promise<{ cpu: number; memMb: 
     else if (pow10) mult = 10 ** Number(pow10[1]);
     const diskCapacityBytes = capRaw * mult || 8 * 1024 ** 3;
     return { cpu, memMb, osDesc, hasNic, diskCapacityBytes };
+};
+
+const readOvaHardware = async (uploadId: string): Promise<{ cpu: number; memMb: number; osDesc: string; hasNic: boolean; diskCapacityBytes: number }> => {
+  const { execFile } = await import("child_process");
+  const { mkdtemp, readdir, readFile, rm, stat } = await import("fs/promises");
+  const { tmpdir } = await import("os");
+  const src = getOvaUploadPaths(uploadId).filePath;
+  if (!(await stat(src).catch(() => null))?.isFile()) {
+    return parseOvfString("");
+  }
+  const dir = await mkdtemp(path.join(tmpdir(), "ova-"));
+  try {
+    await new Promise<void>((res, rej) =>
+      execFile("tar", ["-xf", src, "-C", dir], { timeout: 120_000 }, (e) => e ? rej(new Error(`OVA corrupto: ${e.message}`)) : res()));
+    const files = await readdir(dir);
+    const ovfName = files.find((f) => f.toLowerCase().endsWith(".ovf"));
+    if (!ovfName) throw new Error("El OVA no contiene descriptor OVF");
+    return parseOvfString(await readFile(path.join(dir, ovfName), "utf8"));
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -1349,9 +1353,15 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
   const pool = pools[0]?.resource_pool;
   if (!pool) throw new Error("No se encontro resource pool para el cluster");
 
-  const hw = payload.uploadId
-    ? await readOvaHardware(payload.uploadId).catch(() => ({ cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 }))
-    : { cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 };
+  // OVA recien subido (staging) o de la libreria del tenant (diskId = "[DS] ova/x.ovf").
+  const defaultHw = { cpu: 1, memMb: 512, osDesc: "otherGuest64", hasNic: true, diskCapacityBytes: 8 * 1024 ** 3 };
+  let hw = defaultHw;
+  if (payload.uploadId) {
+    hw = await readOvaHardware(payload.uploadId).catch(() => defaultHw);
+  } else if (payload.diskId && payload.diskId.includes("] ova/")) {
+    const ovfText = await fetchDatastoreFileText(tenant, payload.diskId).catch(() => "");
+    if (ovfText) hw = parseOvfString(ovfText);
+  }
 
   // El datastore elegido puede estar montado pero NO escribible en el host
   // pedido (datastores locales: Local02 solo escribe en su dueno). Si el
@@ -1427,6 +1437,99 @@ const datastoreIsoDir = async (tenant: TenantConfig): Promise<{ dsName: string; 
   if (!ds) return null;
   const dcs = await viFetch<{ name: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
   return { dsName: ds.name, dcName: dcs[0]?.name ?? "" };
+};
+
+const parseDsPath = (p: string): { ds: string; path: string } | null => {
+  const m = /^\[([^\]]+)\]\s*(.+)$/.exec(p);
+  return m ? { ds: m[1], path: m[2] } : null;
+};
+
+/** GET de un archivo de texto del datastore (descriptores OVF). */
+export const fetchDatastoreFileText = async (tenant: TenantConfig, dsPath: string): Promise<string> => {
+  const pp = parseDsPath(dsPath);
+  if (!pp) throw new Error(`Path de datastore invalido: ${dsPath}`);
+  const dir = await datastoreIsoDir(tenant);
+  const cookie = await soapLogin(tenant);
+  const res = await undiciFetch(
+    `${tenant.baseUrl}/folder/${pp.path.split("/").map(encodeURIComponent).join("/")}` +
+    `?dsName=${encodeURIComponent(pp.ds)}&dcPath=${encodeURIComponent(dir?.dcName ?? "")}`,
+    { headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
+  );
+  if (!res.ok) throw new Error(`No se pudo leer ${dsPath} (${res.status})`);
+  return res.text();
+};
+
+/** PUT streaming de un archivo local a <ds>/<folder>/<name>. Devuelve el path vSphere. */
+export const putFileToDatastore = async (
+  tenant: TenantConfig, folder: string, fileName: string, filePath: string,
+): Promise<string> => {
+  const dir = await datastoreIsoDir(tenant);
+  if (!dir) throw new Error("No hay datastore designado para archivos");
+  const { createReadStream } = await import("fs");
+  const { stat } = await import("fs/promises");
+  const { size } = await stat(filePath);
+  const cookie = await soapLogin(tenant);
+  const url = `${tenant.baseUrl}/folder/${folder}/${encodeURIComponent(fileName)}` +
+    `?dsName=${encodeURIComponent(dir.dsName)}&dcPath=${encodeURIComponent(dir.dcName)}`;
+  const res = await undiciFetch(url, {
+    method: "PUT",
+    headers: { Cookie: cookie, "Content-Type": "application/octet-stream", "Content-Length": String(size) },
+    body: createReadStream(filePath) as never,
+    duplex: "half" as never,
+    dispatcher: getDispatcher(tenant) as never,
+  });
+  console.log(`[ds-put] ${folder}/${fileName} -> ${res.status} (${size} bytes)`);
+  if (res.status >= 400) {
+    throw new Error(`Subida de ${fileName} al datastore fallo (${res.status})`);
+  }
+  return `[${dir.dsName}] ${folder}/${fileName}`;
+};
+
+/** Borra un archivo del datastore por path vSphere. */
+export const deleteDatastoreFile = async (tenant: TenantConfig, dsPath: string): Promise<void> => {
+  const pp = parseDsPath(dsPath);
+  if (!pp) return;
+  const dir = await datastoreIsoDir(tenant);
+  const cookie = await soapLogin(tenant);
+  await undiciFetch(
+    `${tenant.baseUrl}/folder/${pp.path.split("/").map(encodeURIComponent).join("/")}` +
+    `?dsName=${encodeURIComponent(pp.ds)}&dcPath=${encodeURIComponent(dir?.dcName ?? "")}`,
+    { method: "DELETE", headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
+  ).catch(() => { /* best effort */ });
+};
+
+/** Libreria OVA del tenant: pares (.ova, .ovf) en <ds>/ova/. */
+export const fetchOvaLibrary = async (
+  tenantId: string,
+): Promise<{ id: string; name: string; size: number; storageDomainName?: string }[]> => {
+  const tenant = await getTenantById(tenantId);
+  const dir = await datastoreIsoDir(tenant);
+  if (!dir) return [];
+  const cookie = await soapLogin(tenant);
+  const res = await undiciFetch(
+    `${tenant.baseUrl}/folder/ova?dsName=${encodeURIComponent(dir.dsName)}&dcPath=${encodeURIComponent(dir.dcName)}`,
+    { headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
+  );
+  if (!res.ok) return [];
+  const html = await res.text();
+  const entries = [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => {
+    const row = m[1];
+    const href = /href="([^"]+)"/.exec(row)?.[1] ?? "";
+    const txt = row.replace(/<[^>]+>/g, " ").trim().split(/\s+/);
+    const clean = href.split("?")[0];
+    return { href, name: decodeURIComponent(clean.split("/").pop() ?? ""), size: Number(txt.find((t) => /^\d{6,}$/.test(t)) ?? 0) };
+  }).filter((e) => e.href && !e.href.startsWith("/folder?"));
+  const ovfs = entries.filter((e) => /\.ovf$/i.test(e.name));
+  return ovfs.map((ovf) => {
+    const base = ovf.name.replace(/\.ovf$/i, "");
+    const ova = entries.find((e) => e.name.toLowerCase() === `${base.toLowerCase()}.ova`);
+    return {
+      id: `[${dir.dsName}] ova/${ovf.name}`,
+      name: base,
+      size: ova?.size || ovf.size,
+      storageDomainName: dir.dsName,
+    };
+  });
 };
 
 /** Lista las ISOs disponibles en el datastore del tenant. */

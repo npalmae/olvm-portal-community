@@ -81,12 +81,12 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
 
     // Engine vCenter: import nativo por SOAP (sin SSH al host ni staging remoto).
     if ((await engineTypeForTenant(tenantId)) === "vmware") {
-      if (!name || !uploadId) {
-        return NextResponse.json({ error: "name y uploadId son obligatorios" }, { status: 400 });
+      if (!name || (!uploadId && !diskId)) {
+        return NextResponse.json({ error: "name y uploadId (o diskId de la libreria) son obligatorios" }, { status: 400 });
       }
       const { importOvaVm: importOvaVmVmware } = await import("@/lib/vmwareClient");
       const { vmId } = await importOvaVmVmware(tenantId, {
-        name, clusterId, storageDomainId, hostId, uploadId, ovaName,
+        name, clusterId, storageDomainId, hostId, uploadId, ovaName, diskId,
       });
       return NextResponse.json({ vmId, pending: false });
     }

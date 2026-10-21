@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { fetchOvaDisks, deleteOvaDisk } from "@/lib/olvmClient";
+import { fetchOvaLibrary as fetchOvaLibraryVmware, deleteDatastoreFile } from "@/lib/vmwareClient";
+import { getTenantById } from "@/lib/config";
 import { engineTypeForTenant } from "@/lib/engineClient";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ tenantId: string 
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     assertTenantAccess(session.user, tenantId, "operator");
     if ((await engineTypeForTenant(tenantId)) === "vmware") {
-      return NextResponse.json([]);
+      return NextResponse.json(await fetchOvaLibraryVmware(tenantId));
     }
     const ovas = await fetchOvaDisks(tenantId);
     return NextResponse.json(ovas);
@@ -34,7 +36,12 @@ export async function DELETE(request: Request, ctx: { params: Promise<{ tenantId
     if (!diskId) return NextResponse.json({ error: "id requerido" }, { status: 400 });
 
     if ((await engineTypeForTenant(tenantId)) === "vmware") {
-      return NextResponse.json({ error: "Libreria OVA no aplica a engines VMware" }, { status: 501 });
+      // id = "[DS] ova/<nombre>.ovf": borrar descriptor y su .ova par.
+      const tenant = await getTenantById(tenantId);
+      const ovaPath = diskId.replace(/\.ovf$/i, ".ova");
+      await deleteDatastoreFile(tenant, diskId);
+      await deleteDatastoreFile(tenant, ovaPath);
+      return NextResponse.json({ ok: true });
     }
     await deleteOvaDisk(tenantId, diskId);
     return NextResponse.json({ ok: true });

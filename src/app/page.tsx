@@ -964,7 +964,7 @@ export default function Home() {
       });
       const init = await parseJsonSafe(initRes);
       if (!initRes.ok) throw new Error(init?.error ?? t("ovaUploadStartFailed"));
-      let completed: { uploadId?: string; ovf?: string } | null = null;
+      let completed: { uploadId?: string; ovf?: string; libraryId?: string } | null = null;
       for (let i = 0; i < totalChunks; i++) {
         const chunk = file.slice(i * chunkSize, Math.min((i + 1) * chunkSize, file.size));
         const res = await fetch(`/api/tenants/${tid}/ova/upload`, {
@@ -977,7 +977,7 @@ export default function Home() {
         setOvaUploadProgress(Math.round(((i + 1) / totalChunks) * 100));
       }
       if (!completed?.uploadId) throw new Error(t("ovaNotConfirmed"));
-      setUploadedOva({ uploadId: completed.uploadId, name: file.name, ovf: completed.ovf ?? "" });
+      setUploadedOva({ uploadId: completed.uploadId, name: file.name, ovf: completed.ovf ?? "", diskId: completed.libraryId });
       setSuccess(t("ovaUploadSuccess", { name: file.name }));
     } catch (err) { setError((err as Error).message); }
     finally { setUploadingOva(false); setTimeout(() => setOvaUploadProgress(null), 1000); }
