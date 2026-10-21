@@ -18,6 +18,8 @@ export type TenantConfig = {
   caCert?: Buffer;
   tag?: string;
   storageDomains?: string[];
+  /** Datastore designado para archivos (ISO/OVA) del tenant. */
+  fileStorageDomain?: string;
   networks?: string[];
   networkConfig?: { name: string; prefix: string; mask: string }[];
   sharedStorageDomains?: string[];
@@ -45,6 +47,7 @@ const toTenant = async (cluster: ClusterConnection): Promise<TenantConfig> => {
     allowInsecure: engine.allowInsecure,
     tag: cluster.tag,
     storageDomains: cluster.storageDomains,
+    fileStorageDomain: cluster.fileStorageDomain ?? undefined,
     networks: cluster.networks,
     networkConfig: cluster.networkConfig,
     sharedStorageDomains: engine.sharedStorageDomains,

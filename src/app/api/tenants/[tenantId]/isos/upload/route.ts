@@ -83,7 +83,10 @@ const handleVmwareUpload = async (
   try {
     const tenant = await resolveTenant(tenantId);
     const datastores = await listAllDatastores(tenant);
-    const ds = datastores.find((d) => d.id === s.datastoreId) ?? datastores[0];
+    // El datastore designado del tenant manda; el header queda como fallback.
+    const ds = datastores.find((d) => d.name === tenant.fileStorageDomain)
+      ?? datastores.find((d) => d.id === s.datastoreId)
+      ?? datastores[0];
     if (!ds) throw new Error("No hay datastore disponible para la ISO");
     const isoPath = await putIsoToDatastore(tenant, ds.name, s.fileName, s.filePath);
     return NextResponse.json({ ok: true, done: true, isoId: isoPath });

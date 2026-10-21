@@ -31,8 +31,9 @@ model Tenant {
   engineId       String
   engine         Engine       @relation(fields: [engineId], references: [id])
   tag            String?
-  storageDomains String[]
-  networks       String[]
+  storageDomains     String[]
+  fileStorageDomain  String?
+  networks           String[]
   networkConfig  Json?
   createdAt      DateTime     @default(now())
   memberships    Membership[]

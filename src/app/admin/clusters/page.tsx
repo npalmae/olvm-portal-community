@@ -34,6 +34,7 @@ type Tenant = {
   engineUrl: string;
   tag?: string;
   storageDomains?: string[];
+  fileStorageDomain?: string | null;
   networks?: string[];
   networkConfig?: { name: string; prefix: string; mask: string }[];
   createdAt: string;
@@ -654,6 +655,7 @@ function TenantForm({
   const [engineId, setEngineId] = useState(tenant?.engineId ?? engines[0]?.id ?? "");
   const [tag, setTag] = useState(tenant?.tag ?? "");
   const [selectedSds, setSelectedSds] = useState<string[]>(tenant?.storageDomains ?? []);
+  const [fileSd, setFileSd] = useState(tenant?.fileStorageDomain ?? "");
   const [availableSds, setAvailableSds] = useState<{ name: string; availableGB: number }[]>([]);
   const [loadingSds, setLoadingSds] = useState(false);
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>(tenant?.networks ?? []);
@@ -706,6 +708,7 @@ function TenantForm({
         .map((name) => ({ name, prefix: networkPrefixes[name]?.prefix ?? "", mask: networkPrefixes[name]?.mask ?? "" }))
         .filter((n) => n.prefix || n.mask);
       const payload: Record<string, unknown> = { name, engineId, tag, storageDomains: selectedSds, networks: selectedNetworks, networkConfig: nc.length > 0 ? nc : undefined };
+      payload.fileStorageDomain = fileSd || "";
       if (!editing) payload.id = id;
       const url = editing ? `/api/admin/clusters/${tenant!.id}` : "/api/admin/clusters";
       const method = editing ? "PATCH" : "POST";
@@ -777,6 +780,15 @@ function TenantForm({
                 ))}
               </div>
             )}
+          </div>
+
+          <div>
+            <span className={labelCls}>Almacenamiento de archivos (ISO/OVA)</span>
+            <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">Donde se guardan los archivos que sube este tenant</p>
+            <select value={fileSd} onChange={(e) => setFileSd(e.target.value)} className="mt-1 w-full rounded-md border px-2 py-1.5 text-xs" style={{ borderColor: "var(--border)" }}>
+              <option value="">(primero de los storage asignados)</option>
+              {selectedSds.map((sd) => <option key={sd} value={sd}>{sd}</option>)}
+            </select>
           </div>
 
           <div>

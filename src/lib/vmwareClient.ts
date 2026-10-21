@@ -1338,6 +1338,7 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
   const datastores = await listAllDatastores(tenant);
   const dsFiltered = dsList.length ? datastores.filter((d) => dsList.some((m) => m.datastore === d.id)) : datastores;
   const ds = dsFiltered.find((d) => d.id === payload.storageDomainId)
+    ?? dsFiltered.find((d) => d.name === tenant.fileStorageDomain)
     ?? dsFiltered.sort((a, b) => b.availableGB - a.availableGB)[0];
   if (!ds) throw new Error("El datastore solicitado no esta disponible en el host elegido");
   const folders = await viFetch<{ folder: string; name: string }[]>(tenant, "/api/vcenter/folder?type=VIRTUAL_MACHINE");
@@ -1415,8 +1416,14 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
  *  (PUT/GET /folder con cookie de sesion SOAP), igual que el browser del
  *  vSphere Client. El montaje es un ReconfigVM del VirtualCdrom. */
 
+/** Datastore designado para archivos (ISO/OVA) del tenant o el primero asignado. */
+const tenantFileDatastore = async (tenant: TenantConfig) => {
+  const datastores = await listAllDatastores(tenant);
+  return datastores.find((d) => d.name === tenant.fileStorageDomain) ?? datastores[0];
+};
+
 const datastoreIsoDir = async (tenant: TenantConfig): Promise<{ dsName: string; dcName: string } | null> => {
-  const ds = (await listAllDatastores(tenant))[0];
+  const ds = await tenantFileDatastore(tenant);
   if (!ds) return null;
   const dcs = await viFetch<{ name: string }[]>(tenant, "/api/vcenter/datacenter").catch(() => []);
   return { dsName: ds.name, dcName: dcs[0]?.name ?? "" };

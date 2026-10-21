@@ -9,6 +9,7 @@ export type ClusterConnection = {
   engineId: string;
   tag?: string;
   storageDomains?: string[];
+  fileStorageDomain?: string | null;
   networks?: string[];
   networkConfig?: NetworkConfig[];
   createdAt: string;
@@ -27,6 +28,7 @@ const toCluster = (row: NonNullable<TenantRow>): ClusterConnection => ({
   engineId: row.engineId,
   tag: row.tag ?? undefined,
   storageDomains: row.storageDomains.length ? row.storageDomains : undefined,
+  fileStorageDomain: row.fileStorageDomain ?? null,
   networks: row.networks.length ? row.networks : undefined,
   networkConfig: Array.isArray(row.networkConfig) ? row.networkConfig as NetworkConfig[] : undefined,
   createdAt: row.createdAt.toISOString(),
@@ -61,6 +63,7 @@ export const createCluster = async (input: ClusterInput): Promise<ClusterConnect
   const row = await prisma.tenant.create({ data: {
     id, name: input.name!.trim(), engineId: input.engineId!.trim(), tag: input.tag!.trim(),
     storageDomains: input.storageDomains?.filter(Boolean) ?? [], networks: input.networks?.filter(Boolean) ?? [],
+    fileStorageDomain: input.fileStorageDomain || null,
     networkConfig: input.networkConfig?.length ? input.networkConfig : Prisma.JsonNull,
   } });
   return toCluster(row);
@@ -75,6 +78,7 @@ export const updateCluster = async (id: string, input: ClusterInput): Promise<Cl
   const row = await prisma.tenant.update({ where: { id }, data: {
     name: next.name.trim(), engineId: next.engineId.trim(), tag: next.tag?.trim() || null,
     storageDomains: next.storageDomains?.filter(Boolean) ?? [], networks: next.networks?.filter(Boolean) ?? [],
+    fileStorageDomain: next.fileStorageDomain || null,
     networkConfig: next.networkConfig?.length ? next.networkConfig : Prisma.JsonNull,
   } });
   return toCluster(row);

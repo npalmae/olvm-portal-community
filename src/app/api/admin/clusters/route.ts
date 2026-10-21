@@ -22,6 +22,7 @@ const toPublic = async (c: ClusterConnection) => {
     engineUrl: engine?.baseUrl ?? "N/D",
     tag: c.tag,
     storageDomains: c.storageDomains ?? [],
+    fileStorageDomain: c.fileStorageDomain ?? null,
     networks: c.networks ?? [],
     networkConfig: c.networkConfig ?? [],
     createdAt: c.createdAt,
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       engineId: typeof body.engineId === "string" ? body.engineId : "",
       tag: typeof body.tag === "string" ? body.tag : undefined,
       storageDomains: Array.isArray(body.storageDomains) ? body.storageDomains.filter((s: unknown) => typeof s === "string") : undefined,
+      fileStorageDomain: typeof body.fileStorageDomain === "string" ? (body.fileStorageDomain || null) : undefined,
       networks: Array.isArray(body.networks) ? body.networks.filter((s: unknown) => typeof s === "string") : undefined,
       networkConfig: Array.isArray(body.networkConfig) ? body.networkConfig as Array<{ name: string; prefix: string; mask: string }> : undefined,
     });

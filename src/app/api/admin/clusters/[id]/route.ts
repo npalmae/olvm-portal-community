@@ -28,6 +28,7 @@ const toPublic = async (c: ClusterConnection) => {
     engineUrl: engine?.baseUrl ?? "N/D",
     tag: c.tag,
     storageDomains: c.storageDomains ?? [],
+    fileStorageDomain: c.fileStorageDomain ?? null,
     networks: c.networks ?? [],
     networkConfig: c.networkConfig ?? [],
     createdAt: c.createdAt,
@@ -66,6 +67,7 @@ export async function PATCH(request: Request, context: Params) {
       storageDomains: Array.isArray(body.storageDomains)
         ? body.storageDomains.filter((s: unknown) => typeof s === "string")
         : existing.storageDomains,
+      fileStorageDomain: typeof body.fileStorageDomain === "string" ? (body.fileStorageDomain || null) : existing.fileStorageDomain,
       networks: Array.isArray(body.networks)
         ? body.networks.filter((s: unknown) => typeof s === "string")
         : existing.networks,
