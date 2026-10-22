@@ -1332,7 +1332,7 @@ const readOvaHardware = async (uploadId: string): Promise<{ cpu: number; memMb: 
 };
 
 /** Import de OVA para vCenter: VM con hardware equivalente + disco/NIC por REST. */
-export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): Promise<{ vmId: string; pending: boolean }> => {
+export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): Promise<{ vmId: string; pending: boolean; realDisk: boolean }> => {
   const tenant = await getTenantById(tenantId);
   const existing = await listAllVms(tenant);
   if (existing.some((v) => v.name === payload.name)) {
@@ -1402,15 +1402,12 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
   await applyTenantTag(tenant, vmId);
 
   // Fase 2: disco REAL del OVA via vmkfstools (requiere credenciales SSH del engine).
-  console.log("[ova-fase2] creds:", Boolean(tenant.hostSshUser), Boolean(tenant.hostSshPassword),
-    "| uploadId:", payload.uploadId ?? "-", "| diskId:", payload.diskId ?? "-");
   const realDisk = tenant.hostSshUser && tenant.hostSshPassword
     ? await attachRealOvaDisk(tenant, {
         vmId, vmName: payload.name, uploadId: payload.uploadId, diskId: payload.diskId,
         capacityKB: Math.ceil(hw.diskCapacityBytes / 1024) || 16 * 1024 * 1024,
       })
     : false;
-  console.log("[ova-fase2] realDisk:", realDisk);
 
   if (!realDisk && hw.diskCapacityBytes > 0) {
     // La VM importada no trae controlador SCSI: agregarlo por SOAP antes del disco.
@@ -1437,7 +1434,7 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
         .catch((e) => { throw new Error(`VM importada (${vmId}) pero fallo la NIC: ${e.message}`); });
     }
   }
-  return { vmId, pending: false };
+  return { vmId, pending: false, realDisk };
 };
 
 /* ── ISOs sobre datastore (vCenter) ─────────────────────────────────────

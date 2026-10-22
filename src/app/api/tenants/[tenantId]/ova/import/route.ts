@@ -85,10 +85,10 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
         return NextResponse.json({ error: "name y uploadId (o diskId de la libreria) son obligatorios" }, { status: 400 });
       }
       const { importOvaVm: importOvaVmVmware } = await import("@/lib/vmwareClient");
-      const { vmId } = await importOvaVmVmware(tenantId, {
+      const { vmId, realDisk } = await importOvaVmVmware(tenantId, {
         name, clusterId, storageDomainId, hostId, uploadId, ovaName, diskId,
       });
-      return NextResponse.json({ vmId, pending: false });
+      return NextResponse.json({ vmId, pending: false, realDisk });
     }
 
     if (!name || !clusterId || !storageDomainId || !hostId || !hostAddr) {

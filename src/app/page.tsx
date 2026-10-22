@@ -1115,6 +1115,9 @@ export default function Home() {
       });
       const data = await parseJsonSafe(res);
       if (!res.ok) throw new Error(data?.error ?? t("createFailed"));
+      if (isOva && data?.realDisk === false) {
+        setError("VM creada con disco en BLANCO: no se pudo conectar el disco real del OVA (verifica SSH del host dueño del datastore).");
+      }
       setSuccess(isOva
         ? data?.pending
           ? t("ovaImportPending")
