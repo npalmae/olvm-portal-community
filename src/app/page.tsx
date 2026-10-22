@@ -270,6 +270,7 @@ export default function Home() {
   const [showAllSds, setShowAllSds] = useState(false);
   const [isoList, setIsoList] = useState<{ id: string; name: string; storageDomainName: string; sizeGB: number }[]>([]);
   const [mountedIso, setMountedIso] = useState<string | null>(null);
+  const [vmOsDetail, setVmOsDetail] = useState<Record<string, string>>({});
   const [newDiskSize, setNewDiskSize] = useState("50");
   const [newDiskSd, setNewDiskSd] = useState("");
   const [newDiskProv, setNewDiskProv] = useState("thin");
@@ -547,6 +548,23 @@ export default function Home() {
     })();
     return () => { cancelled = true; };
   }, [selectedTenant]);
+
+  // OS de la VM seleccionada: el listado de vmware no lo incluye
+  useEffect(() => {
+    if (!selectedVmId || !selectedTenant || selectedTenant === ALL_TENANTS) return;
+    if (vmOsDetail[selectedVmId]) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/vms/${selectedVmId}`);
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && data?.os) {
+          setVmOsDetail((prev) => ({ ...prev, [selectedVmId]: String(data.os) }));
+        }
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedVmId, selectedTenant, vmOsDetail]);
 
   // Carga ISO montada cuando se selecciona una VM
   useEffect(() => {
@@ -2210,7 +2228,7 @@ export default function Home() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("identity")}</p>
                   <dl className="space-y-1 text-xs">
                     {[
-                      [t("operatingSystem"), selectedVm.os ?? t("notAvailable")],
+                      [t("operatingSystem"), vmOsDetail[selectedVm.id] ?? selectedVm.os ?? t("notAvailable")],
                       ["Template", selectedVm.template ?? t("notAvailable")],
                       ["Cluster", selectedVm.cluster ?? t("notAvailable")],
                       ["Host", selectedVm.host ?? t("notAvailable")],

@@ -686,7 +686,13 @@ export const fetchVmById = async (
   const vm = all.find((v) => v.vm === vmId);
   if (!vm) return null;
   const tagNames = await fetchVmTagNames(tenant, vmId);
-  return toSummary(vm, tagNames);
+  const summary = toSummary(vm, tagNames);
+  // El listado no trae guest OS: el detalle de la VM seleccionada si.
+  // Este build devuelve guest_OS (mayusculas); el estandar es guest_os.
+  const detail = await viFetch<{ guest_os?: string; guest_os_full?: string; guest_OS?: string }>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null);
+  const os = detail?.guest_OS ?? detail?.guest_os;
+  if (os) summary.os = os;
+  return summary;
 };
 
 
