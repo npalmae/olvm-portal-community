@@ -1401,7 +1401,18 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
   if (!vmId) throw lastError instanceof Error ? lastError : new Error("Import fallo");
   await applyTenantTag(tenant, vmId);
 
-  if (hw.diskCapacityBytes > 0) {
+  // Fase 2: disco REAL del OVA via vmkfstools (requiere credenciales SSH del engine).
+  console.log("[ova-fase2] creds:", Boolean(tenant.hostSshUser), Boolean(tenant.hostSshPassword),
+    "| uploadId:", payload.uploadId ?? "-", "| diskId:", payload.diskId ?? "-");
+  const realDisk = tenant.hostSshUser && tenant.hostSshPassword
+    ? await attachRealOvaDisk(tenant, {
+        vmId, vmName: payload.name, uploadId: payload.uploadId, diskId: payload.diskId,
+        capacityKB: Math.ceil(hw.diskCapacityBytes / 1024) || 16 * 1024 * 1024,
+      })
+    : false;
+  console.log("[ova-fase2] realDisk:", realDisk);
+
+  if (!realDisk && hw.diskCapacityBytes > 0) {
     // La VM importada no trae controlador SCSI: agregarlo por SOAP antes del disco.
     await soapCall(tenant, reconfigureVm(vmId,
       `<operation>add</operation>` +
@@ -1505,6 +1516,142 @@ export const deleteDatastoreFile = async (tenant: TenantConfig, dsPath: string):
     `?dsName=${encodeURIComponent(pp.ds)}&dcPath=${encodeURIComponent(dir?.dcName ?? "")}`,
     { method: "DELETE", headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
   ).catch(() => { /* best effort */ });
+};
+
+/** Ejecuta un comando en un host ESXi del engine via SSH (credenciales del engine). */
+const sshHostRun = async (tenant: TenantConfig, hostAddress: string, command: string, timeoutMs = 300_000): Promise<string> => {
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const execFileAsync = promisify(execFile);
+  if (!tenant.hostSshUser || !tenant.hostSshPassword) {
+    throw new Error("El engine no tiene credenciales SSH de hosts configuradas");
+  }
+  const { stdout, stderr } = await execFileAsync("sshpass", [
+    "-p", tenant.hostSshPassword,
+    "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
+    `${tenant.hostSshUser}@${hostAddress}`, command,
+  ], { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 });
+  if (stderr && !/Warning: Permanently added/.test(stderr)) {
+    throw new Error(`SSH ${hostAddress}: ${stderr.slice(0, 150)}`);
+  }
+  return stdout;
+};
+
+/** Fase 2: conecta el disco REAL del OVA a la VM via vmkfstools en el host.
+ *  Devuelve true si quedo conectado; ante cualquier fallo se devuelve false y
+ *  la VM conserva su disco en blanco (comportamiento fase 1). */
+const attachRealOvaDisk = async (
+  tenant: TenantConfig,
+  opts: { vmId: string; vmName: string; uploadId?: string; diskId?: string; capacityKB: number },
+): Promise<boolean> => {
+  const { mkdtemp, readdir, rm, stat, writeFile } = await import("fs/promises");
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const execFileAsync = promisify(execFile);
+  const { tmpdir } = await import("os");
+  const crypto = await import("crypto");
+
+  // 1. Ubicacion de la VM: datastore + carpeta desde config.files.vmPathName.
+  //    (La VM recien importada aun no tiene discos: el real se crea aqui.)
+  const cfgXml = await soapCall(tenant,
+    `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+    `<specSet><propSet><type>VirtualMachine</type><pathSet>config.files.vmPathName</pathSet><pathSet>runtime.host</pathSet></propSet>` +
+    `<objectSet><obj type="VirtualMachine">${opts.vmId}</obj></objectSet></specSet><options/></RetrievePropertiesEx>`);
+  const vmPath = /<name>config\.files\.vmPathName<\/name><val[^>]*>([^<]+)<\/val>/.exec(cfgXml)?.[1] ?? "";
+  const m = /^\[([^\]]+)\]\s*(.+)$/.exec(vmPath);
+  if (!m) { console.log("[ova-fase2] vmPathName no parseable:", vmPath); return false; }
+  const dsName = m[1];
+  const vmDir = m[2].replace(/\/[^\/]+\.vmx$/i, "");
+  const capacityKB = opts.capacityKB;
+
+  const hostMoref = /type="HostSystem"[^>]*>([^<]+)</.exec(cfgXml)?.[1];
+  if (!hostMoref) { console.log("[ova-fase2] runtime.host no resuelto"); return false; }
+  const hosts = await viFetch<{ host: string; name: string; connection_state: string }[]>(tenant, "/api/vcenter/host");
+  const host = hosts.find((h) => h.host === hostMoref);
+  if (!host) { console.log("[ova-fase2] host no encontrado:", hostMoref); return false; }
+
+  // 2. vmdk fuente: staging local o .ova de la libreria
+  const tmp = await mkdtemp(path.join(tmpdir(), "ova-real-"));
+  try {
+    let srcVmdk = "";
+    if (opts.uploadId) {
+      const ovaPath = getOvaUploadPaths(opts.uploadId).filePath;
+      if ((await stat(ovaPath).catch(() => null))?.isFile()) {
+        await execFileAsync("tar", ["-xf", ovaPath, "-C", tmp], { timeout: 300_000 });
+        srcVmdk = path.join(tmp, (await readdir(tmp)).find((f) => /\.vmdk$/i.test(f)) ?? "");
+      }
+    } else if (opts.diskId && /\.ovf$/i.test(opts.diskId)) {
+      // descargar el .ova de la libreria y extraer el vmdk
+      const ovaDsPath = opts.diskId.replace(/\.ovf$/i, ".ova");
+      const dir = await datastoreIsoDir(tenant);
+      const cookie = await soapLogin(tenant);
+      const pp = parseDsPath(ovaDsPath);
+      if (!pp) return false;
+      const res = await undiciFetch(
+        `${tenant.baseUrl}/folder/${pp.path.split("/").map(encodeURIComponent).join("/")}` +
+        `?dsName=${encodeURIComponent(pp.ds)}&dcPath=${encodeURIComponent(dir?.dcName ?? "")}`,
+        { headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never });
+      if (!res.ok) return false;
+      await writeFile(path.join(tmp, "src.ova"), Buffer.from(await res.arrayBuffer()));
+      await execFileAsync("tar", ["-xf", path.join(tmp, "src.ova"), "-C", tmp], { timeout: 300_000 });
+      srcVmdk = path.join(tmp, (await readdir(tmp)).find((f) => /\.vmdk$/i.test(f) ?? false) ?? "");
+    }
+    if (!srcVmdk || !(await stat(srcVmdk).catch(() => null))?.isFile()) {
+      console.log("[ova-fase2] vmdk fuente no disponible");
+      return false;
+    }
+
+    // 3. subir vmdk al datastore como archivo
+    const uploadName = `${crypto.randomUUID()}.vmdk`;
+    const { createReadStream } = await import("fs");
+    const { stat: fstat } = await import("fs/promises");
+    const { size } = await fstat(srcVmdk);
+    const dirInfo = await datastoreIsoDir(tenant);
+    const cookie = await soapLogin(tenant);
+    const putUrl = `${tenant.baseUrl}/folder/ova-staging/${uploadName}` +
+      `?dsName=${encodeURIComponent(dsName)}&dcPath=${encodeURIComponent(dirInfo?.dcName ?? "")}`;
+    const put = await undiciFetch(putUrl, {
+      method: "PUT",
+      headers: { Cookie: cookie, "Content-Type": "application/octet-stream", "Content-Length": String(size) },
+      body: createReadStream(srcVmdk) as never,
+      duplex: "half" as never,
+      dispatcher: getDispatcher(tenant) as never,
+    });
+    if (put.status >= 400) throw new Error(`subida vmdk ${put.status}`);
+
+    // 4. convertir con vmkfstools en el host
+    const target = `/vmfs/volumes/${dsName}/${vmDir}/${opts.vmName}-real.vmdk`;
+    try {
+      await sshHostRun(tenant, host.name,
+        `vmkfstools -i \"/vmfs/volumes/${dsName}/ova-staging/${uploadName}\" -d thin \"${target}\"`);
+    } finally {
+      await undiciFetch(`${tenant.baseUrl}/folder/ova-staging/${uploadName}` +
+        `?dsName=${encodeURIComponent(dsName)}&dcPath=${encodeURIComponent(dirInfo?.dcName ?? "")}`,
+        { method: "DELETE", headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never }).catch(() => {});
+    }
+
+    // 5. Conectar el disco convertido: SCSI (si falta) + disco en un solo cambio.
+    const xml = await vmDevicesXml(tenant, opts.vmId);
+    const scsiKey = /<VirtualDevice xsi:type="ParaVirtualSCSIController">[\s\S]*?<key>(\d+)<\/key>/.exec(xml)?.[1]
+      ?? /<VirtualDevice xsi:type="VirtualLsiLogicSASController">[\s\S]*?<key>(\d+)<\/key>/.exec(xml)?.[1];
+    const scsiAdd = scsiKey ? "" :
+      `<deviceChange><operation>add</operation>` +
+      `<device xsi:type="VirtualLsiLogicSASController"><key>-101</key><busNumber>0</busNumber><sharedBus>noSharing</sharedBus></device></deviceChange>`;
+    const controllerKey = scsiKey ?? "-101";
+    await soapCall(tenant, reconfigureSpec(opts.vmId,
+      scsiAdd +
+      `<deviceChange><operation>add</operation>` +
+      `<device xsi:type="VirtualDisk"><key>-70</key>` +
+      `<backing xsi:type="VirtualDiskFlatVer2BackingInfo"><fileName>[${dsName}] ${vmDir}/${opts.vmName}-real.vmdk</fileName><diskMode>persistent</diskMode></backing>` +
+      `<controllerKey>${controllerKey}</controllerKey><unitNumber>0</unitNumber><capacityInKB>${capacityKB}</capacityInKB></device></deviceChange>`));
+    console.log(`[ova-fase2] disco real conectado a ${opts.vmName} (${host.name})`);
+    return true;
+  } catch (e) {
+    console.error("[ova-fase2] fallo (la VM conserva disco en blanco):", (e as Error).message);
+    return false;
+  } finally {
+    await rm(tmp, { recursive: true, force: true }).catch(() => {});
+  }
 };
 
 /** Libreria OVA del tenant: pares (.ova, .ovf) en <ds>/ova/. */
