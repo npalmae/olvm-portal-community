@@ -8,6 +8,8 @@ export type OlvmEngine = {
   baseUrl: string;
   username?: string;
   password?: string;
+  hostSshUser?: string;
+  hostSshPassword?: string;
   token?: string;
   allowInsecure?: boolean;
   caCert?: string;
@@ -36,6 +38,8 @@ const toEngine = (row: NonNullable<EngineRow>): OlvmEngine => ({
   baseUrl: row.baseUrl,
   username: row.username ?? undefined,
   password: decryptField(row.password),
+  hostSshUser: row.hostSshUser ?? undefined,
+  hostSshPassword: decryptField(row.hostSshPassword),
   token: decryptField(row.token),
   allowInsecure: row.allowInsecure,
   caCert: decryptField(row.caCert),
@@ -74,6 +78,8 @@ export const createEngine = async (input: EngineInput): Promise<OlvmEngine> => {
       baseUrl: sanitizeBaseUrl(input.baseUrl!),
       username: input.username?.trim() || null,
       password: encryptField(input.password),
+      hostSshUser: input.hostSshUser?.trim() || null,
+      hostSshPassword: encryptField(input.hostSshPassword),
       token: encryptField(input.token),
       allowInsecure: input.allowInsecure === true,
       caCert: encryptField(input.caCert),
@@ -98,6 +104,8 @@ export const updateEngine = async (id: string, input: EngineInput): Promise<Olvm
       baseUrl: sanitizeBaseUrl(merged.baseUrl),
       username: merged.username?.trim() || null,
       password: encryptField(merged.password),
+      hostSshUser: merged.hostSshUser?.trim() || null,
+      hostSshPassword: encryptField(merged.hostSshPassword),
       token: encryptField(merged.token),
       allowInsecure: merged.allowInsecure === true,
       caCert: encryptField(merged.caCert),

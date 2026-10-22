@@ -16,6 +16,7 @@ type Engine = {
   baseUrl: string;
   authMethod: "basic" | "token";
   username?: string;
+  hostSshUser?: string | null;
   hasPassword: boolean;
   hasToken: boolean;
   allowInsecure: boolean;
@@ -432,6 +433,8 @@ function EngineForm({
   const [authMethod, setAuthMethod] = useState<"basic" | "token">(engine?.authMethod ?? "basic");
   const [username, setUsername] = useState(engine?.username ?? (engine?.type === "olvm" ? "admin@internal" : ""));
   const [password, setPassword] = useState("");
+  const [hostSshUser, setHostSshUser] = useState(engine?.hostSshUser ?? "root");
+  const [hostSshPassword, setHostSshPassword] = useState("");
   const [token, setToken] = useState("");
   const [showCa, setShowCa] = useState(Boolean(engine?.hasCa));
   const [caCert, setCaCert] = useState("");
@@ -464,6 +467,10 @@ function EngineForm({
     if (authMethod === "basic") {
       payload.username = username;
       if (password) payload.password = password;
+      if (engineType === "vmware") {
+        payload.hostSshUser = hostSshUser;
+        if (hostSshPassword) payload.hostSshPassword = hostSshPassword;
+      }
     } else {
       if (token) payload.token = token;
     }
@@ -568,6 +575,14 @@ function EngineForm({
               <label className="block">
                  <span className={labelCls}>{t("password")}</span>
                  <input type="password" className={`${inputCls} mt-1`} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={editing ? t("blankKeepsCurrent") : ""} required={!editing} />
+                {engineType === "vmware" && (
+                  <>
+                    <span className={labelCls}>SSH hosts ESXi (usuario)</span>
+                    <input className={`${inputCls} mt-1`} value={hostSshUser} onChange={(e) => setHostSshUser(e.target.value)} placeholder="root" />
+                    <span className={labelCls}>SSH hosts ESXi (contraseña)</span>
+                    <input type="password" className={`${inputCls} mt-1`} value={hostSshPassword} onChange={(e) => setHostSshPassword(e.target.value)} placeholder={editing ? "(sin cambio)" : ""} />
+                  </>
+                )}
               </label>
             </div>
           ) : (

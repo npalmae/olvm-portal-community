@@ -12,6 +12,9 @@ export type TenantConfig = {
   baseUrl: string;
   username?: string;
   password?: string;
+  /** SSH de los hosts ESXi del engine (import de disco real via vmkfstools). */
+  hostSshUser?: string;
+  hostSshPassword?: string;
   allowInsecure?: boolean;
   token?: string;
   caFile?: string;
@@ -43,6 +46,8 @@ const toTenant = async (cluster: ClusterConnection): Promise<TenantConfig> => {
     baseUrl: engine.baseUrl,
     username: engine.username,
     password: engine.password,
+    hostSshUser: engine.hostSshUser ?? undefined,
+    hostSshPassword: engine.hostSshPassword ?? undefined,
     token: engine.token,
     allowInsecure: engine.allowInsecure,
     tag: cluster.tag,

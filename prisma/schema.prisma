@@ -15,6 +15,8 @@ model Engine {
   baseUrl              String
   username             String?
   password             String?
+  hostSshUser          String?
+  hostSshPassword      String?
   token                String?
   allowInsecure        Boolean  @default(false)
   caCert               String?
