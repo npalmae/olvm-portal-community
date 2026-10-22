@@ -1687,15 +1687,7 @@ export const fetchOvaLibrary = async (
       kind: "ova" as const,
     };
   });
-  // qcow2 archivados (sin descriptor): importables como VM con hardware por defecto.
-  const qcow2s = entries.filter((e) => /\.qcow2$/i.test(e.name)).map((q) => ({
-    id: `[${dir.dsName}] ova/${q.name}`,
-    name: q.name.replace(/\.qcow2$/i, ""),
-    size: q.size,
-    storageDomainName: dir.dsName,
-    kind: "qcow2" as const,
-  }));
-  return [...listed, ...qcow2s];
+  return listed;
 };
 
 /** Lista las ISOs disponibles en el datastore del tenant. */

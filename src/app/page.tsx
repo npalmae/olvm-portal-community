@@ -3019,7 +3019,7 @@ export default function Home() {
                           </div>
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-2 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
-                            <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
+                            <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
                         </div>
                       ) : (
@@ -3032,7 +3032,7 @@ export default function Home() {
                           )}
                           <label className={`flex cursor-pointer items-center justify-center rounded-md border border-gray-200 dark:border-white/10 py-3 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5 ${uploadingOva ? "pointer-events-none opacity-50" : ""}`}>
                              {uploadingOva ? t("uploading") : t("selectOvaFile")}
-                            <input type="file" accept=".ova,.qcow2,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
+                            <input type="file" accept=".ova,application/x-tar" className="hidden" disabled={uploadingOva} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUploadOva(file); e.currentTarget.value = ""; }} />
                           </label>
                         </div>
                       )}

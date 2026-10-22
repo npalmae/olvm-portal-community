@@ -32,7 +32,7 @@ const sessions = new Map<string, {
 const detectFormat = (fileName: string): OvaStagingFormat | null => {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".ova")) return "ova";
-  if (lower.endsWith(".qcow2")) return "qcow2";
+
   return null;
 };
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       const fileSize = Number(req.headers.get("x-file-size") ?? 0);
       const format = detectFormat(fileName);
       if (!format || !fileSize) {
-        return NextResponse.json({ error: "Selecciona un archivo .ova o .qcow2 válido" }, { status: 400 });
+        return NextResponse.json({ error: "Selecciona un archivo .ova válido" }, { status: 400 });
       }
       const id = crypto.randomUUID();
       const dir = getOvaStagingDir();
