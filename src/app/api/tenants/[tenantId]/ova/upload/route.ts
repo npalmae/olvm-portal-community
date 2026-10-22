@@ -95,7 +95,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
         // libreria sin re-subir. Se extrae el descriptor para hardware+nombre.
         try {
           const tenant = await resolveTenant(tenantId);
-          const base = (upload.originalName || `ova-${id}`).replace(/\.ova$/i, "").replace(/[\\/:*?"<>|]/g, "_");
+          const base = (upload.originalName || `ova-${id}`)
+            .replace(/\.(ova|qcow2)$/i, "").replace(/[\\/:*?"<>|]/g, "_");
           const tmpDir = await mkdtemp(path.join(tmpdir(), "ova-archive-"));
           try {
             if (upload.format === "ova" && ovf) {

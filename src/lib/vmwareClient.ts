@@ -1359,8 +1359,11 @@ export const importOvaVm = async (tenantId: string, payload: ImportOvaVmInput): 
   if (payload.uploadId) {
     hw = await readOvaHardware(payload.uploadId).catch(() => defaultHw);
   } else if (payload.diskId && payload.diskId.includes("] ova/")) {
-    const ovfText = await fetchDatastoreFileText(tenant, payload.diskId).catch(() => "");
-    if (ovfText) hw = parseOvfString(ovfText);
+    // Solo los .ovf tienen descriptor: los qcow2 importan con hardware por defecto.
+    if (/\.ovf$/i.test(payload.diskId)) {
+      const ovfText = await fetchDatastoreFileText(tenant, payload.diskId).catch(() => "");
+      if (ovfText) hw = parseOvfString(ovfText);
+    }
   }
 
   // El datastore elegido puede estar montado pero NO escribible en el host
@@ -1520,7 +1523,7 @@ export const fetchOvaLibrary = async (
     return { href, name: decodeURIComponent(clean.split("/").pop() ?? ""), size: Number(txt.find((t) => /^\d{6,}$/.test(t)) ?? 0) };
   }).filter((e) => e.href && !e.href.startsWith("/folder?"));
   const ovfs = entries.filter((e) => /\.ovf$/i.test(e.name));
-  return ovfs.map((ovf) => {
+  const listed = ovfs.map((ovf) => {
     const base = ovf.name.replace(/\.ovf$/i, "");
     const ova = entries.find((e) => e.name.toLowerCase() === `${base.toLowerCase()}.ova`);
     return {
@@ -1528,8 +1531,18 @@ export const fetchOvaLibrary = async (
       name: base,
       size: ova?.size || ovf.size,
       storageDomainName: dir.dsName,
+      kind: "ova" as const,
     };
   });
+  // qcow2 archivados (sin descriptor): importables como VM con hardware por defecto.
+  const qcow2s = entries.filter((e) => /\.qcow2$/i.test(e.name)).map((q) => ({
+    id: `[${dir.dsName}] ova/${q.name}`,
+    name: q.name.replace(/\.qcow2$/i, ""),
+    size: q.size,
+    storageDomainName: dir.dsName,
+    kind: "qcow2" as const,
+  }));
+  return [...listed, ...qcow2s];
 };
 
 /** Lista las ISOs disponibles en el datastore del tenant. */
