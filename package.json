@@ -23,14 +23,14 @@
     "@novnc/novnc": "1.7.0",
     "@prisma/client": "6.19.3",
     "bcryptjs": "3.0.3",
-    "next": "16.3.3",
+    "next": "16.3.8",
     "next-auth": "5.0.0-beta.32",
     "prisma": "6.19.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "resend": "6.24.0",
-    "sharp": "0.35.4",
-    "undici": "8.10.0",
+    "sharp": "0.35.5",
+    "undici": "8.12.3",
     "ws": "8.21.3"
   },
   "devDependencies": {
@@ -45,5 +45,8 @@
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "vitest": "4.1.11"
+  },
+  "overrides": {
+    "source-map-js": "1.2.2"
   }
 }
