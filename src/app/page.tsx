@@ -849,6 +849,20 @@ export default function Home() {
     }
   };
 
+  const handleConvertToTemplate = async (vmId: string) => {
+    const tid = tenantForVm(vmId);
+    if (!tid) return;
+    setActionLoading(`${vmId}-template`);
+    try {
+      const res = await fetch(`/api/tenants/${tid}/vms/${vmId}/template`, { method: "POST" });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) throw new Error(data?.error ?? t("genericError"));
+      setSuccess(t("templateCreated"));
+      refresh();
+    } catch (err) { setError((err as Error).message); }
+    finally { setActionLoading(null); }
+  };
+
   const handleRunOnceCd = async (vmId: string) => {
     const tid = tenantForVm(vmId);
     if (!tid) return;
@@ -2737,6 +2751,13 @@ export default function Home() {
                           onClick={() => handleAddDisk(selectedVm.id)}
                           loading={actionLoading === `${selectedVm.id}-disk`}
                         />
+                        {(tenants.find((tt) => tt.id === selectedTenant)?.engineType === "vmware") && selectedVm.status !== "up" && (
+                          <ActionButton
+                            label={t("convertToTemplate")}
+                            onClick={() => { if (window.confirm(`${t("convertToTemplate")}: ${selectedVm.name}?`)) handleConvertToTemplate(selectedVm.id); }}
+                            loading={actionLoading === `${selectedVm.id}-template`}
+                          />
+                        )}
                         <ActionButton
                            label={t("startFromCd")}
                           onClick={() => handleRunOnceCd(selectedVm.id)}

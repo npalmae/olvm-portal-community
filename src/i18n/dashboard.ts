@@ -243,6 +243,8 @@ export const dashboardMessages: Messages = {
   catalogCount: msg("Catálogo ({count} OVAs)…", "Catalog ({count} OVAs)…", "Katalog ({count} OVAs)…", "Catálogo ({count} OVAs)…"),
   uploading: msg("Subiendo…", "Uploading…", "Wird hochgeladen…", "A carregar…"),
   uploadNew: msg("subir nuevo", "upload new", "neu hochladen", "carregar novo"),
+  convertToTemplate: msg("Convertir en template", "Convert to template", "In Vorlage konvertieren", "Converter em template"),
+  templateCreated: msg("VM convertida en template", "VM converted to template", "VM in Vorlage kononvertiert", "VM convertida em template"),
   selectOvaFile: msg("Seleccionar archivo .ova", "Select .ova file", ".ova-Datei auswählen", "Selecionar ficheiro .ova"),
   configurationStep2: msg("2. Configuración", "2. Configuration", "2. Konfiguration", "2. Configuração"),
   configurationStep3: msg("3. Configuración", "3. Configuration", "3. Konfiguration", "3. Configuração"),

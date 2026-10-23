@@ -1061,7 +1061,50 @@ export const deleteNicFromVm = async (
 };
 
 /** TODO(lab): templates via Content Library (OVF/vVMTX) o VMs marcadas template. */
-export const fetchTemplates = async (_tenantId: string): Promise<OlvmTemplate[]> => [];
+export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> => {
+  // Templates del tenant: entre los objetos con el tag del tenant, los que tienen
+  // config.template=true (heredado de la VM convertida). Consulta por objetos
+  // directos: sin traversal specs (el parser de este build es estricto).
+  const tenant = await getTenantById(tenantId);
+  const tagName = expectedTenantTagName(tenant);
+  if (!tagName) { console.log("[templates] sin tagName"); return []; }
+  const tags = await listTags(tenant).catch((e: Error) => { console.log("[templates] listTags:", e.message); return []; });
+  const tag = tags.find((t) => t.name === tagName);
+  if (!tag) { console.log("[templates] tag no hallado entre", tags.length); return []; }
+  const attached = await listAttachedObjects(tenant, tag.id).catch((e: Error) => { console.log("[templates] attached:", e.message); return []; });
+  const vmIds = attached.filter((a) => a.type === "VirtualMachine").map((a) => a.id);
+  console.log("[templates] vmIds:", vmIds.length, vmIds.slice(0, 8));
+  if (!vmIds.length) return [];
+  // Consultas individuales: el tag puede llevar asociaciones huerfanas de VMs
+  // borradas y una query batch falla completa contra este vCenter.
+  const templates: OlvmTemplate[] = [];
+  for (const id of vmIds) {
+    const xml = await soapCall(tenant,
+      `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+      `<specSet><propSet><type>VirtualMachine</type><pathSet>name</pathSet><pathSet>config.template</pathSet></propSet>` +
+      `<objectSet><obj type="VirtualMachine">${id}</obj></objectSet></specSet>` +
+      `<options/></RetrievePropertiesEx>`).catch(() => null);
+    if (!xml) continue;
+    const obj = /<objects>[\s\S]*?<\/objects>/.exec(xml)?.[0] ?? "";
+    if (!/<name>config\.template<\/name><val[^>]*>true<\/val>/.test(obj)) continue;
+    const name = /<name>name<\/name><val[^>]*>([^<]+)<\/val>/.exec(obj)?.[1];
+    if (name) templates.push({ id, name });
+  }
+  console.log("[templates] encontrados:", templates.length);
+  return templates;
+};
+
+/** Marca una VM (apagada) como template. Conserva el tag del tenant. */
+export const convertVmToTemplate = async (tenantId: string, vmId: string): Promise<void> => {
+  const tenant = await getTenantById(tenantId);
+  await enforceVmTagPolicy(tenantId, vmId);
+  const summary = await viFetch<{ power_state?: string }>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null);
+  if (summary?.power_state && summary.power_state !== "POWERED_OFF") {
+    throw new Error("La VM debe estar apagada para convertirla en template");
+  }
+  await soapCall(tenant,
+    `<MarkAsTemplate><_this type="VirtualMachine">${vmId}</_this></MarkAsTemplate>`);
+};
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Creacion / clon / recursos
@@ -1070,6 +1113,7 @@ export const fetchTemplates = async (_tenantId: string): Promise<OlvmTemplate[]>
 type CreateVmInput = {
   name: string;
   clusterId?: string;
+  templateId?: string;
   hostId?: string;
   datastoreId?: string;
   resourcePoolId?: string;
@@ -1092,6 +1136,11 @@ type CreateVmInput = {
  *  sin datastore el endpoint lo rutea a "register" y exige datastore+path. */
 export const createVm = async (tenantId: string, input: CreateVmInput): Promise<string> => {
   const tenant = await getTenantById(tenantId);
+  // Despliegue desde template: clonar el template elegido.
+  if (input.templateId) {
+    const cloned = await cloneVm(tenantId, input.templateId, input.name);
+    return cloned.vmId;
+  }
   const placement: Record<string, string> = {};
   if (input.folderId) placement.folder = input.folderId;
   if (input.hostId) placement.host = input.hostId;
@@ -1964,6 +2013,45 @@ export type CloneVmStage =
  * com.vmware.vcenter.vm.clone. Paridad OLVM: clona, espera, taggea y apaga.
  * TODO(lab): confirmar shape del clone REST en 9.x.
  */
+/** CloneVM_Task via SOAP: el REST /action/clone 404 en este build, y los
+ *  templates (fuente tipica) ni siquiera figuran en el listado REST. */
+const soapCloneVm = async (
+  tenant: TenantConfig,
+  sourceVmId: string,
+  cloneName: string,
+): Promise<string> => {
+  // placement: datastore del tenant (mayor espacio), folder "vm", pool del cluster
+  const datastores = await listAllDatastores(tenant);
+  const ds = datastores.sort((a, b) => b.availableGB - a.availableGB)[0];
+  const folders = await viFetch<{ folder: string; name: string }[]>(tenant, "/api/vcenter/folder?type=VIRTUAL_MACHINE");
+  const folder = (folders.find((f) => f.name === "vm") ?? folders[0])?.folder;
+  const pools = await viFetch<{ resource_pool: string }[]>(tenant, "/api/vcenter/resource-pool");
+  const pool = pools[0]?.resource_pool;
+  if (!ds || !folder || !pool) throw new Error("Faltan recursos de placement para clonar");
+
+  const taskXml = await soapCall(tenant,
+    `<CloneVM_Task>` +
+    `<_this type="VirtualMachine">${sourceVmId}</_this>` +
+    `<folder type="Folder">${folder}</folder>` +
+    `<name>${escapeXml(cloneName)}</name>` +
+    `<spec><location>` +
+    `<datastore type="Datastore">${ds.id}</datastore>` +
+    `<pool type="ResourcePool">${pool}</pool>` +
+    `</location><template>false</template><powerOn>false</powerOn></spec>` +
+    `</CloneVM_Task>`);
+  const taskId = /<returnval type="Task">([^<]+)</.exec(taskXml)?.[1];
+  if (!taskId) throw new Error(`CloneVM fallo: ${taskXml.slice(0, 200)}`);
+  const { state, vmId, error } = await soapTaskPoll(tenant, taskId);
+  if (error) throw new Error(`Clone fallo: ${error}`);
+  if (vmId) return vmId;
+  if (state === "success") {
+    const all = await viFetch<{ name: string; vm: string }[]>(tenant, "/api/vcenter/vm");
+    const found = all.find((v) => v.name === cloneName)?.vm;
+    if (found) return found;
+  }
+  throw new Error("El clone no devolvio la VM");
+};
+
 export const cloneVm = async (
   tenantId: string,
   sourceVmId: string,
@@ -1974,27 +2062,33 @@ export const cloneVm = async (
   await enforceVmTagPolicy(tenantId, sourceVmId);
 
   await onProgress?.("submitting", 10);
-  const newVmId = await runCapability<string | { vm?: string }>(
-    tenant,
-    "vm.clone",
-    {
-      api: {
-        method: "POST",
-        path: `/api/vcenter/vm/${sourceVmId}/action/clone`,
-        build: () => ({ spec: { name: cloneName } }),
+  let newVmId: string;
+  try {
+    newVmId = await runCapability<string | { vm?: string }>(
+      tenant,
+      "vm.clone",
+      {
+        api: {
+          method: "POST",
+          path: `/api/vcenter/vm/${sourceVmId}/action/clone`,
+          build: () => ({ spec: { name: cloneName } }),
+        },
+        vapi: {
+          service: "vcenter.vm",
+          action: "clone",
+          build: () => ({ source: sourceVmId, spec: { name: cloneName } }),
+        },
       },
-      vapi: {
-        service: "vcenter.vm",
-        action: "clone",
-        build: () => ({ source: sourceVmId, spec: { name: cloneName } }),
-      },
-    },
-    { source: sourceVmId, spec: { name: cloneName } },
-  ).then((r) => {
-    const id = typeof r === "string" ? r : r?.vm;
-    if (!id) throw new Error("Clone no devolvio vm id");
-    return id;
-  });
+      { source: sourceVmId, spec: { name: cloneName } },
+    ).then((r) => {
+      const id = typeof r === "string" ? r : r?.vm;
+      if (!id) throw new Error("Clone no devolvio vm id");
+      return id;
+    });
+  } catch {
+    // REST/vapi clone no disponible (o fuente template): CloneVM_Task por SOAP.
+    newVmId = await soapCloneVm(tenant, sourceVmId, cloneName);
+  }
 
   await onProgress?.("waiting", 40);
   // Espera: la VM clonada aparece en /api/vcenter/vm
