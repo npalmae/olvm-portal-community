@@ -2526,6 +2526,9 @@ export default function Home() {
                 {/* Red */}
                 <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("network")}</p>
+                  {(() => { const gi = monSnapshot?.vms.find((m) => m.vmId === selectedVm.id)?.ip; return gi ? (
+                    <p className="mb-1.5 text-[10px] text-gray-500 dark:text-gray-400">IP (guest): <span className="font-semibold text-gray-800 dark:text-gray-200">{gi}</span></p>
+                  ) : null; })()}
                   <div className="space-y-1.5">
                     {vmNics.length > 0 ? (
                       vmNics.map((n) => {

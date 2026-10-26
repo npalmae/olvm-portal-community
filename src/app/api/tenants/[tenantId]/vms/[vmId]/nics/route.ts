@@ -19,7 +19,15 @@ type Params = {
 export async function GET(_req: NextRequest, context: Params) {
   const { tenantId, vmId } = await context.params;
   if ((await engineTypeForTenant(tenantId)) === "vmware") {
-    return NextResponse.json({ nics: [] });
+    try {
+      const session = await auth();
+      if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      assertTenantAccess(session.user, tenantId, "operator");
+      if (!isPlatformSuperadmin(session.user)) await enforceVmTagPolicy(tenantId, vmId);
+      return NextResponse.json(await fetchVmNics(tenantId, vmId));
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+    }
   }
   try {
     const session = await auth();
