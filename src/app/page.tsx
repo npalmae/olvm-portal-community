@@ -271,6 +271,10 @@ export default function Home() {
   const [isoList, setIsoList] = useState<{ id: string; name: string; storageDomainName: string; sizeGB: number }[]>([]);
   const [mountedIso, setMountedIso] = useState<string | null>(null);
   const [vmOsDetail, setVmOsDetail] = useState<Record<string, string>>({});
+  const [inventoryView, setInventoryView] = useState<"inventory" | "monitoring">("inventory");
+  const [monSnapshot, setMonSnapshot] = useState<{ vms: { vmId: string; name: string; status: string; cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; swappedMB: number; balloonMB: number; heartbeat: string; ip?: string; powerState: string }[]; hosts: { id: string; name: string; state: string }[]; datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: string }[]; generatedAt: string } | null>(null);
+  const [vmStats, setVmStats] = useState<Record<string, { cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; hostMemMB: number; swappedMB: number; balloonMB: number; status: string; ip?: string; heartbeat: string; powerState: string }>>({});
+  const [statsHistory, setStatsHistory] = useState<Record<string, { cpu: number[]; mem: number[] }>>({});
   const [newDiskSize, setNewDiskSize] = useState("50");
   const [newDiskSd, setNewDiskSd] = useState("");
   const [newDiskProv, setNewDiskProv] = useState("thin");
@@ -285,7 +289,7 @@ export default function Home() {
   const [ovaImportProgress, setOvaImportProgress] = useState<number | null>(null);
   const [ovaLibrary, setOvaLibrary] = useState<{ id: string; name: string; size: number; storageDomainName?: string }[]>([]);
   const [newVmSource, setNewVmSource] = useState<"blank" | "template" | "ova">("blank");
-  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console">("overview");
+  const [detailTab, setDetailTab] = useState<"overview" | "actions" | "resources" | "provisioning" | "console" | "monitoring">("overview");
   const [resourceDrafts, setResourceDrafts] = useState<Record<string, VmDraft>>({});
   const [newVm, setNewVm] = useState<NewVmDraft>({
     name: "", clusterId: "", templateId: "",
@@ -565,6 +569,47 @@ export default function Home() {
     })();
     return () => { cancelled = true; };
   }, [selectedVmId, selectedTenant, vmOsDetail]);
+
+  // Snapshot de monitoreo del tenant (para la vista y los badges), cada 15s
+  useEffect(() => {
+    if (!selectedTenant || selectedTenant === ALL_TENANTS) { setMonSnapshot(null); return; }
+    if ((tenants.find((tt) => tt.id === selectedTenant)?.engineType) !== "vmware") { setMonSnapshot(null); return; }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/monitoring`, { cache: "no-store" });
+        const data = await parseJsonSafe(res);
+        if (!cancelled && res.ok && !data?.error) setMonSnapshot(data);
+      } catch { /* noop */ }
+    };
+    void tick();
+    const iv = setInterval(() => void tick(), 15000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [selectedTenant, tenants]);
+
+  // Monitoreo en vivo (tab activa): quickStats de vSphere cada 10s + historial
+  useEffect(() => {
+    if (detailTab !== "monitoring" || !selectedVmId || !selectedTenant || selectedTenant === ALL_TENANTS) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/tenants/${selectedTenant}/vms/${selectedVmId}/stats`, { cache: "no-store" });
+        const data = await parseJsonSafe(res);
+        if (cancelled || !res.ok || data?.error) return;
+        setVmStats((prev) => ({ ...prev, [selectedVmId]: data }));
+        setStatsHistory((prev) => {
+          const h = prev[selectedVmId] ?? { cpu: [], mem: [] };
+          return { ...prev, [selectedVmId]: {
+            cpu: [...h.cpu, data.cpuPercent].slice(-30),
+            mem: [...h.mem, data.memPercent].slice(-30),
+          } };
+        });
+      } catch { /* noop */ }
+    };
+    void tick();
+    const iv = setInterval(() => void tick(), 10000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [detailTab, selectedVmId, selectedTenant]);
 
   // Carga ISO montada cuando se selecciona una VM
   useEffect(() => {
@@ -2168,10 +2213,86 @@ export default function Home() {
                 {/* VM table */}
                 <div className="rounded-lg border bg-white dark:bg-[#171326]" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      {t("virtualMachines", { count: vms.length })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {t("virtualMachines", { count: vms.length })}
+                      </p>
+                      {monSnapshot && (() => {
+                        const warn = monSnapshot.vms.filter((m) => m.status === "yellow" || m.heartbeat === "yellow" || m.swappedMB > 0).length;
+                        const crit = monSnapshot.vms.filter((m) => m.status === "red" || m.heartbeat === "red").length
+                          + monSnapshot.datastores.filter((d) => d.status === "red").length;
+                        const dswarn = monSnapshot.datastores.filter((d) => d.status === "yellow").length;
+                        return (warn + crit + dswarn) > 0 ? (
+                          <span className="flex items-center gap-1.5 text-[10px]">
+                            {warn + dswarn > 0 && <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 font-semibold text-amber-700 dark:text-amber-400">⚠ {warn + dswarn}</span>}
+                            {crit > 0 && <span className="rounded bg-red-100 dark:bg-red-500/15 px-1.5 py-0.5 font-semibold text-red-700 dark:text-red-400">⛔ {crit}</span>}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+                    {(tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" && (
+                      <div className="flex rounded-md bg-gray-100 dark:bg-[#1b1726] p-0.5 text-[10px] font-semibold">
+                        <button onClick={() => setInventoryView("inventory")} className={inventoryView === "inventory" ? "rounded bg-white dark:bg-[#2a2438] px-2 py-1 text-gray-900 dark:text-gray-100 shadow-sm" : "px-2 py-1 text-gray-500"}>{t("inventory")}</button>
+                        <button onClick={() => setInventoryView("monitoring")} className={inventoryView === "monitoring" ? "rounded bg-white dark:bg-[#2a2438] px-2 py-1 text-gray-900 dark:text-gray-100 shadow-sm" : "px-2 py-1 text-gray-500"}>{t("monitoring")}</button>
+                      </div>
+                    )}
                   </div>
+                  {inventoryView === "monitoring" && monSnapshot ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[400px] text-xs">
+                      <thead>
+                        <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("status")}</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("name")}</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 w-32">{t("cpuUsage")}</th>
+                          <th className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 w-32">{t("memUsage")}</th>
+                          <th className="hidden sm:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("swap")}/{t("balloon")}</th>
+                          <th className="hidden md:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("heartbeat")}</th>
+                          <th className="hidden lg:table-cell px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">IP</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monSnapshot.vms.length === 0 && (
+                          <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400 dark:text-gray-500">{t("noTenantVms")}</td></tr>
+                        )}
+                        {monSnapshot.vms.map((m) => (
+                          <tr key={m.vmId} onClick={() => setSelectedVmId(m.vmId)}
+                            className="cursor-pointer border-b transition-colors hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
+                            style={{ borderColor: "var(--border)" }}>
+                            <td className="px-3 py-2">
+                              <span className={`inline-block h-2 w-2 rounded-full ${m.status === "red" || m.heartbeat === "red" ? "bg-red-500" : m.status === "yellow" || m.heartbeat === "yellow" || m.swappedMB > 0 ? "bg-amber-400" : "bg-emerald-500"}`} />
+                            </td>
+                            <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100 max-w-[120px] truncate">{m.name}</td>
+                            <td className="px-3 py-2 w-32">
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]"><div className={`h-full ${m.cpuPercent > 85 ? "bg-red-500" : m.cpuPercent > 60 ? "bg-amber-400" : "bg-emerald-500"}`} style={{ width: `${m.cpuPercent}%` }} /></div>
+                                <span className="w-8 text-right text-[10px] text-gray-500 dark:text-gray-400">{m.cpuPercent}%</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 w-32">
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]"><div className={`h-full ${m.memPercent > 85 ? "bg-red-500" : m.memPercent > 60 ? "bg-amber-400" : "bg-emerald-500"}`} style={{ width: `${m.memPercent}%` }} /></div>
+                                <span className="w-8 text-right text-[10px] text-gray-500 dark:text-gray-400">{m.memPercent}%</span>
+                              </div>
+                            </td>
+                            <td className="hidden sm:table-cell px-3 py-2 text-gray-500 dark:text-gray-400">{m.swappedMB} / {m.balloonMB} MB</td>
+                            <td className="hidden md:table-cell px-3 py-2">
+                              <span className={`text-[10px] font-semibold ${m.heartbeat === "red" ? "text-red-500" : m.heartbeat === "yellow" ? "text-amber-500" : m.heartbeat === "green" ? "text-emerald-500" : "text-gray-400"}`}>{m.heartbeat}</span>
+                            </td>
+                            <td className="hidden lg:table-cell px-3 py-2 text-gray-500 dark:text-gray-400">{m.ip ?? "—"}</td>
+                          </tr>
+                        ))}
+                        {monSnapshot.hosts.length > 0 && (
+                          <tr className="bg-gray-50/50 dark:bg-white/[0.02]">
+                            <td colSpan={7} className="px-3 py-1.5">
+                              <span className="text-[10px] text-gray-400">{t("hosts")}: {monSnapshot.hosts.map((h) => `${h.name} (${h.state === "CONNECTED" ? "✓" : h.state})`).join(" · ")} — {t("storageUse")}: {monSnapshot.datastores.map((d) => `${d.name} ${d.usedPercent}%${d.status !== "green" ? (d.status === "red" ? " ⛔" : " ⚠") : ""}`).join(" · ")}</span>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[400px] text-xs">
                       <thead>
@@ -2214,6 +2335,7 @@ export default function Home() {
                       </tbody>
                     </table>
                   </div>
+                  )}
                 </div>
 
                 {/* Action history */}
@@ -2424,9 +2546,10 @@ export default function Home() {
             <div className="p-3">
               {/* Tabs */}
               <div className="mb-3 grid grid-cols-2 gap-1 rounded-md bg-gray-100 dark:bg-[#1b1726] p-0.5">
-                {(["overview","actions","resources","provisioning","console"] as const)
+                {(["overview","monitoring","actions","resources","provisioning","console"] as const)
                   .filter((tab) => tab === "overview"
                     || ((tab === "actions" || tab === "console") && canOperate)
+                    || tab === "monitoring"
                     || ((tab === "resources" || tab === "provisioning") && canRead))
                   .map((tab) => (
                   <button
@@ -2439,7 +2562,7 @@ export default function Home() {
                       boxShadow: detailTab === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
                     }}
                   >
-                     {{overview:t("detail"),actions:t("actions"),resources:t("resources"),provisioning:canAdmin ? t("new") : t("catalog"),console:t("console")}[tab]}
+                     {{overview:t("detail"),monitoring:t("monitoring"),actions:t("actions"),resources:t("resources"),provisioning:canAdmin ? t("new") : t("catalog"),console:t("console")}[tab]}
                   </button>
                 ))}
               </div>
@@ -3225,6 +3348,62 @@ export default function Home() {
               )}
 
               {/* ── Console tab ── */}
+              {detailTab === "monitoring" && (() => {
+                const st = selectedVmId ? vmStats[selectedVmId] : undefined;
+                const hist = selectedVmId ? statsHistory[selectedVmId] : undefined;
+                if (!st) return (
+                  <div className="py-6 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                    {selectedVm?.status === "up" ? t("loadingEllipsis") : t("vmOff")}
+                  </div>
+                );
+                const bar = (pct: number) => pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-400" : "bg-emerald-500";
+                const spark = (vals: number[]) => {
+                  if (vals.length < 2) return null;
+                  const w = 120, h = 28;
+                  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - (v / 100) * h}`).join(" ");
+                  return <svg width={w} height={h} className="opacity-80"><polyline points={pts} fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-500" /></svg>;
+                };
+                return (
+                  <div className="space-y-3">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500">{t("liveMetricsNote")}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("cpuUsage")}</p>
+                        <p className="mt-0.5 text-lg font-bold text-gray-900 dark:text-gray-100">{st.cpuPercent}%</p>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]"><div className={`h-full ${bar(st.cpuPercent)}`} style={{ width: `${st.cpuPercent}%` }} /></div>
+                        <p className="mt-1 text-[10px] text-gray-400">{st.cpuMhz} / {st.cpuTotalMhz} MHz</p>
+                        {spark(hist?.cpu ?? [])}
+                      </div>
+                      <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("memUsage")}</p>
+                        <p className="mt-0.5 text-lg font-bold text-gray-900 dark:text-gray-100">{st.memPercent}%</p>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]"><div className={`h-full ${bar(st.memPercent)}`} style={{ width: `${st.memPercent}%` }} /></div>
+                        <p className="mt-1 text-[10px] text-gray-400">{st.memActiveMB} / {st.memConfiguredMB} MB (host {st.hostMemMB} MB)</p>
+                        {spark(hist?.mem ?? [])}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[9px] uppercase text-gray-400">{t("status")}</p>
+                        <p className={`font-semibold ${st.status === "red" ? "text-red-500" : st.status === "yellow" ? "text-amber-500" : "text-emerald-500"}`}>{st.status}</p>
+                      </div>
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[9px] uppercase text-gray-400">{t("heartbeat")}</p>
+                        <p className={`font-semibold ${st.heartbeat === "red" ? "text-red-500" : st.heartbeat === "yellow" ? "text-amber-500" : st.heartbeat === "green" ? "text-emerald-500" : "text-gray-400"}`}>{st.heartbeat}</p>
+                      </div>
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[9px] uppercase text-gray-400">{t("swap")}</p>
+                        <p className={`font-semibold ${st.swappedMB > 0 ? "text-amber-500" : "text-gray-500"}`}>{st.swappedMB} MB</p>
+                      </div>
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[9px] uppercase text-gray-400">{t("balloon")}</p>
+                        <p className="font-semibold text-gray-500">{st.balloonMB} MB</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {detailTab === "console" && (
                 <div className="space-y-2.5">
                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("console")}</p>

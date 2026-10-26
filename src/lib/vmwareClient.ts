@@ -1094,6 +1094,150 @@ export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> 
   return templates;
 };
 
+export type VmLiveStats = {
+  status: string;
+  cpuPercent: number;
+  cpuMhz: number;
+  cpuTotalMhz: number;
+  memActiveMB: number;
+  memConfiguredMB: number;
+  memPercent: number;
+  hostMemMB: number;
+  swappedMB: number;
+  balloonMB: number;
+  heartbeat: string;
+  ip?: string;
+  powerState: string;
+};
+
+const soapQuickStats = async (tenant: TenantConfig, vmId: string): Promise<{
+  xml: string; status: string; heartbeat: string; ip?: string; powerState: string;
+}> => {
+  const xml = await soapCall(tenant,
+    `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+    `<specSet><propSet><type>VirtualMachine</type>` +
+    `<pathSet>summary.quickStats</pathSet><pathSet>summary.overallStatus</pathSet>` +
+    `<pathSet>summary.guest.ipAddress</pathSet><pathSet>runtime.powerState</pathSet>` +
+    `</propSet><objectSet><obj type="VirtualMachine">${vmId}</obj></objectSet></specSet>` +
+    `<options/></RetrievePropertiesEx>`);
+  return {
+    xml,
+    status: /ManagedEntityStatus">([a-z]+)</.exec(xml)?.[1] ?? "gray",
+    heartbeat: /guestHeartbeatStatus">([a-z]+)</.exec(xml)?.[1] ?? "gray",
+    ip: /guest\.ipAddress[^>]*>([^<]+)</.exec(xml)?.[1],
+    powerState: /powerState">([a-zA-Z]+)</.exec(xml)?.[1] ?? "",
+  };
+};
+
+export type VmMonitorEntry = VmLiveStats & { vmId: string; name: string };
+
+export type MonitoringSnapshot = {
+  vms: VmMonitorEntry[];
+  hosts: { id: string; name: string; state: string }[];
+  datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: "green" | "yellow" | "red" }[];
+  generatedAt: string;
+};
+
+/** Snapshot de monitoreo del tenant: quickStats de cada VM (queries SOAP
+ *  individuales: el tag puede llevar asociaciones huerfanas y el parser de este
+ *  build no acepta batches), hosts y datastores. */
+export const fetchMonitoringSnapshot = async (tenantId: string): Promise<MonitoringSnapshot> => {
+  const tenant = await getTenantById(tenantId);
+  const [names, hosts, datastores] = await Promise.all([
+    listAllVms(tenant),
+    viFetch<{ host: string; name: string; connection_state: string }[]>(tenant, "/api/vcenter/host").catch(() => []),
+    listAllDatastores(tenant),
+  ]);
+  const nameById = new Map(names.map((v) => [v.vm, v.name]));
+  // VMs del tenant: via tag
+  const tagName = expectedTenantTagName(tenant);
+  let vmIds: string[] = [];
+  if (tagName) {
+    const tags = await listTags(tenant);
+    const tag = tags.find((t) => t.name === tagName);
+    if (tag) {
+      const attached = await listAttachedObjects(tenant, tag.id);
+      vmIds = attached.filter((a) => a.type === "VirtualMachine" && nameById.has(a.id)).map((a) => a.id);
+    }
+  }
+  const entries = await Promise.all(vmIds.map(async (vmId) => {
+    try {
+      const qs = await soapQuickStats(tenant, vmId);
+      const num = (tag: string) => { const m = new RegExp(`<${tag}>(-?\\d+)</${tag}>`).exec(qs.xml); return m ? parseInt(m[1], 10) : 0; };
+      const cpuMhz = num("overallCpuUsage");
+      const cpuTotalMhz = num("staticCpuEntitlement") || 2000;
+      const memActive = num("guestMemoryUsage");
+      const memCfg = num("grantedMemory") || 1;
+      const stats: VmMonitorEntry = {
+        vmId,
+        name: nameById.get(vmId) ?? vmId,
+        status: qs.status,
+        cpuMhz,
+        cpuTotalMhz,
+        cpuPercent: Math.min(100, Math.round((cpuMhz / cpuTotalMhz) * 100)),
+        memActiveMB: memActive,
+        memConfiguredMB: memCfg,
+        memPercent: Math.min(100, Math.round((memActive / memCfg) * 100)),
+        hostMemMB: num("hostMemoryUsage"),
+        swappedMB: num("swappedMemory"),
+        balloonMB: num("balloonedMemory"),
+        heartbeat: qs.heartbeat,
+        ip: qs.ip,
+        powerState: qs.powerState,
+      };
+      return stats;
+    } catch { return null; }
+  }));
+  const vms = entries.filter((e): e is VmMonitorEntry => e !== null);
+  return {
+    vms,
+    hosts: hosts.map((h) => ({ id: h.host, name: h.name, state: h.connection_state })),
+    datastores: datastores.map((d) => {
+      const usedPercent = d.totalGB ? Math.round(((d.totalGB - d.availableGB) / d.totalGB) * 100) : 0;
+      return {
+        id: d.id, name: d.name, usedPercent,
+        freeGB: d.availableGB, totalGB: d.totalGB,
+        status: usedPercent >= 95 ? "red" : usedPercent >= 85 ? "yellow" : "green",
+      };
+    }),
+    generatedAt: new Date().toISOString(),
+  };
+};
+
+/** Metricas en vivo de una VM (quickStats de vSphere via SOAP). */
+export const fetchVmStats = async (tenantId: string, vmId: string): Promise<VmLiveStats> => {
+  const tenant = await getTenantById(tenantId);
+  const xml = await soapCall(tenant,
+    `<RetrievePropertiesEx><_this type="PropertyCollector">propertyCollector</_this>` +
+    `<specSet><propSet><type>VirtualMachine</type>` +
+    `<pathSet>summary.quickStats</pathSet><pathSet>summary.overallStatus</pathSet>` +
+    `<pathSet>summary.guest.ipAddress</pathSet><pathSet>runtime.powerState</pathSet>` +
+    `</propSet><objectSet><obj type="VirtualMachine">${vmId}</obj></objectSet></specSet>` +
+    `<options/></RetrievePropertiesEx>`);
+  const detail = await viFetch<{ cpu?: { count?: number }; memory?: { size_MiB?: number }; power_state?: string }>(
+    tenant, `/api/vcenter/vm/${vmId}`).catch(() => null as { cpu?: { count?: number }; memory?: { size_MiB?: number }; power_state?: string } | null) ?? {};
+  const num = (tag: string) => { const m = new RegExp(`<${tag}>(-?\\d+)</${tag}>`).exec(xml); return m ? parseInt(m[1], 10) : 0; };
+  const cpuMhz = num("overallCpuUsage");
+  const cpuTotalMhz = num("staticCpuEntitlement") || (detail.cpu?.count ?? 1) * 2000;
+  const memActive = num("guestMemoryUsage");
+  const memCfg = detail.memory?.size_MiB ?? num("grantedMemory");
+  return {
+    status: /ManagedEntityStatus">([a-z]+)</.exec(xml)?.[1] ?? "gray",
+    cpuMhz,
+    cpuTotalMhz,
+    cpuPercent: cpuTotalMhz ? Math.min(100, Math.round((cpuMhz / cpuTotalMhz) * 100)) : 0,
+    memActiveMB: memActive,
+    memConfiguredMB: memCfg,
+    memPercent: memCfg ? Math.min(100, Math.round((memActive / memCfg) * 100)) : 0,
+    hostMemMB: num("hostMemoryUsage"),
+    swappedMB: num("swappedMemory"),
+    balloonMB: num("balloonedMemory"),
+    heartbeat: /guestHeartbeatStatus">([a-z]+)</.exec(xml)?.[1] ?? "gray",
+    ip: /guest\.ipAddress[^>]*>([^<]+)</.exec(xml)?.[1],
+    powerState: detail.power_state ?? "",
+  };
+};
+
 /** Marca una VM (apagada) como template. Conserva el tag del tenant. */
 export const convertVmToTemplate = async (tenantId: string, vmId: string): Promise<void> => {
   const tenant = await getTenantById(tenantId);
