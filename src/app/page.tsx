@@ -1324,21 +1324,26 @@ export default function Home() {
                 >
                   {(() => {
                     const mon = monSnapshot?.vms.find((m) => m.vmId === vm.id);
-                    if (sidebarMetric !== "none" && showLabels && mon && vm.status === "up") {
-                      const pct = sidebarMetric === "cpu" ? mon.cpuPercent : mon.memPercent;
-                      const color = pct > 85 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#10b981";
-                      return (
-                        <>
-                          <span className="h-1 w-6 shrink-0 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
-                            <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                    const metricOn = sidebarMetric !== "none" && showLabels && mon && vm.status === "up";
+                    const pct = metricOn ? (sidebarMetric === "cpu" ? mon!.cpuPercent : mon!.memPercent) : 0;
+                    const color = pct > 85 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#10b981";
+                    return (
+                      <>
+                        {metricOn ? null : <StatusDot status={vm.status} />}
+                        {showLabels && (
+                          <span className={metricOn ? "min-w-0 flex-1 truncate" : "truncate"}>{vm.name}</span>
+                        )}
+                        {metricOn && (
+                          <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                            <span className="h-1 w-6 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+                              <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                            </span>
+                            <span className="w-8 text-right text-[9px] font-semibold tabular-nums" style={{ color }}>{pct}%</span>
                           </span>
-                          <span className="ml-auto shrink-0 text-[9px] font-semibold tabular-nums" style={{ color }}>{pct}%</span>
-                        </>
-                      );
-                    }
-                    return <StatusDot status={vm.status} />;
+                        )}
+                      </>
+                    );
                   })()}
-                  {showLabels && <span className={`truncate ${sidebarMetric !== "none" ? "max-w-[90px]" : ""}`}>{vm.name}</span>}
                 </button>
               ))}
             </div>
