@@ -235,8 +235,12 @@ function ConsolePageContent() {
           }
         };
 
-        const onPointerFocus = () => focusConsole();
-        const onKeyboardFocus = () => focusConsole();
+        const isFormField = (el: EventTarget | null) => {
+          const t = el as HTMLElement | null;
+          return !!t && !!t.tagName && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+        };
+        const onPointerFocus = (e: Event) => { if (!isFormField(e.target)) focusConsole(); };
+        const onKeyboardFocus = (e: Event) => { if (!isFormField(e.target)) focusConsole(); };
         container.addEventListener('mousedown', onPointerFocus);
         container.addEventListener('mouseup', onPointerFocus);
         container.addEventListener('click', onPointerFocus);
@@ -566,6 +570,10 @@ function ConsolePageContent() {
             id="clip-area"
             value={clipboardText}
             onChange={(e) => setClipboardText(e.target.value)}
+            onFocus={() => { try { rfbRef.current?._keyboard?.ungrab?.(); } catch { /* noop */ } }}
+            onBlur={() => { try { rfbRef.current?._keyboard?.grab?.(); } catch { /* noop */ } }}
+            onPaste={(e) => { e.stopPropagation(); }}
+            onKeyDown={(e) => e.stopPropagation()}
             placeholder={t('clipboardPlaceholder')}
             className="w-full h-16 rounded border border-gray-600 bg-gray-900 dark:bg-black/40 px-2 py-1 text-xs text-white/80 outline-none resize-none"
             spellCheck={false}
