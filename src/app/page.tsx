@@ -1811,17 +1811,6 @@ export default function Home() {
             )
           )}
 
-          {showLabels && (tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" && monSnapshot && (
-            <div className="mb-1 flex items-center gap-1 px-4" title={t("liveMetricsNote")}>
-              {([["none", "●"], ["cpu", "CPU"], ["mem", "RAM"]] as const).map(([val, label]) => (
-                <button key={val} onClick={() => setSidebarMetric(val)}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${sidebarMetric === val ? "text-white" : ""}`}
-                  style={{ background: sidebarMetric === val ? "rgba(37,99,235,0.4)" : "transparent", color: sidebarMetric === val ? undefined : "var(--sidebar-muted)" }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
           {vms.length === 0 && !loading && showLabels && (
             <p className="px-4 py-3 text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
               {t("noVisibleVms")}
@@ -2034,11 +2023,45 @@ export default function Home() {
             {!selectedVm && (
               <>
                 {/* KPI row */}
-                <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-                  <StatCard label={t("totalVms")} value={totals.total} />
-                  <StatCard label={t("poweredOn")} value={totals.up} sub={t("stateUp")} accent />
-                  <StatCard label={t("poweredOff")} value={totals.down} sub={t("stateDown")} warning />
-                  <StatCard label={t("provisionedCpu")} value={`${totals.total > 0 ? formatNumber(tenantResourceSummary.provisionedCpu, {maximumFractionDigits:0}) : "—"} vCPU`} />
+                <div className="mb-4 flex flex-wrap items-stretch gap-2 sm:gap-3">
+                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                    <StatCard label={t("totalVms")} value={totals.total} />
+                    <StatCard label={t("poweredOn")} value={totals.up} sub={t("stateUp")} accent />
+                    <StatCard label={t("poweredOff")} value={totals.down} sub={t("stateDown")} warning />
+                    <StatCard label={t("provisionedCpu")} value={`${totals.total > 0 ? formatNumber(tenantResourceSummary.provisionedCpu, {maximumFractionDigits:0}) : "—"} vCPU`} />
+                  </div>
+                  {(tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" && monSnapshot && (
+                    <div className="flex w-40 shrink-0 flex-col justify-between rounded-lg border bg-white p-2.5 dark:bg-[#171326]" style={{ borderColor: "var(--border)" }} title={t("liveMetricsNote")}>
+                      <div className="flex items-center gap-1">
+                        {([["none", "●"], ["cpu", "CPU"], ["mem", "RAM"]] as const).map(([val, label]) => (
+                          <button key={val} onClick={() => setSidebarMetric(val)}
+                            className={`flex-1 rounded px-1 py-1 text-[10px] font-semibold transition-colors ${sidebarMetric === val ? "bg-blue-600 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {sidebarMetric !== "none" ? (
+                        (() => {
+                          const up = monSnapshot.vms.filter((m) => m.powerState !== "poweredOff");
+                          const avg = up.length ? Math.round(up.reduce((a, m) => a + (sidebarMetric === "cpu" ? m.cpuPercent : m.memPercent), 0) / up.length) : 0;
+                          const color = avg > 85 ? "text-red-500" : avg > 60 ? "text-amber-500" : "text-emerald-500";
+                          return (
+                            <div className="mt-1">
+                              <div className="flex items-baseline justify-between">
+                                <span className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">{sidebarMetric === "cpu" ? t("cpuUsage") : t("memUsage")} Ø</span>
+                                <span className={`text-sm font-bold ${color}`}>{avg}%</span>
+                              </div>
+                              <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]">
+                                <div className={`h-full ${avg > 85 ? "bg-red-500" : avg > 60 ? "bg-amber-400" : "bg-emerald-500"}`} style={{ width: `${avg}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <p className="mt-1 text-[9px] leading-tight text-gray-400">{t("liveMetricsNote")}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Donut metrics row */}
