@@ -2004,8 +2004,11 @@ export default function Home() {
                     <StatusBadge status={selectedVm.status} />
                     <button
                       onClick={() => setSelectedVmId("")}
-                      className="rounded border border-gray-200 dark:border-white/10 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
+                      className="flex items-center gap-1.5 rounded border border-gray-200 dark:border-white/10 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:bg-[#12101a] dark:hover:bg-white/5"
+                      title={t("back")}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/logo-vp-mark.svg" alt="Virtual Portal" className="h-3.5 w-3.5 object-contain opacity-70" />
                       {t("back")}
                     </button>
                   </>
