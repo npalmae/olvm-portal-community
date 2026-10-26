@@ -272,6 +272,7 @@ export default function Home() {
   const [mountedIso, setMountedIso] = useState<string | null>(null);
   const [vmOsDetail, setVmOsDetail] = useState<Record<string, string>>({});
   const [inventoryView, setInventoryView] = useState<"inventory" | "monitoring">("inventory");
+  const [sidebarMetric, setSidebarMetric] = useState<"none" | "cpu" | "mem">("none");
   const [monSnapshot, setMonSnapshot] = useState<{ vms: { vmId: string; name: string; status: string; cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; swappedMB: number; balloonMB: number; heartbeat: string; ip?: string; powerState: string }[]; hosts: { id: string; name: string; state: string }[]; datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: string }[]; generatedAt: string } | null>(null);
   const [vmStats, setVmStats] = useState<Record<string, { cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; hostMemMB: number; swappedMB: number; balloonMB: number; status: string; ip?: string; heartbeat: string; powerState: string }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, { cpu: number[]; mem: number[] }>>({});
@@ -1313,8 +1314,23 @@ export default function Home() {
                     color: selectedVmId === vm.id ? "#93c5fd" : "var(--sidebar-text)",
                   }}
                 >
-                  <StatusDot status={vm.status} />
-                  {showLabels && <span className="truncate">{vm.name}</span>}
+                  {(() => {
+                    const mon = monSnapshot?.vms.find((m) => m.vmId === vm.id);
+                    if (sidebarMetric !== "none" && showLabels && mon && vm.status === "up") {
+                      const pct = sidebarMetric === "cpu" ? mon.cpuPercent : mon.memPercent;
+                      const color = pct > 85 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#10b981";
+                      return (
+                        <>
+                          <span className="h-1 w-6 shrink-0 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.12)" }}>
+                            <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                          </span>
+                          <span className="ml-auto shrink-0 text-[9px] font-semibold tabular-nums" style={{ color }}>{pct}%</span>
+                        </>
+                      );
+                    }
+                    return <StatusDot status={vm.status} />;
+                  })()}
+                  {showLabels && <span className={`truncate ${sidebarMetric !== "none" ? "max-w-[90px]" : ""}`}>{vm.name}</span>}
                 </button>
               ))}
             </div>
@@ -1795,6 +1811,17 @@ export default function Home() {
             )
           )}
 
+          {showLabels && (tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" && monSnapshot && (
+            <div className="mb-1 flex items-center gap-1 px-4" title={t("liveMetricsNote")}>
+              {([["none", "●"], ["cpu", "CPU"], ["mem", "RAM"]] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setSidebarMetric(val)}
+                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${sidebarMetric === val ? "text-white" : ""}`}
+                  style={{ background: sidebarMetric === val ? "rgba(37,99,235,0.4)" : "transparent", color: sidebarMetric === val ? undefined : "var(--sidebar-muted)" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {vms.length === 0 && !loading && showLabels && (
             <p className="px-4 py-3 text-[11px]" style={{ color: "var(--sidebar-muted)" }}>
               {t("noVisibleVms")}
