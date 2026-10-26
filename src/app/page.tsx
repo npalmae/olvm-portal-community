@@ -3493,9 +3493,9 @@ export default function Home() {
                         {sparkLine(hist!.mem, "text-emerald-500")}
                       </div>
                     )}
-                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                    <div className="grid min-w-0 grid-cols-3 gap-2 overflow-hidden text-[11px]">
                       <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
-                        <p className="text-[9px] uppercase text-gray-400">{t("storageUse")}</p>
+                        <p className="truncate text-[9px] uppercase text-gray-400">{t("disks")}</p>
                         <p className="font-semibold text-violet-500">{st.diskConsumedGB ?? 0} / {st.diskProvisionedGB ?? 0} GB</p>
                         <p className="text-[9px] text-gray-400">consumido</p>
                       </div>
