@@ -3493,11 +3493,16 @@ export default function Home() {
                         {sparkLine(hist!.mem, "text-emerald-500")}
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-5">
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
                       <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
                         <p className="text-[9px] uppercase text-gray-400">{t("storageUse")}</p>
                         <p className="font-semibold text-violet-500">{st.diskConsumedGB ?? 0} / {st.diskProvisionedGB ?? 0} GB</p>
                         <p className="text-[9px] text-gray-400">consumido</p>
+                      </div>
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[9px] uppercase text-gray-400">IP</p>
+                        <p className="truncate font-semibold text-gray-600 dark:text-gray-300">{st.ip ?? "—"}</p>
+                        <p className="text-[9px] text-gray-400">{st.powerState === "POWERED_ON" ? "on" : "off"}</p>
                       </div>
                       <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
                         <p className="text-[9px] uppercase text-gray-400">{t("status")}</p>
