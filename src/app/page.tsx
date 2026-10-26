@@ -273,6 +273,7 @@ export default function Home() {
   const [vmOsDetail, setVmOsDetail] = useState<Record<string, string>>({});
   const [inventoryView, setInventoryView] = useState<"inventory" | "monitoring">("inventory");
   const [sidebarMetric, setSidebarMetric] = useState<"none" | "cpu" | "mem">("none");
+  const [aggHistory, setAggHistory] = useState<{ cpu: number[]; mem: number[] }>({ cpu: [], mem: [] });
   const [monSnapshot, setMonSnapshot] = useState<{ vms: { vmId: string; name: string; status: string; cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; swappedMB: number; balloonMB: number; heartbeat: string; ip?: string; powerState: string }[]; hosts: { id: string; name: string; state: string }[]; datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: string }[]; generatedAt: string } | null>(null);
   const [vmStats, setVmStats] = useState<Record<string, { cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; hostMemMB: number; swappedMB: number; balloonMB: number; status: string; ip?: string; heartbeat: string; powerState: string }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, { cpu: number[]; mem: number[] }>>({});
@@ -580,7 +581,14 @@ export default function Home() {
       try {
         const res = await fetch(`/api/tenants/${selectedTenant}/monitoring`, { cache: "no-store" });
         const data = await parseJsonSafe(res);
-        if (!cancelled && res.ok && !data?.error) setMonSnapshot(data);
+        if (!cancelled && res.ok && !data?.error) {
+          setMonSnapshot(data);
+          const up = (data.vms ?? []).filter((m: { powerState?: string }) => m.powerState !== "poweredOff");
+          if (up.length) {
+            const avg = (sel: "cpuPercent" | "memPercent") => Math.round(up.reduce((a: number, m: { cpuPercent: number; memPercent: number }) => a + m[sel], 0) / up.length);
+            setAggHistory((h) => ({ cpu: [...h.cpu, avg("cpuPercent")].slice(-30), mem: [...h.mem, avg("memPercent")].slice(-30) }));
+          }
+        }
       } catch { /* noop */ }
     };
     void tick();
@@ -2063,9 +2071,34 @@ export default function Home() {
                             </div>
                           );
                         })()
-                      ) : (
-                        <p className="mt-1 text-[9px] leading-tight text-gray-400">{t("liveMetricsNote")}</p>
-                      )}
+                      ) : (() => {
+                        const up = monSnapshot.vms.filter((m) => m.powerState !== "poweredOff");
+                        if (!up.length) return <p className="mt-1 text-[9px] leading-tight text-gray-400">{t("vmOff")}</p>;
+                        const avg = (sel: "cpuPercent" | "memPercent") => Math.round(up.reduce((a, m) => a + m[sel], 0) / up.length);
+                        const cpuA = avg("cpuPercent"), memA = avg("memPercent");
+                        const spark2 = (vals: number[], cls: string) => {
+                          if (vals.length < 2) return null;
+                          const w = 70, h = 14;
+                          const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - (v / 100) * h}`).join(" ");
+                          return <svg width={w} height={h}><polyline points={pts} fill="none" strokeWidth="1.2" className={cls} stroke="currentColor" /></svg>;
+                        };
+                        const row = (label: string, pct: number, vals: number[], cls: string) => (
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-6 text-[8px] font-bold uppercase text-gray-400">{label}</span>
+                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]">
+                              <div className={`h-full rounded-full ${pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-400" : cls}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-7 text-right text-[9px] font-bold tabular-nums text-gray-600 dark:text-gray-300">{pct}%</span>
+                            {spark2(vals, pct > 85 ? "text-red-500" : pct > 60 ? "text-amber-500" : cls === "bg-emerald-500" ? "text-emerald-500" : "text-violet-500")}
+                          </div>
+                        );
+                        return (
+                          <div className="mt-1.5 space-y-1">
+                            {row("CPU", cpuA, aggHistory.cpu, "bg-emerald-500")}
+                            {row("RAM", memA, aggHistory.mem, "bg-violet-500")}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
