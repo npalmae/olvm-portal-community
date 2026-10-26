@@ -3452,11 +3452,16 @@ export default function Home() {
                   </div>
                 );
                 const bar = (pct: number) => pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-400" : "bg-emerald-500";
-                const spark = (vals: number[]) => {
+                const sparkLine = (vals: number[], cls: string) => {
                   if (vals.length < 2) return null;
-                  const w = 120, h = 28;
-                  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - (v / 100) * h}`).join(" ");
-                  return <svg width={w} height={h} className="opacity-80"><polyline points={pts} fill="none" stroke="currentColor" strokeWidth="1.5" className="text-violet-500" /></svg>;
+                  const w = 240, h = 30;
+                  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - (Math.max(2, Math.min(100, v)) / 100) * (h - 2) - 1}`).join(" ");
+                  return (
+                    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="block h-7 w-full">
+                      <line x1="0" y1={h - (0.6 * h)} x2={w} y2={h - (0.6 * h)} stroke="currentColor" strokeWidth="0.5" className="text-gray-300 dark:text-gray-600" strokeDasharray="2 3" />
+                      <polyline points={pts} fill="none" strokeWidth="1.5" className={cls} stroke="currentColor" strokeLinejoin="round" strokeLinecap="round" />
+                    </svg>
+                  );
                 };
                 return (
                   <div className="space-y-3">
@@ -3467,16 +3472,27 @@ export default function Home() {
                         <p className="mt-0.5 text-lg font-bold text-gray-900 dark:text-gray-100">{st.cpuPercent}%</p>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]"><div className={`h-full ${bar(st.cpuPercent)}`} style={{ width: `${st.cpuPercent}%` }} /></div>
                         <p className="mt-1 text-[10px] text-gray-400">{st.cpuMhz} / {st.cpuTotalMhz} MHz</p>
-                        {spark(hist?.cpu ?? [])}
                       </div>
                       <div className="rounded-md border p-2.5" style={{ borderColor: "var(--border)" }}>
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t("memUsage")}</p>
                         <p className="mt-0.5 text-lg font-bold text-gray-900 dark:text-gray-100">{st.memPercent}%</p>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2a2438]"><div className={`h-full ${bar(st.memPercent)}`} style={{ width: `${st.memPercent}%` }} /></div>
                         <p className="mt-1 text-[10px] text-gray-400">{st.memActiveMB} / {st.memConfiguredMB} MB (host {st.hostMemMB} MB)</p>
-                        {spark(hist?.mem ?? [])}
                       </div>
                     </div>
+                    {(hist?.cpu?.length ?? 0) > 1 && (
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">{t("cpuUsage")}</p>
+                          <p className="text-[9px] text-gray-400">{hist!.cpu.length} muestras</p>
+                        </div>
+                        {sparkLine(hist!.cpu, "text-violet-500")}
+                        <div className="mt-0.5 flex items-center justify-between">
+                          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">{t("memUsage")}</p>
+                        </div>
+                        {sparkLine(hist!.mem, "text-emerald-500")}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
                       <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
                         <p className="text-[9px] uppercase text-gray-400">{t("status")}</p>
