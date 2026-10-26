@@ -1328,11 +1328,14 @@ export default function Home() {
                     const metricOn = sidebarMetric !== "none" && showLabels && mon && vm.status === "up";
                     const pct = metricOn ? (sidebarMetric === "cpu" ? mon!.cpuPercent : mon!.memPercent) : 0;
                     const color = pct > 85 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#10b981";
+                    // Parpadeo por recursos elevados (CPU o RAM), independiente de la vista
+                    const peak = mon && vm.status === "up" ? Math.max(mon.cpuPercent, mon.memPercent) : 0;
+                    const blinkCls = peak > 85 ? "vm-blink-critical" : peak > 60 ? "vm-blink-warning" : "";
                     return (
                       <>
                         {metricOn ? null : <StatusDot status={vm.status} />}
                         {showLabels && (
-                          <span className={metricOn ? "min-w-0 flex-1 truncate" : "truncate"}>{vm.name}</span>
+                          <span className={`${metricOn ? "min-w-0 flex-1 truncate" : "truncate"} ${blinkCls}`}>{vm.name}</span>
                         )}
                         {metricOn && (
                           <span className="ml-auto flex shrink-0 items-center gap-1.5">
