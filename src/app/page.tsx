@@ -354,6 +354,7 @@ export default function Home() {
 
   useEffect(() => {
     const authorized = detailTab === "overview"
+      || detailTab === "monitoring"
       || ((detailTab === "actions" || detailTab === "console") && canOperate)
       || ((detailTab === "resources" || detailTab === "provisioning") && canRead);
     if (!authorized) setDetailTab("overview");
