@@ -274,7 +274,7 @@ export default function Home() {
   const [inventoryView, setInventoryView] = useState<"inventory" | "monitoring">("inventory");
   const [sidebarMetric, setSidebarMetric] = useState<"none" | "cpu" | "mem">("none");
   const [aggHistory, setAggHistory] = useState<{ cpu: number[]; mem: number[] }>({ cpu: [], mem: [] });
-  const [monSnapshot, setMonSnapshot] = useState<{ vms: { vmId: string; name: string; status: string; cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; swappedMB: number; balloonMB: number; heartbeat: string; ip?: string; powerState: string }[]; hosts: { id: string; name: string; state: string }[]; datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: string }[]; generatedAt: string } | null>(null);
+  const [monSnapshot, setMonSnapshot] = useState<{ vms: { vmId: string; name: string; status: string; cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; swappedMB: number; balloonMB: number; hostMemMB: number; heartbeat: string; ip?: string; powerState: string }[]; hosts: { id: string; name: string; state: string }[]; datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: string }[]; generatedAt: string } | null>(null);
   const [vmStats, setVmStats] = useState<Record<string, { cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; hostMemMB: number; diskConsumedGB?: number; diskProvisionedGB?: number; swappedMB: number; balloonMB: number; status: string; ip?: string; heartbeat: string; powerState: string }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, { cpu: number[]; mem: number[] }>>({});
   const [newDiskSize, setNewDiskSize] = useState("50");
@@ -2551,34 +2551,44 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-                {/* CPU */}
+                {/* CPU (vmware: quickStats en vivo del snapshot de monitoreo) */}
+                {(() => { const mon = monSnapshot?.vms.find((m) => m.vmId === selectedVm.id); const cpu = mon?.cpuPercent ?? selectedVm.metrics?.cpuPercent; const cpuMhz = mon?.cpuMhz; const cpuTot = mon?.cpuTotalMhz; return (
                 <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">CPU</p>
                   <div className="flex items-center gap-3">
-                    <DonutRing value={selectedVm.metrics?.cpuPercent} color="#3b82f6" />
+                    <DonutRing value={cpu} color="#3b82f6" />
                     <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatNumber(selectedVm.metrics?.cpuPercent)}%</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatNumber(cpu)}%</p>
                       <p className="text-[11px] text-gray-400 dark:text-gray-500">{selectedVm.cpuCores ?? "—"} vCPU · {t("socketsCount", { count: selectedVm.sockets ?? "—" })}</p>
+                      {cpuMhz != null && cpuTot ? <p className="text-[10px] text-gray-400">{cpuMhz} / {cpuTot} MHz</p> : null}
                     </div>
                   </div>
                 </div>
-                {/* RAM */}
+                ); })()}
+                {/* RAM (vmware: memoria activa en vivo) */}
+                {(() => { const mon = monSnapshot?.vms.find((m) => m.vmId === selectedVm.id); const memPct = mon?.memPercent ?? selectedVm.metrics?.memoryPercent; return (
                 <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t("memory")}</p>
                   <div className="flex items-center gap-3">
-                    <DonutRing value={selectedVm.metrics?.memoryPercent} color="#10b981" />
+                    <DonutRing value={memPct} color="#10b981" />
                     <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{toGB(selectedVm.memoryMB)}</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{toGB(selectedVm.memoryMB ?? (mon ? mon.memConfiguredMB : undefined))}</p>
                       <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                         {t("estimatedUsage", { value: toGB(selectedVm.memoryMB && selectedVm.metrics?.memoryPercent
-                           ? selectedVm.memoryMB * (selectedVm.metrics.memoryPercent / 100) : undefined) })}
+                         {mon
+                           ? `${mon.memActiveMB} MB activos (host ${mon.hostMemMB} MB)`
+                           : t("estimatedUsage", { value: toGB(selectedVm.memoryMB && selectedVm.metrics?.memoryPercent
+                             ? selectedVm.memoryMB * (selectedVm.metrics.memoryPercent / 100) : undefined) })}
                       </p>
                     </div>
                   </div>
                 </div>
+                ); })()}
                 {/* Disk/Net */}
                 <div className="rounded-lg border bg-white dark:bg-[#171326] p-3" style={{ borderColor: "var(--border)" }}>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">I/O</p>
+                  {(tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" && !selectedVm.metrics?.diskReadBytes && (
+                    <p className="mb-1 text-[10px] text-gray-400">{t("liveMetricsNote")} — tasas de I/O no disponibles en este engine</p>
+                  )}
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between">
                        <span className="text-gray-500 dark:text-gray-400">{t("diskRead")}</span>
