@@ -533,6 +533,7 @@ function ConsolePageContent() {
               <>
                 <button onClick={syncClipboardFromVM} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('copyTitle')}>↓ {t('copy')}</button>
                 <button onClick={syncClipboardToVM} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('pasteTitle')}>↑ {t('paste')}</button>
+                <button onClick={() => { setClipboardText(''); setVmClipboard(''); }} className="text-xs px-2 py-1 rounded border border-gray-600 bg-gray-800 text-white/80 hover:bg-gray-700" title={t('clearClipboard')}>✕ {t('clearClipboard')}</button>
               </>
             )}
           </div>

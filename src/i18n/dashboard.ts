@@ -255,6 +255,7 @@ export const dashboardMessages: Messages = {
   cpuUsage: msg("CPU", "CPU", "CPU", "CPU"),
   memUsage: msg("Memoria", "Memory", "Speicher", "Memória"),
   liveMetricsNote: msg("En vivo desde vSphere (cada 10s)", "Live from vSphere (every 10s)", "Live aus vSphere (alle 10s)", "Ao vivo do vSphere (cada 10s)"),
+  clearClipboard: msg("Limpiar", "Clear", "Leeren", "Limpar"),
   convertToTemplate: msg("Convertir en template", "Convert to template", "In Vorlage konvertieren", "Converter em template"),
   templateCreated: msg("VM convertida en template", "VM converted to template", "VM in Vorlage kononvertiert", "VM convertida em template"),
   selectOvaFile: msg("Seleccionar archivo .ova", "Select .ova file", ".ova-Datei auswählen", "Selecionar ficheiro .ova"),
