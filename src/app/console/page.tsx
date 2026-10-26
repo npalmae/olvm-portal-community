@@ -463,8 +463,21 @@ function ConsolePageContent() {
   const syncClipboardToVM = async () => {
     const rfb = rfbRef.current;
     if (!rfb) return;
+    // El server RFB del ESXi no soporta ClientCutText (clipboardPasteFrom no
+    // llega al guest): se teclea el texto como pulsaciones RFB.
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     try {
-      rfb.clipboardPasteFrom(clipboardText);
+      const text = clipboardText.slice(0, 4000);
+      setInfoMsg(t('sentToVm'));
+      for (const ch of text) {
+        let keysym = ch.codePointAt(0) ?? 32;
+        if (ch === '\n') keysym = 0xff0d;
+        else if (ch === '\t') keysym = 0xff09;
+        rfb.sendKey(keysym, ch, true);
+        await sleep(12);
+        rfb.sendKey(keysym, ch, false);
+        await sleep(12);
+      }
       setInfoMsg(t('sentToVm'));
     } catch {
       setInfoMsg(t('sendToVmFailed'));
