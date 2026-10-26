@@ -2036,10 +2036,13 @@ export default function Home() {
                   {(tenants.find((tt) => tt.id === selectedTenant)?.engineType) === "vmware" && monSnapshot && (
                     <div className="flex w-40 shrink-0 flex-col justify-between rounded-lg border bg-white p-2.5 dark:bg-[#171326]" style={{ borderColor: "var(--border)" }} title={t("liveMetricsNote")}>
                       <div className="flex items-center gap-1">
-                        {([["none", "●"], ["cpu", "CPU"], ["mem", "RAM"]] as const).map(([val, label]) => (
+                        {([["none", "logo"], ["cpu", "CPU"], ["mem", "RAM"]] as const).map(([val, label]) => (
                           <button key={val} onClick={() => setSidebarMetric(val)}
-                            className={`flex-1 rounded px-1 py-1 text-[10px] font-semibold transition-colors ${sidebarMetric === val ? "bg-blue-600 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
-                            {label}
+                            className={`flex flex-1 items-center justify-center rounded px-1 py-1 text-[10px] font-semibold transition-colors ${sidebarMetric === val ? "bg-blue-600 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+                            {label === "logo" ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src="/logo-vp-mark.svg" alt="Virtual Portal" className={`h-3.5 w-3.5 object-contain ${sidebarMetric === "none" ? "brightness-0 invert" : "opacity-50"}`} />
+                            ) : label}
                           </button>
                         ))}
                       </div>
