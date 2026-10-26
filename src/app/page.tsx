@@ -275,7 +275,7 @@ export default function Home() {
   const [sidebarMetric, setSidebarMetric] = useState<"none" | "cpu" | "mem">("none");
   const [aggHistory, setAggHistory] = useState<{ cpu: number[]; mem: number[] }>({ cpu: [], mem: [] });
   const [monSnapshot, setMonSnapshot] = useState<{ vms: { vmId: string; name: string; status: string; cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; swappedMB: number; balloonMB: number; heartbeat: string; ip?: string; powerState: string }[]; hosts: { id: string; name: string; state: string }[]; datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: string }[]; generatedAt: string } | null>(null);
-  const [vmStats, setVmStats] = useState<Record<string, { cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; hostMemMB: number; swappedMB: number; balloonMB: number; status: string; ip?: string; heartbeat: string; powerState: string }>>({});
+  const [vmStats, setVmStats] = useState<Record<string, { cpuPercent: number; cpuMhz: number; cpuTotalMhz: number; memPercent: number; memActiveMB: number; memConfiguredMB: number; hostMemMB: number; diskConsumedGB?: number; diskProvisionedGB?: number; swappedMB: number; balloonMB: number; status: string; ip?: string; heartbeat: string; powerState: string }>>({});
   const [statsHistory, setStatsHistory] = useState<Record<string, { cpu: number[]; mem: number[] }>>({});
   const [newDiskSize, setNewDiskSize] = useState("50");
   const [newDiskSd, setNewDiskSd] = useState("");
@@ -3493,7 +3493,12 @@ export default function Home() {
                         {sparkLine(hist!.mem, "text-emerald-500")}
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-5">
+                      <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                        <p className="text-[9px] uppercase text-gray-400">{t("storageUse")}</p>
+                        <p className="font-semibold text-violet-500">{st.diskConsumedGB ?? 0} / {st.diskProvisionedGB ?? 0} GB</p>
+                        <p className="text-[9px] text-gray-400">consumido</p>
+                      </div>
                       <div className="rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
                         <p className="text-[9px] uppercase text-gray-400">{t("status")}</p>
                         <p className={`font-semibold ${st.status === "red" ? "text-red-500" : st.status === "yellow" ? "text-amber-500" : "text-emerald-500"}`}>{st.status}</p>

@@ -1095,6 +1095,8 @@ export const fetchTemplates = async (tenantId: string): Promise<OlvmTemplate[]> 
 };
 
 export type VmLiveStats = {
+  diskConsumedGB?: number;
+  diskProvisionedGB?: number;
   status: string;
   cpuPercent: number;
   cpuMhz: number;
@@ -1136,6 +1138,32 @@ export type MonitoringSnapshot = {
   hosts: { id: string; name: string; state: string }[];
   datastores: { id: string; name: string; usedPercent: number; freeGB: number; totalGB: number; status: "green" | "yellow" | "red" }[];
   generatedAt: string;
+};
+
+/** Consumo real de disco de una VM: suma de flat/seed de su carpeta en el datastore. */
+const vmDiskConsumedGB = async (tenant: TenantConfig, vmdkFile: string): Promise<number> => {
+  const m = /^\[([^\]]+)\]\s*(.+)$/.exec(vmdkFile);
+  if (!m) return 0;
+  const dir = m[2].split("/").slice(0, -1).join("/");
+  const dirInfo = await datastoreIsoDir(tenant);
+  if (!dirInfo) return 0;
+  const cookie = await soapLogin(tenant);
+  const res = await undiciFetch(
+    `${tenant.baseUrl}/folder/${dir.split("/").map(encodeURIComponent).join("/")}` +
+    `?dsName=${encodeURIComponent(m[1])}&dcPath=${encodeURIComponent(dirInfo.dcName)}`,
+    { headers: { Cookie: cookie }, dispatcher: getDispatcher(tenant) as never },
+  ).catch(() => null);
+  if (!res || !res.ok) return 0;
+  const html = await res.text();
+  let bytes = 0;
+  for (const row of html.match(/<tr[^>]*>([\s\S]*?)<\/tr>/g) ?? []) {
+    const href = /href="([^"]+)"/.exec(row)?.[1] ?? "";
+    if (!/-(flat|seed)\.vmdk$/i.test(href.split("?")[0])) continue;
+    const txt = row.replace(/<[^>]+>/g, " ").trim().split(/\s+/);
+    const size = Number(txt.find((x) => /^\d{6,}$/.test(x)) ?? 0);
+    if (size) bytes += size;
+  }
+  return Math.round((bytes / 1024 ** 3) * 10) / 10;
 };
 
 /** Snapshot de monitoreo del tenant: quickStats de cada VM (queries SOAP
@@ -1214,14 +1242,25 @@ export const fetchVmStats = async (tenantId: string, vmId: string): Promise<VmLi
     `<pathSet>summary.guest.ipAddress</pathSet><pathSet>runtime.powerState</pathSet>` +
     `</propSet><objectSet><obj type="VirtualMachine">${vmId}</obj></objectSet></specSet>` +
     `<options/></RetrievePropertiesEx>`);
-  const detail = await viFetch<{ cpu?: { count?: number }; memory?: { size_MiB?: number }; power_state?: string }>(
-    tenant, `/api/vcenter/vm/${vmId}`).catch(() => null as { cpu?: { count?: number }; memory?: { size_MiB?: number }; power_state?: string } | null) ?? {};
+  const detail = await viFetch<{
+    cpu?: { count?: number }; memory?: { size_MiB?: number }; power_state?: string;
+    disks?: Record<string, { capacity?: number; backing?: { vmdk_file?: string } }>;
+  }>(tenant, `/api/vcenter/vm/${vmId}`).catch(() => null as {
+    cpu?: { count?: number }; memory?: { size_MiB?: number }; power_state?: string;
+    disks?: Record<string, { capacity?: number; backing?: { vmdk_file?: string } }>;
+  } | null) ?? {};
+  const diskEntries = Object.values(detail.disks ?? {});
+  const diskProvisionedGB = Math.round(diskEntries.reduce((a, d) => a + (d.capacity ?? 0), 0) / 1024 ** 3 * 10) / 10;
+  const firstVmdk = diskEntries[0]?.backing?.vmdk_file;
+  const diskConsumedGB = firstVmdk ? await vmDiskConsumedGB(tenant, firstVmdk) : 0;
   const num = (tag: string) => { const m = new RegExp(`<${tag}>(-?\\d+)</${tag}>`).exec(xml); return m ? parseInt(m[1], 10) : 0; };
   const cpuMhz = num("overallCpuUsage");
   const cpuTotalMhz = num("staticCpuEntitlement") || (detail.cpu?.count ?? 1) * 2000;
   const memActive = num("guestMemoryUsage");
   const memCfg = detail.memory?.size_MiB ?? num("grantedMemory");
   return {
+    diskConsumedGB,
+    diskProvisionedGB,
     status: /ManagedEntityStatus">([a-z]+)</.exec(xml)?.[1] ?? "gray",
     cpuMhz,
     cpuTotalMhz,
