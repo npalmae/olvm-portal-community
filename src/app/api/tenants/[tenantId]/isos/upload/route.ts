@@ -92,10 +92,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
         await new Promise((r) => setTimeout(r, 2000));
       }
 
-      // 3. Crear image transfer
+      // 3. Crear image transfer — anclada a un host UP cuando exista:
+      //    oVelt devuelve transfer_url directo al imageio del host y evita
+      //    el proxy del engine (que puede tener backend engine→host roto).
+      let hostParam: Record<string, unknown> | undefined;
+      try {
+        const hostsRes = await olvmRaw(tenant, "/hosts?search=status%3Dup", {});
+        const hostsJson = JSON.parse(hostsRes) as { host?: Array<{ id?: string }> };
+        const upHost = (hostsJson.host ?? [])[0]?.id;
+        if (upHost) hostParam = { host: { id: upHost } };
+      } catch { /* sin host: comportamiento clásico */ }
       const tRes = await olvmRaw(tenant, "/imagetransfers", {
         method: "POST",
-        body: JSON.stringify({ disk: { id: diskId }, direction: "upload" }),
+        body: JSON.stringify({ disk: { id: diskId }, direction: "upload", ...hostParam }),
       });
       let transferId = "";
       let proxyUrl = "";
