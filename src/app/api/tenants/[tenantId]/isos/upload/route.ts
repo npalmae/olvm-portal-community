@@ -102,11 +102,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       try {
         const tj = JSON.parse(tRes);
         transferId = tj.id ?? "";
-        proxyUrl = tj.proxy_url ?? tj.transfer_url ?? "";
+        // transfer_url (imageio directo del host) evita el proxy del engine,
+        // cuyo salto engine→host puede tener TLS interno roto (ocloud).
+        proxyUrl = tj.transfer_url ?? tj.proxy_url ?? "";
       } catch {
         transferId = tRes.match(/id="([^"]+)"/)?.[1] ?? "";
-        proxyUrl = tRes.match(/<proxy_url>([^<]+)<\/proxy_url>/)?.[1]
-          ?? tRes.match(/<transfer_url>([^<]+)<\/transfer_url>/)?.[1] ?? "";
+        proxyUrl = tRes.match(/<transfer_url>([^<]+)<\/transfer_url>/)?.[1]
+          ?? tRes.match(/<proxy_url>([^<]+)<\/proxy_url>/)?.[1] ?? "";
       }
       if (!transferId || !proxyUrl) throw new Error("No se pudo iniciar transferencia");
 
