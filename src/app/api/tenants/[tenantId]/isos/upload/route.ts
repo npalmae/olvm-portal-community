@@ -175,6 +175,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
 
     return NextResponse.json({ ok: true, chunk: idx, done });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+    console.error("[iso-upload] fallo:", error);
+    return NextResponse.json({ error: "No se pudo subir la ISO. Inténtalo nuevamente." }, { status: 502 });
   }
 }

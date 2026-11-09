@@ -92,9 +92,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
     } catch (error) {
       await rm(upload.filePath, { force: true });
       sessions.delete(id);
-      throw new Error(`Archivo inválido: ${(error as Error).message}`);
+      throw new Error("Archivo inválido: el OVA está corrupto o no se pudo leer");
     }
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    console.error("[ova-upload] fallo:", error);
+    return NextResponse.json({ error: "No se pudo subir el archivo. Inténtalo nuevamente." }, { status: 400 });
   }
 }

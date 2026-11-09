@@ -38,24 +38,40 @@ const resolveSshCredentials = async (): Promise<SshCredentials> => {
   return { user: sshUser, password: sshPassword };
 };
 
+// Los errores crudos de execFile incluyen el comando completo (con la
+// password de sshpass en texto plano). Nunca deben llegar al cliente:
+// se registra el detalle en el server y se relanza un mensaje seguro.
+const sanitizeExecError = (error: unknown, safeMessage: string): Error => {
+  console.error(`[ova-import] ${safeMessage}:`, error instanceof Error ? error.message : error);
+  return new Error(safeMessage);
+};
+
 const sshExec = async (credentials: SshCredentials, hostAddress: string, command: string, timeoutMs = 300_000) => {
-  const { stdout } = await execFileAsync("sshpass", [
-    "-p", credentials.password,
-    "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-    `${credentials.user}@${hostAddress}`,
-    command,
-  ], { timeout: timeoutMs, maxBuffer: 50 * 1024 * 1024 });
-  return stdout;
+  try {
+    const { stdout } = await execFileAsync("sshpass", [
+      "-p", credentials.password,
+      "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+      `${credentials.user}@${hostAddress}`,
+      command,
+    ], { timeout: timeoutMs, maxBuffer: 50 * 1024 * 1024 });
+    return stdout;
+  } catch (error) {
+    throw sanitizeExecError(error, "No se pudo ejecutar la operación en el host OLVM");
+  }
 };
 
 const scpToHost = async (credentials: SshCredentials, localPath: string, hostAddress: string, remotePath: string) => {
-  await execFileAsync("sshpass", [
-    "-p", credentials.password,
-    "scp",
-    "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-    localPath,
-    `${credentials.user}@${hostAddress}:${remotePath}`,
-  ], { timeout: 540_000, maxBuffer: 10 * 1024 * 1024 });
+  try {
+    await execFileAsync("sshpass", [
+      "-p", credentials.password,
+      "scp",
+      "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+      localPath,
+      `${credentials.user}@${hostAddress}:${remotePath}`,
+    ], { timeout: 540_000, maxBuffer: 10 * 1024 * 1024 });
+  } catch (error) {
+    throw sanitizeExecError(error, "No se pudo transferir el archivo al host OLVM");
+  }
 };
 
 export async function POST(request: Request, context: { params: Promise<{ tenantId: string }> }) {
@@ -204,7 +220,20 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
 
     return NextResponse.json({ ok: true, vmId, pending: false, catalogWarning });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    // Mensaje genérico al cliente; el detalle queda en los logs del server
+    // (los errores crudos pueden contener comandos, hosts y credenciales).
+    console.error("[ova-import] fallo:", error);
+    const detail = (error as Error).message;
+    const safe =
+      detail === "No se pudo ejecutar la operación en el host OLVM" ||
+      detail === "No se pudo transferir el archivo al host OLVM"
+        ? detail
+        : detail.includes("qemu-img")
+          ? "El disco del OVA no es válido o está corrupto"
+          : detail.includes("tar")
+            ? "El OVA no se pudo extraer: archivo inválido o corrupto"
+            : "No se pudo importar el OVA. Revisa los datos e inténtalo nuevamente.";
+    return NextResponse.json({ error: safe }, { status: 400 });
   } finally {
     if (hostAddr && extractDir && sshCredentials) {
       void sshExec(sshCredentials, hostAddr, `rm -rf ${extractDir}`).catch(() => undefined);
