@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Chunks de subida OVA/ISO son de 50MB; el default de 10MB trunca el body
+    // en rutas con proxy/middleware y corrompe los archivos subidos.
+    proxyClientMaxBodySize: "100mb",
+  },
   serverExternalPackages: ["undici"],
   devIndicators: false,
   poweredByHeader: false,
