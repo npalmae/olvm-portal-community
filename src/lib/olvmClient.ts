@@ -164,6 +164,22 @@ export type ConnectionTestResult = {
 type SsoTokenEntry = { token: string; expiresAt: number };
 const ssoTokenCache = new Map<string, SsoTokenEntry>();
 
+/**
+ * Header de Authorization para el engine, con el mismo orden del flujo
+ * principal: token estático → token SSO (Keycloak) → Basic. Rutas con
+ * clientes propios (isos/upload) deben usar esto en vez de armar Basic
+ * a mano: en engines con internal SSO el Basic es rechazado.
+ */
+export const buildEngineAuthHeader = async (tenant: TenantConfig): Promise<string> => {
+  if (tenant.token) return `Bearer ${tenant.token.trim()}`;
+  if (tenant.username && tenant.password) {
+    const sso = await getSsoToken(tenant);
+    if (sso) return `Bearer ${sso}`;
+    return `Basic ${Buffer.from(`${tenant.username}:${tenant.password}`, "utf-8").toString("base64")}`;
+  }
+  throw new Error("Engine sin credenciales configuradas");
+};
+
 export const invalidateSsoTokenCache = () => {
   ssoTokenCache.clear();
 };

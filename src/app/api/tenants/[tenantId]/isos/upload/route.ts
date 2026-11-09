@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { assertTenantAccess } from "@/lib/authz";
 import { resolveTenant } from "@/lib/config";
+import { buildEngineAuthHeader } from "@/lib/olvmClient";
 import { Agent as UndiciAgent, fetch as undiciFetch } from "undici";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +26,7 @@ const sessions = new Map<string, {
 
 const olvmRaw = async (tenant: Awaited<ReturnType<typeof resolveTenant>>, path: string, options?: RequestInit) => {
   const url = `${tenant.baseUrl}${path}`;
-  const auth = tenant.token
-    ? `Bearer ${tenant.token}`
-    : `Basic ${Buffer.from(`${tenant.username}:${tenant.password}`).toString("base64")}`;
+  const auth = await buildEngineAuthHeader(tenant);
   const res = await undiciFetch(url, {
     ...options,
     headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: auth, ...(options?.headers as Record<string, string>) },
