@@ -108,12 +108,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
       });
       let transferId = "";
       let proxyUrl = "";
+      let directHostUrl = false;
       try {
         const tj = JSON.parse(tRes);
         transferId = tj.id ?? "";
         // transfer_url (imageio directo del host) evita el proxy del engine,
         // cuyo salto engine→host puede tener TLS interno roto (ocloud).
         proxyUrl = tj.transfer_url ?? tj.proxy_url ?? "";
+        directHostUrl = Boolean(tj.transfer_url);
       } catch {
         transferId = tRes.match(/id="([^"]+)"/)?.[1] ?? "";
         proxyUrl = tRes.match(/<transfer_url>([^<]+)<\/transfer_url>/)?.[1]
@@ -131,13 +133,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ tenantId: 
         if (phase.includes("failure") || phase.includes("error")) throw new Error("Transfer fallida");
       }
 
-      // 5. Reemplazar hostname por IP del engine
+      // 5. Normalizar hostname — SOLO para proxy_url del engine.
+      // transfer_url ya apunta al imageio del host y no debe reescribirse:
+      // hacerlo manda el chunk de vuelta al proxy del engine (backend roto).
       const engineHost = new URL(tenant.baseUrl).hostname;
       let uploadUrl = proxyUrl;
-      try {
-        const proxyHost = new URL(proxyUrl).hostname;
-        if (proxyHost !== engineHost) uploadUrl = proxyUrl.replace(proxyHost, engineHost);
-      } catch { /* keep */ }
+      if (!directHostUrl) {
+        try {
+          const proxyHost = new URL(proxyUrl).hostname;
+          if (proxyHost !== engineHost) uploadUrl = proxyUrl.replace(proxyHost, engineHost);
+        } catch { /* keep */ }
+      }
 
       const sid = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       sessions.set(sid, {
